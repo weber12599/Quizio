@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: 
+      context: ./quizio-backend
+      dockerfile: dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./quizio-backend:/app
+    restart: unless-stopped
+  frontend:
+    build: ./quizio-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./quizio-frontend:/app
+      # Exclude node_modules from host volume override
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      - backend
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    # Tell cloudflared to point to our Vue frontend dev server
+    command: tunnel --url http://frontend:5173
+    restart: unless-stopped
+    depends_on:
+      - frontend
