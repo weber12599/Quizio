@@ -1,19 +1,19 @@
 services:
   backend:
     build: 
-      context: ./quizio-backend
+      context: ./backend
       dockerfile: dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./quizio-backend:/app
+      - ./backend:/app
     restart: unless-stopped
   frontend:
-    build: ./quizio-frontend
+    build: ./frontend
     ports:
       - "5173:5173"
     volumes:
-      - ./quizio-frontend:/app
+      - ./frontend:/app
       # Exclude node_modules from host volume override
       - /app/node_modules
     restart: unless-stopped
