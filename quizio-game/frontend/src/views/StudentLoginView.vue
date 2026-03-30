@@ -60,7 +60,7 @@ const isFormValid = computed(
   () =>
     roomPin.value.trim() !== '' &&
     studentId.value.trim() !== '' &&
-    password.value.trim() !== '',
+    password.value.trim() !== ''
 );
 
 const joinRoom = () => {
@@ -72,8 +72,8 @@ const joinRoom = () => {
     params: {
       pin: roomPin.value.trim(),
       student_id: studentId.value.trim(),
-      pwd: password.value.trim(),
-    },
+      pwd: password.value.trim()
+    }
   });
 };
 </script>

@@ -14,9 +14,9 @@ const router = createRouter({
     {
       path: '/room/:pin/:student_id/:pwd',
       name: 'room',
-      component: StudentRoomView,
-    },
-  ],
+      component: StudentRoomView
+    }
+  ]
 });
 
 export default router;

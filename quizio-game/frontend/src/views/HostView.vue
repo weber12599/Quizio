@@ -57,7 +57,9 @@ onMounted(async () => {
 
   // Connect to WebSocket as Host
   const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${wsProtocol}//${host}/ws/${roomPin.value}/Host_Teacher/Host_Teacher`);
+  ws = new WebSocket(
+    `${wsProtocol}//${host}/ws/${roomPin.value}/Host_Teacher/Host_Teacher`
+  );
 
   ws.onmessage = (event) => {
     try {
@@ -65,7 +67,7 @@ onMounted(async () => {
       if (message.type === 'room_state') {
         // Filter out the host from the display list
         players.value = message.data.players.filter(
-          (p: string) => p !== 'Host_Teacher',
+          (p: string) => p !== 'Host_Teacher'
         );
       }
     } catch (e) {

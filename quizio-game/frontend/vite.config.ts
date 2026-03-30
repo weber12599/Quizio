@@ -13,13 +13,13 @@ export default defineConfig({
       '/ws': {
         target: 'http://backend:8000',
         changeOrigin: true,
-        ws: true,
+        ws: true
       },
       // Forward standard API requests
       '/api': {
         target: 'http://backend:8000',
-        changeOrigin: true,
-      },
-    },
-  },
+        changeOrigin: true
+      }
+    }
+  }
 });
