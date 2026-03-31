@@ -51,6 +51,7 @@ class QuestionBase(BaseModel):
     )
     lesson: Optional[str] = None
     literacy_tags: Optional[List[str]] = None
+    is_archived: Optional[bool] = False
 
 
 # Properties required for creation

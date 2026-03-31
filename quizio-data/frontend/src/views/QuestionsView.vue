@@ -71,8 +71,8 @@
             <el-button size="small" @click="openEditDialog(scope.row)">
               <el-icon><Edit /></el-icon> Edit
             </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(scope.row)">
-              <el-icon><Delete /></el-icon> Delete
+            <el-button size="small" type="warning" plain @click="handleArchive(scope.row)">
+              <el-icon><Box /></el-icon> Archive
             </el-button>
           </template>
         </el-table-column>
@@ -184,7 +184,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Search, Edit, Delete, Box } from '@element-plus/icons-vue'
 
 // Setup axios instance with interceptor for dynamic JWT injection
 const api = axios.create({
@@ -381,22 +381,23 @@ const submitForm = async () => {
 }
 
 // Delete Data
-const handleDelete = (row: Question) => {
+const handleArchive = (row: Question) => {
   ElMessageBox.confirm(
-    'Are you sure you want to delete this question? This action cannot be undone.',
-    'Warning',
+    'Are you sure you want to archive this question? It will be hidden from the active question bank, but kept for historical records.',
+    'Archive Question',
     {
-      confirmButtonText: 'Delete',
+      confirmButtonText: 'Archive',
       cancelButtonText: 'Cancel',
       type: 'warning',
     }
   ).then(async () => {
     try {
+      // 一樣打 DELETE API，因為後端已經改為 Soft Delete
       await api.delete(`/questions/${row.id}`)
-      ElMessage.success('Question deleted successfully')
+      ElMessage.success('Question archived successfully')
       fetchQuestions()
     } catch (error) {
-      ElMessage.error('Failed to delete question')
+      ElMessage.error('Failed to archive question')
     }
   }).catch(() => {
     // Action cancelled

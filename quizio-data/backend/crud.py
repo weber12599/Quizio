@@ -81,7 +81,7 @@ async def get_questions(
     difficulty: int = None,
     lesson: str = None,
 ):
-    query = select(models.Question)
+    query = select(models.Question).where(models.Question.is_archived.is_not(True))
 
     if question_type:
         query = query.where(models.Question.type == question_type)
@@ -121,7 +121,7 @@ async def update_question(
     return db_question
 
 
-# Delete a question
+# Delete a question (Soft Delete)
 async def delete_question(db: AsyncSession, db_question: models.Question):
-    await db.delete(db_question)
+    db_question.is_archived = True
     await db.commit()

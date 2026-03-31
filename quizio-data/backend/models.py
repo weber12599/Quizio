@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import JSON, Column, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, Integer, String, Text
 
 
 # Define the Student ORM model
@@ -26,3 +26,4 @@ class Question(Base):
     difficulty = Column(Integer, nullable=True, index=True)
     lesson = Column(String(100), nullable=True, index=True)
     literacy_tags = Column(JSON, nullable=True)
+    is_archived = Column(Boolean, default=False, nullable=False, index=True)
