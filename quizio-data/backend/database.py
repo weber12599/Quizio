@@ -1,11 +1,12 @@
 import os
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
 # Fetch database URL from environment variable
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql+asyncpg://quizio_admin:your_secure_db_password@localhost:5432/quizio_data"
+    'DATABASE_URL',
+    'postgresql+asyncpg://quizio_admin:your_secure_db_password@db:5432/quizio_data',
 )
 
 # Create asynchronous database engine
@@ -17,6 +18,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 Base = declarative_base()
+
 
 # Dependency to get DB session
 async def get_db():
