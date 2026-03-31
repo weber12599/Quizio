@@ -4,9 +4,7 @@ from contextlib import asynccontextmanager
 from database import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# Import routers
-from routers import auth, students
+from routers import auth, questions, students
 
 
 # Lifespan context to initialize database
@@ -31,3 +29,4 @@ app.add_middleware(
 # Register API routers
 app.include_router(auth.router)
 app.include_router(students.router)
+app.include_router(questions.router)

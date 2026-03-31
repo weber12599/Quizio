@@ -64,3 +64,64 @@ async def update_student(
 async def delete_student(db: AsyncSession, db_student: models.Student):
     await db.delete(db_student)
     await db.commit()
+
+
+# Get a single question by ID
+async def get_question(db: AsyncSession, question_id: int):
+    result = await db.execute(
+        select(models.Question).where(models.Question.id == question_id)
+    )
+    return result.scalar_one_or_none()
+
+
+# Get multiple questions with optional filters
+async def get_questions(
+    db: AsyncSession,
+    question_type: str = None,
+    difficulty: int = None,
+    lesson: str = None,
+):
+    query = select(models.Question)
+
+    if question_type:
+        query = query.where(models.Question.type == question_type)
+    # Filter by difficulty if provided
+    if difficulty is not None:
+        query = query.where(models.Question.difficulty == difficulty)
+    if lesson:
+        query = query.where(models.Question.lesson == lesson)
+
+    query = query.order_by(models.Question.id.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+# Create a new question
+async def create_question(db: AsyncSession, question: schemas.QuestionCreate):
+    db_question = models.Question(**question.model_dump())
+    db.add(db_question)
+    await db.commit()
+    await db.refresh(db_question)
+    return db_question
+
+
+# Update an existing question dynamically
+async def update_question(
+    db: AsyncSession,
+    db_question: models.Question,
+    question_update: schemas.QuestionUpdate,
+):
+    update_data = question_update.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_question, key, value)
+
+    await db.commit()
+    await db.refresh(db_question)
+    return db_question
+
+
+# Delete a question
+async def delete_question(db: AsyncSession, db_question: models.Question):
+    await db.delete(db_question)
+    await db.commit()
