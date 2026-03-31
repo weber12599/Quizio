@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 
 # Import core components
-from database import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import auth, questions, students
@@ -10,8 +9,6 @@ from routers import auth, questions, students
 # Lifespan context to initialize database
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     yield
 
 

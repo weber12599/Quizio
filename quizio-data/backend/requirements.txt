@@ -5,3 +5,4 @@ asyncpg==0.31.0
 pydantic==2.12.5
 PyJWT==2.12.1
 python-multipart==0.0.22
+alembic==1.18.4
