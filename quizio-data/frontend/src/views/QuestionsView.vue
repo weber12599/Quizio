@@ -100,15 +100,30 @@
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="Actions" width="180" fixed="right">
+                <el-table-column label="Actions" width="200" fixed="right">
                     <template #default="scope">
                         <el-button
                             size="small"
                             @click="openEditDialog(scope.row)"
                         >
-                            <el-icon><Edit /></el-icon> Edit
+                            <el-icon>
+                                <Edit
+                                    v-if="
+                                        authStore.user?.id ===
+                                        scope.row.owner_id
+                                    "
+                                />
+                                <CopyDocument v-else />
+                            </el-icon>
+                            {{
+                                authStore.user?.id === scope.row.owner_id
+                                    ? 'Edit'
+                                    : 'Copy & Edit'
+                            }}
                         </el-button>
+
                         <el-button
+                            v-if="authStore.user?.id === scope.row.owner_id"
                             size="small"
                             type="warning"
                             plain
@@ -310,8 +325,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, Box } from '@element-plus/icons-vue'
+import {
+    Plus,
+    Search,
+    Edit,
+    Delete,
+    Box,
+    CopyDocument
+} from '@element-plus/icons-vue'
 import api from '../api'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
 
 interface Question {
     id: number
@@ -323,6 +348,7 @@ interface Question {
     lesson: string | null
     literacy_tags: string[] | null
     is_public: boolean
+    owner_id: number
 }
 
 // Component State
@@ -412,8 +438,10 @@ const openAddDialog = () => {
 }
 
 const openEditDialog = (row: Question) => {
-    dialogType.value = 'edit'
+    const isOwner = authStore.user?.id === row.owner_id
+    dialogType.value = isOwner ? 'edit' : 'add'
     originalIsPublic.value = row.is_public
+
     formData.value = {
         id: row.id,
         type: row.type,
@@ -427,6 +455,13 @@ const openEditDialog = (row: Question) => {
         literacy_tags: row.literacy_tags ? [...row.literacy_tags] : [],
         is_public: row.is_public
     }
+
+    if (!isOwner) {
+        ElMessage.info(
+            'You are copying a public question. Saving will create a new copy in your bank.'
+        )
+    }
+
     dialogVisible.value = true
 }
 
