@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -98,6 +98,13 @@ const currentRouteName = computed(() => {
 const handleLogout = () => {
     authStore.logout()
 }
+
+onMounted(async () => {
+    // Check if token exists but user data is missing after page reload
+    if (authStore.token && !authStore.user) {
+        await authStore.fetchUserProfile()
+    }
+})
 </script>
 
 <style scoped>
