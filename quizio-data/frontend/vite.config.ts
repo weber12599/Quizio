@@ -1,17 +1,17 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [vue()],
-  server: {
-    host: '0.0.0.0',
-    port: 5174,
-    strictPort: true,
-    proxy: {
-      '/api': {
-        target: 'http://backend:8080',
-        changeOrigin: true
-      }
+    plugins: [vue()],
+    server: {
+        host: '0.0.0.0',
+        port: 5174,
+        strictPort: true,
+        proxy: {
+            '/api': {
+                target: 'http://backend:8080',
+                changeOrigin: true
+            }
+        }
     }
-  }
-});
+})
