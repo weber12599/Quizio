@@ -28,7 +28,7 @@
 
                 <el-menu-item index="/admin/questions">
                     <el-icon><Document /></el-icon>
-                    <span>Question Bank</span>
+                    <span>Question Management</span>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/exams">

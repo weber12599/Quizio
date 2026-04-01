@@ -3,7 +3,7 @@
         <el-card>
             <template #header>
                 <div class="card-header">
-                    <h2>Question Bank Management</h2>
+                    <h2>Question Management</h2>
                     <el-button type="primary" @click="openAddDialog">
                         <el-icon><Plus /></el-icon> Add Question
                     </el-button>
