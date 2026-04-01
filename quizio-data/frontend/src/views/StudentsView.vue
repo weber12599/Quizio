@@ -14,7 +14,7 @@
                 <el-form-item label="Admission Year">
                     <el-input-number
                         v-model="filterYear"
-                        placeholder="e.g., 112"
+                        :placeholder="`e.g., ${new Date().getFullYear() - 1911}`"
                         :controls="false"
                     />
                 </el-form-item>
@@ -138,23 +138,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete } from '@element-plus/icons-vue'
-
-// Setup axios instance with interceptor for dynamic JWT injection
-const api = axios.create({
-    baseURL: '/api'
-})
-
-api.interceptors.request.use((config) => {
-    const authStore = useAuthStore()
-    if (authStore.token) {
-        config.headers.Authorization = `Bearer ${authStore.token}`
-    }
-    return config
-})
+import api from '../api'
 
 // Define TypeScript interfaces
 interface Student {
@@ -172,7 +158,7 @@ const loading = ref(false)
 const submitLoading = ref(false)
 
 // Filter State
-const filterYear = ref<number | ''>('')
+const filterYear = ref<number | null>(null)
 const filterClass = ref<string>('')
 
 // Form State
@@ -195,7 +181,7 @@ const fetchStudents = async () => {
         if (filterYear.value) params.admission_year = filterYear.value
         if (filterClass.value) params.class_name = filterClass.value
 
-        const response = await api.get('/students', { params })
+        const response = await api.get('/api/students/', { params })
         students.value = response.data
     } catch (error: any) {
         if (error.response?.status === 401) {
@@ -265,7 +251,7 @@ const submitForm = async () => {
             const payload = { ...formData.value }
             if (payload.email === '') payload.email = null
 
-            await api.post('/students', payload)
+            await api.post('/api/students/', payload)
             ElMessage.success('Student added successfully')
         } else {
             const updateData: any = { ...formData.value }
@@ -275,7 +261,10 @@ const submitForm = async () => {
             }
             if (updateData.email === '') updateData.email = null
 
-            await api.put(`/students/${formData.value.student_id}`, updateData)
+            await api.put(
+                `/api/students/${formData.value.student_id}`,
+                updateData
+            )
             ElMessage.success('Student updated successfully')
         }
         dialogVisible.value = false
@@ -300,7 +289,7 @@ const handleDelete = (row: Student) => {
     )
         .then(async () => {
             try {
-                await api.delete(`/students/${row.student_id}`)
+                await api.delete(`/api/students/${row.student_id}`)
                 ElMessage.success('Student deleted successfully')
                 fetchStudents()
             } catch (error) {
