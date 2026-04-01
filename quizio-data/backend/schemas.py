@@ -84,10 +84,10 @@ class QuestionUpdate(BaseModel):
     type: Optional[str] = None
     difficulty: Optional[int] = None
     lesson: Optional[str] = None
-    content: Optional[dict] = None
-    options: Optional[dict] = None
-    answer: Optional[str] = None
-    literacy_tags: Optional[dict] = None
+    content: Optional[str] = None
+    options: Optional[Any] = None
+    reference_answer: Optional[Any] = None
+    literacy_tags: Optional[List[str]] = None
     is_archived: Optional[bool] = None
     is_public: Optional[bool] = None
 
