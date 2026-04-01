@@ -1,57 +1,98 @@
 from typing import List, Optional
 
-import crud
+import models
 import schemas
+from core.deps import get_current_user
+from crud import questions as crud_questions
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
-
-# Import the oauth2_scheme to protect these routes
-from routers.auth import oauth2_scheme
 from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter(
-    prefix='/api/questions', tags=['questions'], dependencies=[Depends(oauth2_scheme)]
-)
+router = APIRouter(prefix='/api/questions', tags=['questions'])
 
 
-@router.get('', response_model=List[schemas.QuestionOut])
+@router.get('/', response_model=List[schemas.Question])
 async def read_questions(
-    type: Optional[str] = None,
+    question_type: Optional[str] = None,
     difficulty: Optional[int] = None,
     lesson: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud.get_questions(
-        db, question_type=type, difficulty=difficulty, lesson=lesson
+    return await crud_questions.get_questions(
+        db=db,
+        current_user=current_user,
+        question_type=question_type,
+        difficulty=difficulty,
+        lesson=lesson,
     )
 
 
-@router.post(
-    '', response_model=schemas.QuestionOut, status_code=status.HTTP_201_CREATED
-)
-async def create_question(
-    question: schemas.QuestionCreate, db: AsyncSession = Depends(get_db)
-):
-    return await crud.create_question(db=db, question=question)
-
-
-@router.put('/{question_id}', response_model=schemas.QuestionOut)
-async def update_question(
+@router.get('/{question_id}', response_model=schemas.Question)
+async def read_question(
     question_id: int,
-    question_update: schemas.QuestionUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    db_question = await crud.get_question(db, question_id=question_id)
+    db_question = await crud_questions.get_question(db, question_id, current_user)
     if not db_question:
         raise HTTPException(status_code=404, detail='Question not found')
-    return await crud.update_question(
-        db=db, db_question=db_question, question_update=question_update
+    return db_question
+
+
+@router.post('/', response_model=schemas.Question, status_code=status.HTTP_201_CREATED)
+async def create_new_question(
+    question: schemas.QuestionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return await crud_questions.create_question(db, question, current_user)
+
+
+@router.put('/{question_id}', response_model=schemas.Question)
+async def update_existing_question(
+    question_id: int,
+    question_in: schemas.QuestionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # Retrieve the existing question first
+    db_question = await crud_questions.get_question(db, question_id, current_user)
+    if not db_question:
+        raise HTTPException(status_code=404, detail='Question not found')
+
+    # Attempt to update it
+    updated_question = await crud_questions.update_question(
+        db, db_question, question_in, current_user
     )
+
+    # Check if ownership validation failed
+    if not updated_question:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Not authorized to update this question',
+        )
+
+    return updated_question
 
 
 @router.delete('/{question_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_question(question_id: int, db: AsyncSession = Depends(get_db)):
-    db_question = await crud.get_question(db, question_id=question_id)
+async def delete_existing_question(
+    question_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # Retrieve the existing question first
+    db_question = await crud_questions.get_question(db, question_id, current_user)
     if not db_question:
         raise HTTPException(status_code=404, detail='Question not found')
-    await crud.delete_question(db=db, db_question=db_question)
+
+    # Attempt to delete it
+    success = await crud_questions.delete_question(db, db_question, current_user)
+
+    # Check if ownership validation failed
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Not authorized to delete this question',
+        )
