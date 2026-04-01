@@ -6,6 +6,7 @@ import LoginView from '../views/LoginView.vue'
 import AdminLayout from '../layouts/AdminLayout.vue'
 import StudentsView from '../views/StudentsView.vue'
 import QuestionsView from '../views/QuestionsView.vue'
+import TeachersView from '../views/TeachersView.vue'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -28,6 +29,11 @@ const router = createRouter({
                 {
                     path: '',
                     redirect: '/admin/students'
+                },
+                {
+                    path: 'teachers',
+                    name: 'teachers',
+                    component: TeachersView
                 },
                 {
                     path: 'students',

@@ -13,6 +13,14 @@
                 active-text-color="#409eff"
                 router
             >
+                <el-menu-item
+                    v-if="authStore.user?.is_superuser"
+                    index="/admin/teachers"
+                >
+                    <el-icon><Avatar /></el-icon>
+                    <span>Teacher Management</span>
+                </el-menu-item>
+
                 <el-menu-item index="/admin/students">
                     <el-icon><User /></el-icon>
                     <span>Student Management</span>
