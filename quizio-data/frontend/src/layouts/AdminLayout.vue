@@ -30,6 +30,11 @@
                     <el-icon><Document /></el-icon>
                     <span>Question Bank</span>
                 </el-menu-item>
+
+                <el-menu-item index="/admin/exams">
+                    <el-icon><Document /></el-icon>
+                    <span>Exam Management</span>
+                </el-menu-item>
             </el-menu>
         </el-aside>
 
@@ -92,6 +97,7 @@ const authStore = useAuthStore()
 const currentRouteName = computed(() => {
     if (route.path.includes('students')) return 'Students'
     if (route.path.includes('questions')) return 'Questions'
+    if (route.path.includes('exams')) return 'Exams'
     return 'Dashboard'
 })
 

@@ -7,6 +7,7 @@ import AdminLayout from '../layouts/AdminLayout.vue'
 import StudentsView from '../views/StudentsView.vue'
 import QuestionsView from '../views/QuestionsView.vue'
 import TeachersView from '../views/TeachersView.vue'
+import ExamsView from '../views/ExamsView.vue'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -44,6 +45,11 @@ const router = createRouter({
                     path: 'questions',
                     name: 'questions',
                     component: QuestionsView
+                },
+                {
+                    path: 'exams',
+                    name: 'exams',
+                    component: ExamsView
                 }
             ]
         }
