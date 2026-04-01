@@ -66,12 +66,12 @@ if [ "$ACTION" == "down" ]; then
     
     echo "🎮 [1/2] Stopping quizio-game (Game Engine)..."
     cd quizio-game || exit
-    $DOCKER_CMD down
+    $DOCKER_CMD down -v
     cd ..
 
     echo "📦 [2/2] Stopping quizio-data (Data Service)..."
     cd quizio-data || exit
-    $DOCKER_CMD down
+    $DOCKER_CMD down -v
     cd ..
 
     echo "✅ 所有服務已成功關閉！"
