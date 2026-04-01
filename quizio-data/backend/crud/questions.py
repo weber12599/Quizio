@@ -82,12 +82,35 @@ async def update_question(
 
     update_data = question_update.model_dump(exclude_unset=True)
 
-    for key, value in update_data.items():
-        setattr(db_question, key, value)
+    # Step 1: Archive the old question
+    db_question.is_archived = True
 
+    # Step 2: Prepare data for the new question (inherit from old)
+    new_question_data = {
+        'type': db_question.type,
+        'content': db_question.content,
+        'options': db_question.options,
+        'reference_answer': db_question.reference_answer,
+        'difficulty': db_question.difficulty,
+        'lesson': db_question.lesson,
+        'literacy_tags': db_question.literacy_tags,
+        'owner_id': db_question.owner_id,
+        'is_public': db_question.is_public,
+        'is_archived': False,
+    }
+
+    # Step 3: Overwrite with new data
+    for key, value in update_data.items():
+        if key in new_question_data:
+            new_question_data[key] = value
+
+    # Step 4: Create and insert the new question
+    new_question = models.Question(**new_question_data)
+    db.add(new_question)
     await db.commit()
-    await db.refresh(db_question)
-    return db_question
+    await db.refresh(new_question)
+
+    return new_question
 
 
 # Delete a question (Soft Delete) with ownership check

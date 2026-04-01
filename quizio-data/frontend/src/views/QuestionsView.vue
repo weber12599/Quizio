@@ -270,6 +270,26 @@
                     >
                     </el-select>
                 </el-form-item>
+
+                <el-form-item label="Visibility">
+                    <el-switch
+                        v-model="formData.is_public"
+                        active-text="Public"
+                        inactive-text="Private"
+                        :disabled="dialogType === 'edit' && originalIsPublic"
+                    />
+                    <div
+                        style="
+                            font-size: 12px;
+                            color: #909399;
+                            line-height: 1.2;
+                            margin-top: 4px;
+                        "
+                    >
+                        * Once set to public, it cannot be reverted to private
+                        and will be available to all teachers.
+                    </div>
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -302,12 +322,14 @@ interface Question {
     difficulty: number | null
     lesson: string | null
     literacy_tags: string[] | null
+    is_public: boolean
 }
 
 // Component State
 const questions = ref<Question[]>([])
 const loading = ref(false)
 const submitLoading = ref(false)
+const originalIsPublic = ref(false)
 
 // Filter State
 const filterType = ref<string>('')
@@ -325,7 +347,8 @@ const formData = ref<any>({
     reference_answer: 0,
     difficulty: 1,
     lesson: '',
-    literacy_tags: []
+    literacy_tags: [],
+    is_public: false
 })
 
 // Type Configuration Helper
@@ -373,6 +396,7 @@ const resetFilters = () => {
 // Dialog Handlers
 const openAddDialog = () => {
     dialogType.value = 'add'
+    originalIsPublic.value = false
     formData.value = {
         id: null,
         type: 'single',
@@ -381,13 +405,15 @@ const openAddDialog = () => {
         reference_answer: 0,
         difficulty: 1,
         lesson: '',
-        literacy_tags: []
+        literacy_tags: [],
+        is_public: false
     }
     dialogVisible.value = true
 }
 
 const openEditDialog = (row: Question) => {
     dialogType.value = 'edit'
+    originalIsPublic.value = row.is_public
     formData.value = {
         id: row.id,
         type: row.type,
@@ -398,7 +424,8 @@ const openEditDialog = (row: Question) => {
             : row.reference_answer,
         difficulty: row.difficulty || 1,
         lesson: row.lesson || '',
-        literacy_tags: row.literacy_tags ? [...row.literacy_tags] : []
+        literacy_tags: row.literacy_tags ? [...row.literacy_tags] : [],
+        is_public: row.is_public
     }
     dialogVisible.value = true
 }

@@ -61,7 +61,14 @@ async def update_existing_question(
     if not db_question:
         raise HTTPException(status_code=404, detail='Question not found')
 
-    # Attempt to update it
+    # Business Rule: Once a question is public, it cannot be reverted to private
+    if db_question.is_public and question_in.is_public is False:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Once a question is public, it cannot be made private.',
+        )
+
+    # Attempt to update it (this will now archive the old and create a new one)
     updated_question = await crud_questions.update_question(
         db, db_question, question_in, current_user
     )
