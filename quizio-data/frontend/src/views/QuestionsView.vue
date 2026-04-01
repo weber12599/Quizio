@@ -289,25 +289,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Box } from '@element-plus/icons-vue'
+import api from '../api'
 
-// Setup axios instance with interceptor for dynamic JWT injection
-const api = axios.create({
-    baseURL: '/api'
-})
-
-api.interceptors.request.use((config) => {
-    const authStore = useAuthStore()
-    if (authStore.token) {
-        config.headers.Authorization = `Bearer ${authStore.token}`
-    }
-    return config
-})
-
-// Define TypeScript interfaces based on schemas.py
 interface Question {
     id: number
     type: 'single' | 'boolean' | 'multiple' | 'short' | 'essay'
@@ -326,7 +311,7 @@ const submitLoading = ref(false)
 
 // Filter State
 const filterType = ref<string>('')
-const filterDifficulty = ref<number | ''>('')
+const filterDifficulty = ref<number | null>(null)
 const filterLesson = ref<string>('')
 
 // Form State
@@ -355,7 +340,7 @@ const getTypeConfig = (type: string) => {
     return configs[type] || { label: 'Unknown', tagType: '' }
 }
 
-// Fetch Data
+// Fetch Data (Simplified: no complex transformations needed anymore)
 const fetchQuestions = async () => {
     loading.value = true
     try {
@@ -364,7 +349,8 @@ const fetchQuestions = async () => {
         if (filterDifficulty.value) params.difficulty = filterDifficulty.value
         if (filterLesson.value) params.lesson = filterLesson.value
 
-        const response = await api.get('/questions', { params })
+        // Remember to keep the trailing slash
+        const response = await api.get('/api/questions/', { params })
         questions.value = response.data
     } catch (error: any) {
         ElMessage.error('Failed to fetch questions.')
@@ -379,7 +365,7 @@ const handleSearch = () => {
 
 const resetFilters = () => {
     filterType.value = ''
-    filterDifficulty.value = ''
+    filterDifficulty.value = null
     filterLesson.value = ''
     fetchQuestions()
 }
@@ -406,9 +392,7 @@ const openEditDialog = (row: Question) => {
         id: row.id,
         type: row.type,
         content: row.content,
-        // Provide a default empty array if options are null to prevent UI crash
         options: row.options ? [...row.options] : [],
-        // Clone array if multiple to avoid direct mutation
         reference_answer: Array.isArray(row.reference_answer)
             ? [...row.reference_answer]
             : row.reference_answer,
@@ -421,7 +405,6 @@ const openEditDialog = (row: Question) => {
 
 // Dynamic Form Handlers
 const handleTypeChange = (newType: string) => {
-    // Reset options and answers based on newly selected type
     if (newType === 'single') {
         formData.value.options = [
             'Option 1',
@@ -453,7 +436,6 @@ const addOption = () => {
 
 const removeOption = (index: number) => {
     formData.value.options.splice(index, 1)
-    // Ensure reference_answer stays valid if an option is removed
     if (
         formData.value.type === 'single' &&
         formData.value.reference_answer >= formData.value.options.length
@@ -466,7 +448,7 @@ const removeOption = (index: number) => {
     }
 }
 
-// Submit Data
+// Submit Data (Simplified: direct mapping to backend JSON schema)
 const submitForm = async () => {
     if (!formData.value.content) {
         ElMessage.warning('Question content is required.')
@@ -475,24 +457,25 @@ const submitForm = async () => {
 
     submitLoading.value = true
     try {
-        // Prepare payload, ensuring redundant data is stripped based on type
         const payload = { ...formData.value }
-        delete payload.id // ID goes in URL for PUT, not needed for POST
+        delete payload.id
 
+        // Strip options for non-choice questions
         if (!['single', 'multiple'].includes(payload.type)) {
-            payload.options = null // Strip options for non-choice questions
+            payload.options = null
         }
 
-        // Clean up empty strings
+        // Clean up empty strings or arrays to keep DB clean
         if (payload.lesson === '') payload.lesson = null
-        if (payload.literacy_tags.length === 0) payload.literacy_tags = null
+        if (payload.literacy_tags && payload.literacy_tags.length === 0)
+            payload.literacy_tags = null
         if (!payload.difficulty) payload.difficulty = 1
 
         if (dialogType.value === 'add') {
-            await api.post('/questions', payload)
+            await api.post('/api/questions/', payload)
             ElMessage.success('Question added successfully')
         } else {
-            await api.put(`/questions/${formData.value.id}`, payload)
+            await api.put(`/api/questions/${formData.value.id}`, payload)
             ElMessage.success('Question updated successfully')
         }
 
@@ -518,17 +501,15 @@ const handleArchive = (row: Question) => {
     )
         .then(async () => {
             try {
-                // 一樣打 DELETE API，因為後端已經改為 Soft Delete
-                await api.delete(`/questions/${row.id}`)
+                // Remember to keep the trailing slash if required by your router
+                await api.delete(`/api/questions/${row.id}`)
                 ElMessage.success('Question archived successfully')
                 fetchQuestions()
             } catch (error) {
                 ElMessage.error('Failed to archive question')
             }
         })
-        .catch(() => {
-            // Action cancelled
-        })
+        .catch(() => {})
 }
 
 // Initial Fetch
