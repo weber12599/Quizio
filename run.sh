@@ -1,5 +1,46 @@
 #!/bin/bash
 
+# Detect Operating System
+OS_TYPE="$(uname)"
+
+if [ "$OS_TYPE" == "Darwin" ]; then
+    # macOS: Open Docker Desktop if not running
+    if ! docker info > /dev/null 2>&1; then
+        echo "Detected macOS. Starting Docker Desktop..."
+        open -g -a Docker
+    else
+        echo "Docker is already running on macOS."
+    fi
+
+elif [ "$OS_TYPE" == "Linux" ]; then
+    # Linux: Use systemctl to start Docker service
+    if ! docker info > /dev/null 2>&1; then
+        echo "Detected Linux. Starting Docker service..."
+        # Start Docker Engine (Standard)
+        sudo systemctl start docker
+    else
+        echo "Docker is already running on Linux."
+    fi
+
+else
+    echo "Unsupported OS: $OS_TYPE"
+    exit 1
+fi
+
+# Optional: Wait until Docker daemon is fully ready
+echo "Checking Docker status..."
+COUNT=0
+until docker info > /dev/null 2>&1; do
+    echo "Waiting for Docker daemon to be ready... ($((++COUNT))s)"
+    sleep 1
+    if [ $COUNT -gt 30 ]; then
+        echo "Docker failed to start within 30 seconds."
+        exit 1
+    fi
+done
+
+echo "Docker is up and running!"
+
 DOCKER_CMD="docker compose --env-file dev.env"
 
 # 取得第一個參數作為主要動作 (up, down, makemigration, migrate)
