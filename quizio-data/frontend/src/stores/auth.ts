@@ -1,33 +1,33 @@
-// src/stores/auth.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from 'axios'
 import { useRouter } from 'vue-router'
+import api from '../api'
 
 export const useAuthStore = defineStore('auth', () => {
-    // Initialize token from localStorage if it exists
     const token = ref<string | null>(localStorage.getItem('token'))
+    const user = ref<any>(null) // Store user details (name, email, role)
     const router = useRouter()
 
-    // Computed property to check if user is logged in
     const isAuthenticated = () => !!token.value
 
     const login = async (username: string, password: string) => {
         try {
-            // OAuth2 requires form data (application/x-www-form-urlencoded)
             const formData = new URLSearchParams()
             formData.append('username', username)
             formData.append('password', password)
 
-            const response = await axios.post('/api/auth/login', formData, {
+            // Use the custom api instance
+            const response = await api.post('/api/auth/login', formData, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
             })
 
-            // Save token to state and localStorage
             token.value = response.data.access_token
             localStorage.setItem('token', token.value as string)
+
+            // Fetch user details immediately after successful login
+            await fetchUserProfile()
 
             return true
         } catch (error) {
@@ -36,10 +36,22 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    const logout = () => {
-        token.value = null
-        localStorage.removeItem('token')
+    const fetchUserProfile = async () => {
+        try {
+            const response = await api.get('/api/users/me')
+            user.value = response.data
+        } catch (error) {
+            console.error('Failed to fetch profile:', error)
+            logout() // Clear state if token is invalid
+        }
     }
 
-    return { token, isAuthenticated, login, logout }
+    const logout = () => {
+        token.value = null
+        user.value = null
+        localStorage.removeItem('token')
+        router.push('/login')
+    }
+
+    return { token, user, isAuthenticated, login, logout, fetchUserProfile }
 })
