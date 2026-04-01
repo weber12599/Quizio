@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
@@ -65,14 +65,13 @@ class Student(StudentBase):
 
 class QuestionBase(BaseModel):
     type: str
-    difficulty: int
-    lesson: str
-    content: dict
-    options: dict
-    answer: str
-    literacy_tags: Optional[dict] = None
+    difficulty: Optional[int] = 1
+    lesson: Optional[str] = None
+    content: str
+    options: Optional[Any] = None
+    reference_answer: Any
+    literacy_tags: Optional[List[str]] = None
     is_archived: bool = False
-    hint: Optional[str] = None
     owner_id: Optional[int] = None
     is_public: bool = False
 
@@ -90,7 +89,6 @@ class QuestionUpdate(BaseModel):
     answer: Optional[str] = None
     literacy_tags: Optional[dict] = None
     is_archived: Optional[bool] = None
-    hint: Optional[str] = None
     is_public: Optional[bool] = None
 
 
