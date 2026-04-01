@@ -43,19 +43,21 @@ echo "Docker is up and running!"
 
 DOCKER_CMD="docker compose --env-file dev.env"
 
-# 取得第一個參數作為主要動作 (up, down, makemigration, migrate)
+# Get the first argument as the main action (up, down, makemigration, migrate, history, downgrade)
 ACTION=$1
 
-# 取得第二個參數 (例如 --build 或是 遷移的訊息)
+# Get the second argument (e.g., --build or migration message/revision ID)
 EXTRA_ARG=$2
 
-# 如果沒有輸入參數，顯示使用說明並離開
+# Show usage instructions if no arguments are provided
 if [ -z "$ACTION" ]; then
     echo "使用方式: ./run.sh [指令] [參數]"
     echo "  up            : 依序啟動 quizio-data 與 quizio-game"
     echo "  down          : 依序關閉所有服務"
     echo "  makemigration : 產生 Alembic 資料庫遷移腳本 (需加上訊息，如: ./run.sh makemigration \"init\")"
     echo "  migrate       : 執行資料庫遷移，更新到最新版"
+    echo "  history       : 顯示 Alembic 資料庫遷移歷史紀錄"
+    echo "  downgrade     : 降級資料庫狀態 (預設為 -1，或加上特定代碼: ./run.sh downgrade -2)"
     exit 1
 fi
 
@@ -136,6 +138,21 @@ elif [ "$ACTION" == "migrate" ]; then
     $DOCKER_CMD exec backend alembic upgrade head
     cd ..
     echo "✅ 資料庫更新完畢！"
+
+elif [ "$ACTION" == "history" ]; then
+    echo "📜 Showing Alembic migration history..."
+    cd quizio-data || exit
+    $DOCKER_CMD exec backend alembic history
+    cd ..
+
+elif [ "$ACTION" == "downgrade" ]; then
+    # Set default revision to -1 if no extra argument is provided
+    REVISION=${EXTRA_ARG:--1}
+    echo "⏪ Downgrading database to revision: $REVISION"
+    cd quizio-data || exit
+    $DOCKER_CMD exec backend alembic downgrade "$REVISION"
+    cd ..
+    echo "✅ 資料庫降級完畢！"
 
 else
     echo "❌ 錯誤：無法識別的指令 '$ACTION'"
