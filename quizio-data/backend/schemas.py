@@ -98,6 +98,42 @@ class Question(QuestionBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ExamBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+
+
+class ExamCreate(ExamBase):
+    question_ids: List[int] = []
+
+
+class ExamUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    question_ids: Optional[List[int]] = None
+    is_locked: Optional[bool] = None
+
+
+class ExamQuestionResponse(BaseModel):
+    exam_id: int
+    question_id: int
+    sort_order: int
+    question: Question
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExamResponse(ExamBase):
+    id: int
+    owner_id: int
+    is_locked: bool
+    created_at: datetime
+    exam_questions: List[ExamQuestionResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserWithDetails(UserResponse):
     students: List[Student] = []
     questions: List[Question] = []
+    exams: List[ExamResponse] = []

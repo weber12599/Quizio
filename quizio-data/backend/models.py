@@ -27,6 +27,7 @@ class User(Base):
 
     students = relationship('Student', back_populates='teacher')
     questions = relationship('Question', back_populates='owner')
+    exams = relationship('Exam', back_populates='owner', cascade='all, delete-orphan')
 
 
 class Student(Base):
@@ -39,8 +40,10 @@ class Student(Base):
     email = Column(String(100), nullable=True)
     admission_year = Column(Integer, nullable=True)
     class_name = Column(String(50), nullable=True)
+    teacher_id = Column(
+        Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True
+    )
 
-    teacher_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     teacher = relationship('User', back_populates='students')
 
 
@@ -57,6 +60,44 @@ class Question(Base):
     literacy_tags = Column(JSON, nullable=True)
     is_archived = Column(Boolean, default=False, nullable=False, index=True)
     is_public = Column(Boolean, default=False, server_default='false', nullable=False)
+    owner_id = Column(
+        Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True
+    )
 
-    owner_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     owner = relationship('User', back_populates='questions')
+
+
+class Exam(Base):
+    __tablename__ = 'exams'
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    is_locked = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    owner_id = Column(
+        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
+    )
+
+    owner = relationship('User', back_populates='exams')
+    exam_questions = relationship(
+        'ExamQuestion',
+        back_populates='exam',
+        cascade='all, delete-orphan',
+        order_by='ExamQuestion.sort_order',
+    )
+
+
+class ExamQuestion(Base):
+    __tablename__ = 'exam_questions'
+
+    sort_order = Column(Integer, default=0, nullable=False)
+    exam_id = Column(
+        Integer, ForeignKey('exams.id', ondelete='CASCADE'), primary_key=True
+    )
+    question_id = Column(
+        Integer, ForeignKey('questions.id', ondelete='CASCADE'), primary_key=True
+    )
+
+    exam = relationship('Exam', back_populates='exam_questions')
+    question = relationship('Question')
