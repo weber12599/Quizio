@@ -71,6 +71,35 @@ async def check_student_credentials(student_id: str, password: str, token: str):
             return None
 
 
+def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
+    """
+    Evaluate student's answer based on the question type.
+    """
+    if not correct_answer:
+        return False
+
+    if q_type == 'essay':
+        # Essay requires manual grading, return False by default
+        return False
+
+    if q_type == 'multiple':
+        # For multiple choices, check if both are lists and have exact same elements
+        if not isinstance(student_answer, list) or not isinstance(correct_answer, list):
+            return False
+        return set(student_answer) == set(correct_answer)
+
+    if q_type in ['single', 'boolean']:
+        return str(student_answer).strip() == str(correct_answer).strip()
+
+    if q_type == 'short':
+        # Case-insensitive and trimmed string comparison for short answers
+        return (
+            str(student_answer).strip().lower() == str(correct_answer).strip().lower()
+        )
+
+    return False
+
+
 @fastapi_app.post('/api/auth/login')
 async def proxy_auth_teacher(form_data: OAuth2PasswordRequestForm = Depends()):
     """
@@ -196,6 +225,7 @@ async def join_room(sid, data):
                 'broadcasted_questions': {},
                 'displayed_question': None,
                 'answers': {},
+                'gradings': {},
             }
         else:
             room_states[room_pin]['token'] = token
@@ -242,18 +272,36 @@ async def join_room(sid, data):
     if role == 'client':
         room = room_states[room_pin]
 
-        broadcasted = list(room.get('broadcasted_questions', {}).values())
+        # Recover questions but STRIP reference_answer
+        broadcasted = []
+        for q in room.get('broadcasted_questions', {}).values():
+            client_q = q.copy()
+            client_q.pop('reference_answer', None)  # Prevent cheating
+            broadcasted.append(client_q)
+
         if broadcasted:
             await sio.emit('new_questions', {'questions': broadcasted}, to=sid)
 
+        # Recover answers AND gradings
         recovered_answers = {}
+        recovered_gradings = {}
+
         answers_dict = room.get('answers', {})
         for q_id, student_answers in answers_dict.items():
             if student_id in student_answers:
                 recovered_answers[q_id] = student_answers[student_id]
 
+        gradings_dict = room.get('gradings', {})
+        for q_id, student_gradings in gradings_dict.items():
+            if student_id in student_gradings:
+                recovered_gradings[q_id] = student_gradings[student_id]
+
         if recovered_answers:
-            await sio.emit('recovered_answers', {'answers': recovered_answers}, to=sid)
+            await sio.emit(
+                'recovered_answers',
+                {'answers': recovered_answers, 'gradings': recovered_gradings},
+                to=sid,
+            )
 
     await broadcast_room_state(room_pin)
 
@@ -303,9 +351,13 @@ async def host_broadcast_questions(sid, data):
     for q in questions:
         q_id = str(q['id'])
         if q_id not in room['broadcasted_questions']:
-            room['broadcasted_questions'][q_id] = q
+            room['broadcasted_questions'][q_id] = q  # Store full question in backend
             room['answers'][q_id] = {}
-            new_broadcasts.append(q)
+
+            # Create a safe copy for clients without the correct answer
+            client_q = q.copy()
+            client_q.pop('reference_answer', None)
+            new_broadcasts.append(client_q)
 
     if new_broadcasts:
         print(f'📢 Host send {len(new_broadcasts)} questions to clients')
@@ -343,3 +395,54 @@ async def host_display_question(sid, data):
     for target_sid, player in room['players'].items():
         if player['role'] == 'screen':
             await sio.emit('display_question', {'question': question}, to=target_sid)
+
+
+@sio.event
+async def submit_answer(sid, data):
+    """
+    Receive student's answer, grade it, save state, and return the grading result.
+    """
+    room_pin = str(data.get('room_pin'))
+    q_id = str(data.get('question_id'))
+    answer = data.get('answer')
+
+    room = room_states.get(room_pin)
+    if not room:
+        return {'error': 'Room not found'}
+
+    player_info = room['players'].get(sid)
+    if not player_info or player_info['role'] != 'client':
+        return {'error': 'Unauthorized'}
+
+    student_id = player_info['student_id']
+
+    # Initialize gradings dict if it doesn't exist
+    if 'gradings' not in room:
+        room['gradings'] = {}
+    if q_id not in room['gradings']:
+        room['gradings'][q_id] = {}
+
+    # Save student's answer
+    if q_id not in room['answers']:
+        room['answers'][q_id] = {}
+    room['answers'][q_id][student_id] = answer
+
+    # Retrieve question data to get the reference_answer
+    question = room['broadcasted_questions'].get(q_id)
+    if not question:
+        return {'error': 'Question not found'}
+
+    q_type = question.get('type')
+    correct_answer = question.get('reference_answer')
+
+    # Evaluate the answer
+    is_correct = grade_answer(q_type, answer, correct_answer)
+
+    # Prepare grading result
+    grading_result = {'is_correct': is_correct, 'correct_answer': correct_answer}
+
+    # Save grading state for future reconnection recovery
+    room['gradings'][q_id][student_id] = grading_result
+
+    # Return to trigger frontend acknowledgement callback
+    return grading_result
