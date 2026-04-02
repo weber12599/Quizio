@@ -301,7 +301,6 @@ const filteredQuestions = computed(() => {
 const fetchExams = async () => {
     loading.value = true
     try {
-        // MUST include trailing slash
         const response = await api.get('/api/exams/')
         exams.value = response.data
     } catch (error) {
@@ -314,7 +313,6 @@ const fetchExams = async () => {
 const fetchQuestions = async () => {
     questionsLoading.value = true
     try {
-        // MUST include trailing slash
         const response = await api.get('/api/questions/')
         bankQuestions.value = response.data
     } catch (error) {
@@ -400,12 +398,10 @@ const submitForm = async () => {
         }
 
         if (dialogType.value === 'add') {
-            // MUST include trailing slash
             await api.post('/api/exams/', payload)
             ElMessage.success('Exam created successfully')
         } else {
-            // MUST include trailing slash
-            await api.put(`/api/exams/${formData.value.id}/`, payload)
+            await api.put(`/api/exams/${formData.value.id}`, payload)
             ElMessage.success('Exam updated successfully')
         }
 
@@ -429,8 +425,7 @@ const handleDelete = (row: Exam) => {
     )
         .then(async () => {
             try {
-                // MUST include trailing slash
-                await api.delete(`/api/exams/${row.id}/`)
+                await api.delete(`/api/exams/${row.id}`)
                 ElMessage.success('Exam deleted')
                 fetchExams()
             } catch (error) {
@@ -449,8 +444,7 @@ const handleLock = (row: Exam) => {
     )
         .then(async () => {
             try {
-                // MUST include trailing slash
-                await api.put(`/api/exams/${row.id}/`, { is_locked: true })
+                await api.put(`/api/exams/${row.id}`, { is_locked: true })
                 ElMessage.success('Exam locked successfully')
                 fetchExams()
             } catch (error) {
