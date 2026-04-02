@@ -238,6 +238,23 @@ async def join_room(sid, data):
     }
 
     print(f'✅ {player_name} ({role}) joined room {room_pin}')
+
+    if role == 'client':
+        room = room_states[room_pin]
+
+        broadcasted = list(room.get('broadcasted_questions', {}).values())
+        if broadcasted:
+            await sio.emit('new_questions', {'questions': broadcasted}, to=sid)
+
+        recovered_answers = {}
+        answers_dict = room.get('answers', {})
+        for q_id, student_answers in answers_dict.items():
+            if student_id in student_answers:
+                recovered_answers[q_id] = student_answers[student_id]
+
+        if recovered_answers:
+            await sio.emit('recovered_answers', {'answers': recovered_answers}, to=sid)
+
     await broadcast_room_state(room_pin)
 
 
