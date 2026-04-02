@@ -9,15 +9,13 @@ export default defineConfig({
         strictPort: true,
         allowedHosts: ['.trycloudflare.com'],
         proxy: {
-            // Forward WebSocket requests
-            '/ws': {
-                target: 'http://backend:8000',
-                changeOrigin: true,
-                ws: true
-            },
-            // Forward standard API requests
             '/api': {
                 target: 'http://backend:8000',
+                changeOrigin: true
+            },
+            '/socket.io': {
+                target: 'http://backend:8000',
+                ws: true,
                 changeOrigin: true
             }
         }

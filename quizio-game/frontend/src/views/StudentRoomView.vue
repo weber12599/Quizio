@@ -1,31 +1,23 @@
 <template>
-    <div class="card" style="max-width: 500px">
-        <div class="room-header">
-            <h2>
-                房間代碼: <span class="highlight">{{ pin }}</span>
-            </h2>
-            <span
-                class="status-badge"
-                :class="isConnected ? 'connected' : 'disconnected'"
-            >
-                {{ isConnected ? '已連線' : '連線中...' }}
-            </span>
+    <div class="room-view">
+        <div v-if="connectionError" class="error-screen">
+            <h2>Connection Failed</h2>
+            <p>{{ connectionError }}</p>
+            <button @click="goBack">Go Back to Login</button>
         </div>
 
-        <div v-if="errorMsg" class="error-msg">
-            <p>{{ errorMsg }}</p>
-            <button
-                @click="router.push('/')"
-                class="btn-danger"
-                style="margin-top: 15px"
-            >
-                重新登入
-            </button>
+        <div v-else-if="!isConnected" class="loading-screen">
+            <h2>Connecting to Game Room...</h2>
         </div>
 
-        <div v-else class="waiting-area">
-            <h3>準備就緒，學號 {{ studentId }}！</h3>
-            <p>請看大螢幕，等待老師發布題目...</p>
+        <div v-else class="game-screen">
+            <div class="header">
+                <span class="pin">PIN: {{ route.params.pin }}</span>
+                <span class="status">Waiting for host to start...</span>
+            </div>
+
+            <h1>You're in!</h1>
+            <p>See your nickname on the screen</p>
         </div>
     </div>
 </template>
@@ -33,94 +25,79 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { socket } from '../utils/socket'
 
 const route = useRoute()
 const router = useRouter()
 
-// Extract parameters from route
+const isConnected = ref(false)
+const connectionError = ref('')
+
+// Extract parameters from the route URL
 const pin = route.params.pin as string
 const studentId = route.params.student_id as string
-const pwd = route.params.pwd as string
+const password = route.params.pwd as string
 
-const isConnected = ref(false)
-const errorMsg = ref('')
-let ws: WebSocket | null = null
+const goBack = () => {
+    router.push({ name: 'join' })
+}
 
 onMounted(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
+    // Setup socket error listener sent by backend
+    socket.on('error', (data: { message: string }) => {
+        connectionError.value = data.message
+        socket.disconnect()
+    })
 
-    // Connect using student_id
-    ws = new WebSocket(`${wsProtocol}//${host}/ws/${pin}/${studentId}/${pwd}`)
+    // Connect to Socket.io server
+    socket.connect()
 
-    ws.onopen = () => {
+    socket.once('connect', () => {
+        // Send join_room request with credentials for backend verification
+        socket.emit('join_room', {
+            room_pin: pin,
+            role: 'client',
+            student_id: studentId,
+            password: password
+        })
+
         isConnected.value = true
-    }
+    })
 
-    ws.onclose = (event) => {
+    socket.on('disconnect', () => {
         isConnected.value = false
-        // Handle specific close codes from backend
-        if (event.code === 1008) {
-            errorMsg.value = '登入失敗：密碼錯誤，或該學號已在房間內。'
-        } else {
-            errorMsg.value = '已與伺服器斷開連線'
+        if (!connectionError.value) {
+            connectionError.value = 'Disconnected from server.'
         }
-    }
-
-    ws.onerror = () => {
-        errorMsg.value = 'WebSocket 連線發生錯誤'
-    }
+    })
 })
 
 onUnmounted(() => {
-    if (ws) ws.close()
+    socket.disconnect()
+    socket.off('error')
 })
 </script>
 
 <style scoped>
-.room-header {
+.room-view {
+    text-align: center;
+    padding: 20px;
+}
+.header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #ecf0f1;
-    padding-bottom: 15px;
-    margin-bottom: 20px;
-}
-.room-header h2 {
-    margin: 0;
-    color: #2c3e50;
-}
-.highlight {
-    color: #3498db;
-    font-size: 1.2em;
-}
-.status-badge {
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 12px;
+    background-color: #f1f1f1;
+    padding: 10px 20px;
+    border-radius: 4px;
+    margin-bottom: 40px;
     font-weight: bold;
 }
-.connected {
-    background-color: #2ecc71;
-    color: white;
+.error-screen {
+    color: red;
+    margin-top: 50px;
 }
-.disconnected {
-    background-color: #e74c3c;
-    color: white;
-}
-.waiting-area {
-    text-align: center;
-    padding: 40px 0;
-}
-.waiting-area h3 {
-    color: #2ecc71;
-    font-size: 24px;
-    margin-bottom: 10px;
-}
-.error-msg {
-    text-align: center;
-    color: #e74c3c;
-    font-weight: bold;
-    padding: 20px 0;
+.game-screen h1 {
+    font-size: 3rem;
+    color: #4caf50;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
     <div class="container">
-        <h1>Quizio 快問快答</h1>
+        <h1>Quizio</h1>
         <router-view></router-view>
     </div>
 </template>

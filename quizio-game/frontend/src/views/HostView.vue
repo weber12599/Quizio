@@ -1,168 +1,169 @@
 <template>
-    <div class="card host-card">
-        <div class="room-header">
-            <h2>
-                房間代碼: <span class="highlight">{{ roomPin }}</span>
-            </h2>
-            <span class="status-badge connected">等待學生加入中...</span>
-        </div>
+    <div class="host-view">
+        <h1>Host Control Panel</h1>
 
-        <div class="join-info">
-            <div class="qr-section">
-                <p>用平板掃描加入</p>
-                <qrcode-vue
-                    v-if="joinUrl"
-                    :value="joinUrl"
-                    :size="200"
-                    level="H"
+        <div v-if="!isConnected">
+            <div class="form-group">
+                <label>Teacher Username: </label>
+                <input v-model="username" placeholder="Enter username" />
+            </div>
+            <div class="form-group">
+                <label>Password: </label>
+                <input
+                    v-model="password"
+                    type="password"
+                    placeholder="Enter password"
+                />
+            </div>
+            <div class="form-group">
+                <label>Room PIN: </label>
+                <input
+                    v-model="roomPin"
+                    placeholder="Enter custom PIN (e.g. 1234)"
                 />
             </div>
 
-            <div class="url-section">
-                <p>或使用筆電輸入網址：</p>
-                <div class="short-url">{{ joinUrl }}</div>
-            </div>
+            <button @click="loginAndCreateRoom" style="margin-top: 15px">
+                Login & Create Room
+            </button>
+            <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
         </div>
 
-        <div class="players-section">
-            <h3>目前已加入的學生 ({{ players.length }} 人)</h3>
-            <ul class="players-list">
-                <li v-for="player in players" :key="player">
-                    <span class="avatar">👦🏻</span> {{ player }}
-                </li>
+        <div v-else>
+            <h2>Room PIN: {{ roomPin }}</h2>
+            <p>Status: Waiting for players...</p>
+
+            <h3>Joined Players ({{ players.length }}):</h3>
+            <ul>
+                <li v-for="player in players" :key="player">{{ player }}</li>
             </ul>
-        </div>
 
-        <button @click="leaveRoom" class="btn-danger">關閉房間</button>
+            <button @click="leaveRoom" style="margin-top: 20px; color: red">
+                End & Leave
+            </button>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import QrcodeVue from 'qrcode.vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { socket } from '../utils/socket'
 
-const router = useRouter()
-const roomPin = ref<string>('')
+const username = ref('')
+const password = ref('')
+const roomPin = ref('1234')
+const errorMessage = ref('')
+const isConnected = ref(false)
 const players = ref<string[]>([])
-const joinUrl = ref<string>('')
-const shortUrl = ref<string>('')
-let ws: WebSocket | null = null
 
-onMounted(async () => {
-    // Generate random 4-digit PIN
-    roomPin.value = Math.floor(1000 + Math.random() * 9000).toString()
+// Store the token for fetching exams later
+const authToken = ref('')
 
-    const protocol = window.location.protocol
-    const host = window.location.host
-
-    // Point the QR code to the student login page with the PIN in the query string
-    const fullJoinUrl = `${protocol}//${host}/join?pin=${roomPin.value}`
-    joinUrl.value = fullJoinUrl
-
-    // Connect to WebSocket as Host
-    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
-    ws = new WebSocket(
-        `${wsProtocol}//${host}/ws/${roomPin.value}/Host_Teacher/Host_Teacher`
-    )
-
-    ws.onmessage = (event) => {
-        try {
-            const message = JSON.parse(event.data)
-            if (message.type === 'room_state') {
-                // Filter out the host from the display list
-                players.value = message.data.players.filter(
-                    (p: string) => p !== 'Host_Teacher'
-                )
-            }
-        } catch (e) {
-            console.error('Parse error', e)
-        }
+// Authenticate with Data Backend, then create the Socket.io room
+const loginAndCreateRoom = async () => {
+    errorMessage.value = ''
+    if (!username.value || !password.value) {
+        errorMessage.value = 'Please enter both username and password.'
+        return
     }
-})
 
-const leaveRoom = () => {
-    if (ws) ws.close()
-    router.push('/')
+    try {
+        // Prepare form data for FastAPI OAuth2PasswordRequestForm
+        const formData = new URLSearchParams()
+        formData.append('username', username.value)
+        formData.append('password', password.value)
+
+        // Call Data Backend API to get the token
+        // Note: Vite proxy needs to route '/api' to the Data Backend
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: formData.toString()
+        })
+
+        if (!response.ok) {
+            throw new Error('Login failed. Please check your credentials.')
+        }
+
+        const data = await response.json()
+        authToken.value = data.access_token
+
+        console.log('Successfully obtained token from Data Backend.')
+
+        // Now that we have the token, connect to Game Backend
+        socket.connect()
+
+        // Wait for connection to establish before emitting join event
+        socket.once('connect', () => {
+            socket.emit('join_room', {
+                room_pin: roomPin.value,
+                role: 'host',
+                student_id: 'Host_Teacher', // Identifier for host
+                password: '', // Not needed for host role in socket event
+                token: authToken.value
+            })
+            isConnected.value = true
+        })
+    } catch (error: any) {
+        errorMessage.value = error.message || 'An error occurred during login.'
+    }
 }
 
+const leaveRoom = () => {
+    socket.disconnect()
+    isConnected.value = false
+    players.value = []
+    authToken.value = ''
+}
+
+onMounted(() => {
+    // socket.onAny((eventName, ...args) => {
+    //     console.log(`🚨 [Socket 雷達] 收到事件: ${eventName}`, args)
+    // })
+    // Listen for broadcasted room state to update player list
+    socket.on(
+        'room_state',
+        async (data: { room_pin: string; players: string[] }) => {
+            console.log('👉 [Host] 收到後端廣播的 room_state:', data)
+
+            if (String(data.room_pin) === String(roomPin.value)) {
+                // 🔥 Vue 3 的陣列更新：如果是用 ref，直接覆蓋 value 是可以的
+                // 但為了確保絕對觸發更新，我們可以使用解構賦值重新建立一個新陣列
+                players.value = [...data.players]
+
+                // 等待 DOM 更新完畢
+                await nextTick()
+                console.log(
+                    '✅ 畫面應該已經更新了！目前名單數量:',
+                    players.value.length
+                )
+            }
+        }
+    )
+})
+
 onUnmounted(() => {
-    if (ws) ws.close()
+    socket.disconnect()
+    socket.off('room_state')
 })
 </script>
 
 <style scoped>
-.host-card {
-    max-width: 800px;
-}
-.room-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #ecf0f1;
-    padding-bottom: 15px;
-    margin-bottom: 20px;
-}
-.room-header h2 {
-    margin: 0;
-    color: #2c3e50;
-}
-.highlight {
-    color: #3498db;
-    font-size: 1.2em;
-}
-.status-badge {
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-    background-color: #2ecc71;
-    color: white;
-}
-.join-info {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    background: #f8f9fa;
+.host-view {
     padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 30px;
 }
-.qr-section p,
-.url-section p {
-    font-weight: bold;
-    color: #34495e;
-    margin-bottom: 15px;
-    text-align: center;
+.form-group {
+    margin-bottom: 10px;
 }
-.short-url {
-    font-size: 24px;
-    font-weight: bold;
-    color: #e74c3c;
-    background: #fff;
-    padding: 10px 20px;
-    border-radius: 8px;
-    border: 2px dashed #e74c3c;
-    letter-spacing: 1px;
-}
-.players-list {
-    list-style-type: none;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-.players-list li {
-    padding: 10px 15px;
-    background-color: #e8f4f8;
-    border: 1px solid #3498db;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    font-size: 16px;
+.form-group label {
+    display: inline-block;
+    width: 150px;
     font-weight: bold;
 }
-.avatar {
-    margin-right: 8px;
+.error-msg {
+    color: red;
+    margin-top: 10px;
 }
 </style>
