@@ -48,9 +48,14 @@
                         <el-button
                             size="small"
                             @click="openEditDialog(scope.row)"
-                            :disabled="scope.row.is_locked"
+                            :type="scope.row.is_locked ? 'info' : 'default'"
+                            :plain="scope.row.is_locked"
                         >
-                            <el-icon><Edit /></el-icon> Edit
+                            <el-icon>
+                                <View v-if="scope.row.is_locked" />
+                                <Edit v-else />
+                            </el-icon>
+                            {{ scope.row.is_locked ? 'Preview' : 'Edit' }}
                         </el-button>
                         <el-button
                             size="small"
@@ -76,12 +81,18 @@
 
         <el-dialog
             v-model="dialogVisible"
-            :title="dialogType === 'add' ? 'Create New Exam' : 'Edit Exam'"
+            :title="
+                dialogType === 'add'
+                    ? 'Create New Exam'
+                    : dialogType === 'preview'
+                      ? 'Preview Exam'
+                      : 'Edit Exam'
+            "
             fullscreen
             destroy-on-close
         >
             <div class="editor-layout">
-                <div class="left-panel">
+                <div class="left-panel" v-if="dialogType !== 'preview'">
                     <h3>Question Bank</h3>
                     <el-input
                         v-model="searchKeyword"
@@ -130,6 +141,7 @@
                             <el-input
                                 v-model="formData.title"
                                 placeholder="Enter exam title..."
+                                :disabled="dialogType === 'preview'"
                             />
                         </el-form-item>
                         <el-form-item label="Description">
@@ -138,6 +150,7 @@
                                 type="textarea"
                                 :rows="2"
                                 placeholder="Optional description or instructions..."
+                                :disabled="dialogType === 'preview'"
                             />
                         </el-form-item>
                     </el-form>
@@ -157,7 +170,10 @@
                         >
                             <div class="s-card-header">
                                 <strong>Q{{ index + 1 }}</strong>
-                                <div class="s-card-actions">
+                                <div
+                                    v-if="dialogType !== 'preview'"
+                                    class="s-card-actions"
+                                >
                                     <el-button
                                         size="small"
                                         @click="moveUp(index)"
@@ -207,8 +223,11 @@
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="dialogVisible = false">Cancel</el-button>
+                    <el-button @click="dialogVisible = false">{{
+                        dialogType === 'preview' ? 'Close' : 'Cancel'
+                    }}</el-button>
                     <el-button
+                        v-if="dialogType !== 'preview'"
                         type="primary"
                         @click="submitForm"
                         :loading="submitLoading"
@@ -231,7 +250,8 @@ import {
     Search,
     Top,
     Bottom,
-    Minus
+    Minus,
+    View
 } from '@element-plus/icons-vue'
 import api from '../api'
 
@@ -273,7 +293,7 @@ const submitLoading = ref(false)
 
 // Editor State
 const dialogVisible = ref(false)
-const dialogType = ref<'add' | 'edit'>('add')
+const dialogType = ref<'add' | 'edit' | 'preview'>('add')
 const formData = ref({
     id: null as number | null,
     title: '',
@@ -333,14 +353,15 @@ const openAddDialog = async () => {
 }
 
 const openEditDialog = async (row: Exam) => {
-    dialogType.value = 'edit'
+    // Determine mode based on lock status
+    dialogType.value = row.is_locked ? 'preview' : 'edit'
+
     formData.value = {
         id: row.id,
         title: row.title,
         description: row.description || ''
     }
 
-    // Map the nested questions to the flat selected array, ordered by sort_order
     const sortedExamQs = [...row.exam_questions].sort(
         (a, b) => a.sort_order - b.sort_order
     )
@@ -348,7 +369,11 @@ const openEditDialog = async (row: Exam) => {
 
     searchKeyword.value = ''
     dialogVisible.value = true
-    await fetchQuestions()
+
+    // Only fetch the full question bank if we are actively editing
+    if (dialogType.value !== 'preview') {
+        await fetchQuestions()
+    }
 }
 
 // Editor actions
