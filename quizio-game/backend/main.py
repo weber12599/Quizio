@@ -100,6 +100,53 @@ def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
     return False
 
 
+def compute_stats(q_type: str, answers_dict: dict) -> tuple:
+    """
+    Compute answer statistics for the bar charts.
+    Returns: (stats_dict, total_count)
+    """
+    stats = {}
+    total = len(answers_dict)
+
+    for sid, ans in answers_dict.items():
+        if q_type == 'multiple' and isinstance(ans, list):
+            for a in ans:
+                stats[str(a)] = stats.get(str(a), 0) + 1
+        elif q_type == 'boolean':
+            # True maps to index "0", False maps to index "1"
+            ans_idx = '0' if ans else '1'
+            stats[ans_idx] = stats.get(ans_idx, 0) + 1
+        elif q_type == 'single':
+            stats[str(ans)] = stats.get(str(ans), 0) + 1
+
+    return stats, total
+
+
+def generate_leaderboard(room: dict) -> list:
+    """Helper function to calculate scores and generate leaderboard."""
+    scores = {}
+    names = {}
+
+    for p_sid, p in room['players'].items():
+        if p['role'] == 'client':
+            st_id = p['student_id']
+            scores[st_id] = 0
+            names[st_id] = p['name']
+
+    gradings = room.get('gradings', {})
+    for q_id, q_gradings in gradings.items():
+        for st_id, result in q_gradings.items():
+            if result.get('is_correct'):
+                scores[st_id] = scores.get(st_id, 0) + 100
+
+    leaderboard = [
+        {'name': names.get(st_id, 'Unknown'), 'score': score}
+        for st_id, score in scores.items()
+    ]
+    leaderboard.sort(key=lambda x: x['score'], reverse=True)
+    return leaderboard
+
+
 @fastapi_app.post('/api/auth/login')
 async def proxy_auth_teacher(form_data: OAuth2PasswordRequestForm = Depends()):
     """
@@ -226,6 +273,7 @@ async def join_room(sid, data):
                 'displayed_question': None,
                 'answers': {},
                 'gradings': {},
+                'current_screen': 'lobby',
             }
         else:
             room_states[room_pin]['token'] = token
@@ -269,7 +317,25 @@ async def join_room(sid, data):
 
     print(f'✅ {player_name} ({role}) joined room {room_pin}')
 
-    if role == 'client':
+    if role == 'host':
+        room = room_states[room_pin]
+        broadcasted_ids = [
+            int(q_id) for q_id in room.get('broadcasted_questions', {}).keys()
+        ]
+        displayed_q = room.get('displayed_question')
+        displayed_id = displayed_q['id'] if displayed_q else None
+        is_leaderboard = room.get('current_screen') == 'leaderboard'
+
+        await sio.emit(
+            'host_recovered_state',
+            {
+                'broadcasted_ids': broadcasted_ids,
+                'displayed_question_id': displayed_id,
+                'is_leaderboard_displayed': is_leaderboard,
+            },
+            to=sid,
+        )
+    elif role == 'client':
         room = room_states[room_pin]
 
         # Recover questions but STRIP reference_answer
@@ -302,6 +368,24 @@ async def join_room(sid, data):
                 {'answers': recovered_answers, 'gradings': recovered_gradings},
                 to=sid,
             )
+    elif role == 'screen':
+        room = room_states[room_pin]
+        current_screen = room.get('current_screen', 'lobby')
+
+        if current_screen == 'question':
+            displayed_q = room.get('displayed_question')
+            if displayed_q:
+                await sio.emit('display_question', {'question': displayed_q}, to=sid)
+
+                q_id = str(displayed_q['id'])
+                q_type = displayed_q.get('type')
+                answers_dict = room.get('answers', {}).get(q_id, {})
+                stats, total = compute_stats(q_type, answers_dict)
+                await sio.emit('update_stats', {'stats': stats, 'total': total}, to=sid)
+
+        elif current_screen == 'leaderboard':
+            leaderboard = generate_leaderboard(room)
+            await sio.emit('show_leaderboard', {'leaderboard': leaderboard}, to=sid)
 
     await broadcast_room_state(room_pin)
 
@@ -386,6 +470,7 @@ async def host_display_question(sid, data):
         return
 
     room['displayed_question'] = question
+    room['current_screen'] = 'question' if question else 'lobby'
 
     if question:
         print(f'🖥️ Host broadcast question ID {question["id"]} on the screen')
@@ -395,6 +480,16 @@ async def host_display_question(sid, data):
     for target_sid, player in room['players'].items():
         if player['role'] == 'screen':
             await sio.emit('display_question', {'question': question}, to=target_sid)
+
+            # 🚀 NEW: Sync existing stats immediately upon displaying
+            if question:
+                q_id = str(question['id'])
+                q_type = question.get('type')
+                answers_dict = room['answers'].get(q_id, {})
+                stats, total = compute_stats(q_type, answers_dict)
+                await sio.emit(
+                    'update_stats', {'stats': stats, 'total': total}, to=target_sid
+                )
 
 
 @sio.event
@@ -444,5 +539,73 @@ async def submit_answer(sid, data):
     # Save grading state for future reconnection recovery
     room['gradings'][q_id][student_id] = grading_result
 
+    # Update stats instantly if this question is currently being displayed
+    displayed_q = room.get('displayed_question')
+    if displayed_q and str(displayed_q['id']) == q_id:
+        answers_dict = room['answers'].get(q_id, {})
+        stats, total = compute_stats(q_type, answers_dict)
+
+        for target_sid, p in room['players'].items():
+            if p['role'] == 'screen':
+                await sio.emit(
+                    'update_stats', {'stats': stats, 'total': total}, to=target_sid
+                )
+
     # Return to trigger frontend acknowledgement callback
     return grading_result
+
+
+@sio.event
+async def host_show_leaderboard(sid, data):
+    """
+    Calculate scores and broadcast leaderboard to the screen.
+    """
+    room_pin = str(data.get('room_pin'))
+    room = room_states.get(room_pin)
+    if not room:
+        return
+
+    player_info = room['players'].get(sid)
+    if not player_info or player_info['role'] != 'host':
+        return
+
+    room['current_screen'] = 'leaderboard'
+    leaderboard = generate_leaderboard(room)
+
+    print(f'🏆 Host triggered leaderboard for room {room_pin}')
+    for target_sid, player in room['players'].items():
+        if player['role'] == 'screen':
+            await sio.emit(
+                'show_leaderboard', {'leaderboard': leaderboard}, to=target_sid
+            )
+
+
+@sio.event
+async def end_game(sid, data):
+    """
+    Host ends the game. Disconnect everyone and completely clean up memory.
+    """
+    room_pin = str(data.get('room_pin'))
+    room = room_states.get(room_pin)
+    if not room:
+        return
+
+    player_info = room['players'].get(sid)
+    if not player_info or player_info['role'] != 'host':
+        return
+
+    print(f'🛑 Host ended game. Cleaning up room {room_pin}')
+
+    # Notify and disconnect all other players (students and screen)
+    for target_sid, player in list(room['players'].items()):
+        if target_sid != sid:
+            await sio.emit(
+                'error',
+                {'message': 'The host has ended the game. Disconnecting...'},
+                to=target_sid,
+            )
+            await sio.disconnect(target_sid)
+
+    # Clean up room memory dictionary
+    if room_pin in room_states:
+        del room_states[room_pin]

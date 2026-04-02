@@ -43,7 +43,7 @@
                 </div>
             </div>
 
-            <div v-if="!displayedQuestion" class="lobby-state">
+            <div v-if="currentView === 'lobby'" class="lobby-state">
                 <div class="idle-card card">
                     <div class="pulse-ring"></div>
                     <h2>Waiting for the host...</h2>
@@ -66,19 +66,80 @@
                 </div>
             </div>
 
-            <div v-else class="question-state">
+            <div v-else-if="currentView === 'question'" class="question-state">
                 <div class="question-display-card card">
                     <div class="q-meta">
-                        <span class="q-type">{{ displayedQuestion.type }}</span>
+                        <span class="q-type">{{
+                            displayedQuestion?.type
+                        }}</span>
                     </div>
                     <h1 class="q-content-huge">
-                        {{ displayedQuestion.content }}
+                        {{ displayedQuestion?.content }}
                     </h1>
 
-                    <div class="stats-placeholder">
-                        <p class="stats-hint">
-                            Student answers and statistics will appear here.
-                        </p>
+                    <div class="stats-container">
+                        <div v-if="isChoiceQuestion(displayedQuestion?.type)">
+                            <div
+                                v-for="(opt, idx) in getOptions(
+                                    displayedQuestion
+                                )"
+                                :key="idx"
+                                class="stat-bar-wrapper"
+                            >
+                                <div class="stat-label">{{ opt }}</div>
+                                <div class="bar-bg">
+                                    <div
+                                        class="bar-fill"
+                                        :style="{
+                                            width: getBarPercentage(idx) + '%'
+                                        }"
+                                    ></div>
+                                    <span
+                                        class="bar-count"
+                                        :class="{
+                                            'text-white':
+                                                getBarPercentage(idx) > 10
+                                        }"
+                                    >
+                                        {{ answerStats[idx] || 0 }} ({{
+                                            getBarPercentage(idx)
+                                        }}%)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-else class="text-stats-container">
+                            <div class="big-number">{{ totalAnswers }}</div>
+                            <div class="stats-label">Responses Received</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                v-else-if="currentView === 'leaderboard'"
+                class="leaderboard-state"
+            >
+                <div class="leaderboard-card card">
+                    <h1 class="lb-title">🏆 Top Scorers 🏆</h1>
+                    <div class="podium">
+                        <div
+                            v-for="(player, idx) in leaderboard.slice(0, 5)"
+                            :key="idx"
+                            class="lb-row"
+                            :class="'rank-' + (idx + 1)"
+                        >
+                            <span class="lb-rank">#{{ idx + 1 }}</span>
+                            <span class="lb-name">{{ player.name }}</span>
+                            <span class="lb-score">{{ player.score }} pts</span>
+                        </div>
+                        <div
+                            v-if="leaderboard.length === 0"
+                            class="empty-stats"
+                        >
+                            No scores available yet.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -96,7 +157,11 @@ interface Question {
     type: string
     content: string
     options?: any
-    reference_answer: any
+}
+
+interface PlayerScore {
+    name: string
+    score: number
 }
 
 // --- State ---
@@ -105,7 +170,57 @@ const isConnected = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const players = ref<string[]>([])
+
+// View Management
+const currentView = ref<'lobby' | 'question' | 'leaderboard'>('lobby')
+
+// Question Data
 const displayedQuestion = ref<Question | null>(null)
+
+// Stats Data
+// For single/multiple: key is index. For boolean: 0 (True), 1 (False)
+const answerStats = ref<Record<string, number>>({})
+const totalAnswers = ref(0)
+
+// Leaderboard Data
+const leaderboard = ref<PlayerScore[]>([])
+
+// --- Helpers ---
+const isChoiceQuestion = (type?: string) => {
+    return type === 'single' || type === 'multiple' || type === 'boolean'
+}
+
+const getOptions = (q: Question | null): string[] => {
+    if (!q) return []
+    let optsRaw = q.options
+    let parsedOpts: string[] = []
+
+    if (Array.isArray(optsRaw)) {
+        parsedOpts = optsRaw
+    } else if (typeof optsRaw === 'string') {
+        try {
+            const parsed = JSON.parse(optsRaw)
+            if (Array.isArray(parsed)) parsedOpts = parsed
+            else
+                parsedOpts = Object.entries(parsed).map(
+                    ([k, v]) => `${k}: ${v}`
+                )
+        } catch {
+            parsedOpts = []
+        }
+    }
+
+    if (q.type === 'boolean' && parsedOpts.length === 0) {
+        return ['是 (True)', '非 (False)']
+    }
+    return parsedOpts
+}
+
+const getBarPercentage = (idx: number | string): number => {
+    if (totalAnswers.value === 0) return 0
+    const count = answerStats.value[idx] || 0
+    return Math.round((count / totalAnswers.value) * 100)
+}
 
 // --- Methods ---
 const joinAsScreen = () => {
@@ -119,7 +234,6 @@ const joinAsScreen = () => {
     socket.connect()
 
     socket.once('connect', () => {
-        // Screen only needs room_pin and role to join
         socket.emit('join_room', {
             room_pin: roomPin.value,
             role: 'screen'
@@ -129,7 +243,7 @@ const joinAsScreen = () => {
 
 // --- Lifecycle & Socket Events ---
 onMounted(() => {
-    // 1. Listen for room state updates (player joins/leaves)
+    // 1. Room state updates
     socket.on('room_state', (data: { room_pin: string; players: string[] }) => {
         if (String(data.room_pin) === String(roomPin.value)) {
             players.value = [...data.players]
@@ -138,13 +252,35 @@ onMounted(() => {
         }
     })
 
-    // 2. Listen for the host displaying a question
+    // 2. Display a question (Switch to Question View)
     socket.on('display_question', (data: { question: Question | null }) => {
-        console.log('🖥️ Screen received display event:', data)
-        displayedQuestion.value = data.question
+        if (data.question) {
+            displayedQuestion.value = data.question
+            currentView.value = 'question'
+            answerStats.value = {}
+            totalAnswers.value = 0
+        } else {
+            displayedQuestion.value = null
+            currentView.value = 'lobby'
+        }
     })
 
-    // 3. Handle errors (e.g., room does not exist)
+    // 3. Update real-time statistics
+    socket.on(
+        'update_stats',
+        (data: { stats: Record<string, number>; total: number }) => {
+            answerStats.value = data.stats
+            totalAnswers.value = data.total
+        }
+    )
+
+    // 4. Show Leaderboard (Triggered by Host)
+    socket.on('show_leaderboard', (data: { leaderboard: PlayerScore[] }) => {
+        leaderboard.value = data.leaderboard
+        currentView.value = 'leaderboard'
+    })
+
+    // 5. Handle errors
     socket.on('error', (data: { message: string }) => {
         errorMessage.value = data.message
         isLoading.value = false
@@ -157,6 +293,8 @@ onUnmounted(() => {
     socket.disconnect()
     socket.off('room_state')
     socket.off('display_question')
+    socket.off('update_stats')
+    socket.off('show_leaderboard')
     socket.off('error')
 })
 </script>
@@ -287,7 +425,6 @@ onUnmounted(() => {
     z-index: 2;
 }
 
-/* Simple pulse animation for waiting state */
 .pulse-ring {
     width: 60px;
     height: 60px;
@@ -340,7 +477,7 @@ onUnmounted(() => {
 }
 
 /* --------------------------------------
-   Question Display State
+   Question Display & Bar Charts
 --------------------------------------- */
 .question-state {
     display: flex;
@@ -351,15 +488,13 @@ onUnmounted(() => {
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 60px 40px;
+    padding: 60px 80px;
     border: 4px solid var(--primary-light);
 }
 
 .q-meta {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
 .q-type {
@@ -375,39 +510,198 @@ onUnmounted(() => {
 }
 
 .q-content-huge {
-    font-size: 3.5rem; /* Massive text for projector */
+    font-size: 3.5rem;
     line-height: 1.4;
     color: var(--text-main);
-    max-width: 90%;
-    margin: 0 auto 40px;
+    text-align: center;
+    margin: 0 auto 50px;
     font-weight: 800;
 }
 
-/* Placeholder for future bar charts */
-.stats-placeholder {
+.stats-container {
     width: 100%;
-    max-width: 800px;
-    height: 200px;
-    background: var(--bg-color);
-    border: 2px dashed var(--border-color);
-    border-radius: 16px;
+    margin-top: auto;
+}
+
+/* Bar Chart Layout */
+.stat-bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.stat-label {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.bar-bg {
+    background: var(--border-color);
+    height: 60px;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.bar-fill {
+    background: linear-gradient(
+        90deg,
+        var(--primary-color) 0%,
+        var(--primary-light) 100%
+    );
+    height: 100%;
+    width: 0%;
+    border-radius: 12px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy animation */
+}
+
+.bar-count {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    z-index: 2;
+    transition: color 0.3s ease;
+}
+
+.text-white {
+    color: white !important;
+}
+
+/* Text Answers Stats */
+.text-stats-container {
+    text-align: center;
+    background: var(--highlight-bg);
+    padding: 40px;
+    border-radius: 20px;
+    border: 2px dashed var(--primary-light);
+}
+
+.big-number {
+    font-size: 6rem;
+    font-weight: 900;
+    color: var(--primary-color);
+    line-height: 1;
+}
+
+.stats-label {
+    font-size: 2rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* --------------------------------------
+   Leaderboard State
+--------------------------------------- */
+.leaderboard-state {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.leaderboard-card {
+    width: 100%;
+    max-width: 1000px;
+    padding: 60px 80px;
+    text-align: center;
+    border: 4px solid var(--primary-color);
+    background: var(--bg-card);
+}
+
+.lb-title {
+    font-size: 4rem;
+    color: var(--text-main);
+    margin-bottom: 40px;
+    font-weight: 900;
+}
+
+.podium {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.lb-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-top: auto; /* Pushes it to the bottom if space allows */
+    padding: 24px 40px;
+    background: var(--highlight-bg);
+    border-radius: 16px;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    border: 2px solid var(--border-color);
+    transition: transform 0.3s ease;
 }
 
-.stats-hint {
+/* Podium Colors */
+.lb-row.rank-1 {
+    background: linear-gradient(135deg, #ffd700 0%, #d4af37 100%);
+    color: #000;
+    transform: scale(1.05);
+    border: none;
+    box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4);
+    z-index: 3;
+}
+
+.lb-row.rank-2 {
+    background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+    color: #000;
+    transform: scale(1.02);
+    border: none;
+    box-shadow: 0 8px 15px rgba(189, 189, 189, 0.4);
+    z-index: 2;
+}
+
+.lb-row.rank-3 {
+    background: linear-gradient(135deg, #cd7f32 0%, #a0522d 100%);
+    color: #fff;
+    border: none;
+    box-shadow: 0 6px 12px rgba(160, 82, 45, 0.4);
+    z-index: 1;
+}
+
+.lb-rank {
+    width: 100px;
+    text-align: left;
+}
+
+.lb-name {
+    flex: 1;
+    text-align: left;
+}
+
+.lb-score {
+    font-weight: 900;
+}
+
+.empty-stats {
+    font-size: 1.8rem;
     color: var(--text-muted);
-    font-size: 1.2rem;
+    font-style: italic;
+    padding: 40px;
 }
 
-/* Responsive adjustments for smaller screens (e.g., testing on laptop) */
+/* Responsive adjustments */
 @media (max-width: 1024px) {
     .pin-number {
         font-size: 2.5rem;
     }
     .q-content-huge {
+        font-size: 2.5rem;
+    }
+    .lb-row {
+        font-size: 1.5rem;
+        padding: 16px 24px;
+    }
+    .lb-title {
         font-size: 2.5rem;
     }
 }

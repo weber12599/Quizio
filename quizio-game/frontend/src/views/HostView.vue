@@ -38,9 +38,23 @@
             <div class="room-header card">
                 <h2>Room PIN: {{ roomPin }}</h2>
                 <p class="status-indicator">● Waiting for players...</p>
-                <button @click="leaveRoom" class="btn-danger small-btn">
-                    End Game
-                </button>
+                <div class="header-actions" style="display: flex; gap: 12px">
+                    <button
+                        @click="toggleLeaderboard"
+                        class="btn-secondary small-btn"
+                        :class="{ 'is-displaying': isLeaderboardDisplayed }"
+                    >
+                        🏆
+                        {{
+                            isLeaderboardDisplayed
+                                ? 'Hide Leaderboard'
+                                : 'Show Leaderboard'
+                        }}
+                    </button>
+                    <button @click="leaveRoom" class="btn-danger small-btn">
+                        End Game
+                    </button>
+                </div>
             </div>
 
             <div class="layout-grid">
@@ -172,7 +186,7 @@
                                             )
                                         "
                                         class="status-badge"
-                                        >已派發</span
+                                        >Sent</span
                                     >
 
                                     <button
@@ -256,6 +270,8 @@ const isConnected = ref(false)
 const isLoading = ref(false)
 const players = ref<string[]>([])
 const authToken = ref('')
+const isLeaderboardDisplayed = ref(false)
+const recoveredDisplayedId = ref<number | null>(null)
 
 // Exam State
 const exams = ref<Exam[]>([])
@@ -298,11 +314,18 @@ const loadQuestions = async () => {
             `/exams/${selectedExam.value.id}`
         )
 
-        // 將題目根據 sort_order 排序後存入 waitingPool
         waitingPool.value = examDetails.exam_questions.sort(
             (a: ExamQuestion, b: ExamQuestion) => a.sort_order - b.sort_order
         )
         isQuestionsLoaded.value = true
+
+        // 🚀 新增：題目載入後，如果有之前未關閉的投放題目，把它高亮起來
+        if (recoveredDisplayedId.value) {
+            currentDisplayedEq.value =
+                waitingPool.value.find(
+                    (q) => q.question_id === recoveredDisplayedId.value
+                ) || null
+        }
     } catch (error) {
         console.error('Error loading questions:', error)
         alert('Failed to load questions.')
@@ -352,7 +375,9 @@ const displayOnScreen = (eq: ExamQuestion) => {
             question: null
         })
     } else {
+        // 投影新題目時，必須關閉「排行榜」的按鈕狀態
         currentDisplayedEq.value = eq
+        isLeaderboardDisplayed.value = false
         socket.emit('host_display_question', {
             room_pin: roomPin.value,
             question: eq.question
@@ -393,7 +418,8 @@ const loginAndCreateRoom = async () => {
         await fetchMyExams()
 
         socket.connect()
-        socket.once('connect', () => {
+        socket.off('connect')
+        socket.on('connect', () => {
             socket.emit('join_room', {
                 room_pin: roomPin.value,
                 role: 'host',
@@ -410,8 +436,27 @@ const loginAndCreateRoom = async () => {
     }
 }
 
+const toggleLeaderboard = () => {
+    if (isLeaderboardDisplayed.value) {
+        isLeaderboardDisplayed.value = false
+        socket.emit('host_display_question', {
+            room_pin: roomPin.value,
+            question: null
+        })
+    } else {
+        isLeaderboardDisplayed.value = true
+        currentDisplayedEq.value = null
+        socket.emit('host_show_leaderboard', {
+            room_pin: roomPin.value
+        })
+    }
+}
+
 const leaveRoom = () => {
-    socket.disconnect()
+    if (isConnected.value) {
+        socket.emit('end_game', { room_pin: roomPin.value })
+    }
+
     isConnected.value = false
     players.value = []
     authToken.value = ''
@@ -419,6 +464,17 @@ const leaveRoom = () => {
     exams.value = []
     waitingPool.value = []
     isQuestionsLoaded.value = false
+
+    broadcastedIds.value = []
+    selectedQuestionIds.value = []
+    currentDisplayedEq.value = null
+    isLeaderboardDisplayed.value = false
+    examSearchQuery.value = ''
+
+    setTimeout(() => {
+        socket.disconnect()
+    }, 100)
+
     localStorage.removeItem('host_token')
 }
 
@@ -432,11 +488,35 @@ onMounted(() => {
             }
         }
     )
+
+    socket.on(
+        'host_recovered_state',
+        (data: {
+            broadcasted_ids: number[]
+            displayed_question_id: number | null
+            is_leaderboard_displayed: boolean
+        }) => {
+            broadcastedIds.value = data.broadcasted_ids
+            isLeaderboardDisplayed.value = data.is_leaderboard_displayed
+            recoveredDisplayedId.value = data.displayed_question_id
+
+            // 如果題目列表已經載入（例如 Socket 瞬斷重連），立刻綁定高亮狀態
+            if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
+                currentDisplayedEq.value =
+                    waitingPool.value.find(
+                        (q) => q.question_id === recoveredDisplayedId.value
+                    ) || null
+            } else {
+                currentDisplayedEq.value = null
+            }
+        }
+    )
 })
 
 onUnmounted(() => {
     socket.disconnect()
     socket.off('room_state')
+    socket.off('host_recovered_state')
 })
 </script>
 
