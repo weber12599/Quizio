@@ -8,8 +8,6 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATA_SERVICE_URL_BASE=${DATA_SERVICE_URL_BASE}
-      - DATA_SERVICE_ADMIN_USERNAME=${DATA_SERVICE_ADMIN_USERNAME}
-      - DATA_SERVICE_ADMIN_PASSWORD=${DATA_SERVICE_ADMIN_PASSWORD}
     volumes:
       - ./backend:/app
     restart: unless-stopped

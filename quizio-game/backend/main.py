@@ -2,72 +2,58 @@ import os
 from typing import Dict
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
+import socketio
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 DATA_SERVICE_URL_BASE = os.getenv(
     'DATA_SERVICE_URL_BASE', 'http://host.docker.internal:8080'
 )
 
-DATA_SERVICE_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/student'
-
-DATA_SERVICE_ADMIN_USERNAME = os.getenv('DATA_SERVICE_ADMIN_USERNAME', 'admin')
-
-DATA_SERVICE_ADMIN_PASSWORD = os.getenv('DATA_SERVICE_ADMIN_PASSWORD', 'admin123')
-
-CURRENT_DATA_SERVICE_TOKEN = ''
+DATA_SERVICE_TEACHER_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/login'
+DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/student'
 
 
-class GameManager:
-    def __init__(self):
-        self.rooms: Dict[str, Dict[str, dict]] = {}
+# Initialize FastAPI app
+fastapi_app = FastAPI()
 
-    def is_player_in_room(self, room_pin: str, student_id: str) -> bool:
-        return room_pin in self.rooms and student_id in self.rooms[room_pin]
+# Initialize Socket.io AsyncServer
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
 
-    async def connect(
-        self, websocket: WebSocket, room_pin: str, student_id: str, player_name: str
-    ):
-        await websocket.accept()
-        if room_pin not in self.rooms:
-            self.rooms[room_pin] = {}
+# Wrap FastAPI app with Socket.io ASGIApp
+app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
 
-        self.rooms[room_pin][student_id] = {'ws': websocket, 'name': player_name}
-        await self.broadcast_room_state(room_pin)
-
-    def disconnect(self, room_pin: str, student_id: str):
-        if room_pin in self.rooms and student_id in self.rooms[room_pin]:
-            del self.rooms[room_pin][student_id]
-            if not self.rooms[room_pin]:
-                del self.rooms[room_pin]
-
-    async def broadcast_room_state(self, room_pin: str):
-        if room_pin in self.rooms:
-            players = [
-                player_data['name'] for player_data in self.rooms[room_pin].values()
-            ]
-            message = {
-                'type': 'room_state',
-                'data': {'room_pin': room_pin, 'players': players},
-            }
-            for player_data in self.rooms[room_pin].values():
-                await player_data['ws'].send_json(message)
+# In-memory room state management
+# Structure:
+# {
+#     "room_pin": {
+#         "host_token": "eyJhbG...",
+#         "players": {
+#             "sid": {"role": "host", "name": "Host_Teacher", "student_id": "Host_Teacher"}
+#         }
+#     }
+# }
+room_states: Dict[str, dict] = {}
 
 
-async def verify_student(student_id: str, password: str):
-    """
-    Verify student credentials by calling the local 'quizio-data' API.
-    """
-    # 確保 Token 不是空的
-    if not CURRENT_DATA_SERVICE_TOKEN:
-        print('❌ 錯誤：沒有有效的 JWT，請確認伺服器啟動時是否有成功登入。')
+class StudentLoginParams(BaseModel):
+    student_id: str
+    password: str
+    host_token: str
+
+
+async def check_student_credentials(student_id: str, password: str, host_token: str):
+    if not host_token:
+        print('Error: No valid host token provided for this room.')
         return None
 
-    headers = {'Authorization': f'Bearer {CURRENT_DATA_SERVICE_TOKEN}'}
+    headers = {'Authorization': f'Bearer {host_token}'}
 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                DATA_SERVICE_AUTH_URL,
+                DATA_SERVICE_STUDENT_AUTH_URL,
                 json={'student_id': student_id, 'password': password},
                 headers=headers,
             )
@@ -75,64 +61,162 @@ async def verify_student(student_id: str, password: str):
                 return response.json()
             else:
                 print(
-                    f'❌ 學生驗證失敗: 回傳狀態碼 {response.status_code} - {response.text}'
+                    f'Student verification failed: {response.status_code} - {response.text}'
                 )
                 return None
         except Exception as e:
-            print(f'❌ 網路連線錯誤 (無法連線至 quizio-data): {e}')
+            print(f'Network error (cannot connect to quizio-data): {e}')
             return None
 
 
-app = FastAPI()
-manager = GameManager()
-
-
-@app.on_event('startup')
-async def startup_event():
-    global CURRENT_DATA_SERVICE_TOKEN
-    print(f'🔄 正在向資料中心 ({DATA_SERVICE_URL_BASE}) 申請存取權杖 (JWT)...')
-
+@fastapi_app.post('/api/auth/login')
+async def host_login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Authenticate host (teacher) by verifying credentials against Data Backend.
+    Returns the JWT token if successful.
+    """
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f'{DATA_SERVICE_URL_BASE}/api/auth/login',
-                data={
-                    'username': DATA_SERVICE_ADMIN_USERNAME,
-                    'password': DATA_SERVICE_ADMIN_PASSWORD,
-                },
+                DATA_SERVICE_TEACHER_AUTH_URL,
+                data={'username': form_data.username, 'password': form_data.password},
                 timeout=5.0,
             )
-            response.raise_for_status()
-            CURRENT_DATA_SERVICE_TOKEN = response.json()['access_token']
-            print('✅ 成功取得 JWT 權杖！遊戲引擎已連線至資料中心。')
-        except Exception as e:
-            # 新增：更詳細的啟動失敗提示
-            print(
-                f'❌ 無法取得權杖！請確認：\n1. quizio-data 伺服器是否運行中。\n2. 帳號密碼是否正確。\n錯誤訊息: {e}'
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='Incorrect username or password',
+                )
+            return response.json()
+        except httpx.RequestError as e:
+            print(f'Login proxy error: {e}')
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail='Data service is unavailable',
             )
 
 
-@app.websocket('/ws/{room_pin}/{student_id}/{password}')
-async def websocket_endpoint(
-    websocket: WebSocket, room_pin: str, student_id: str, password: str
-):
-    if student_id == 'Host_Teacher':
+@fastapi_app.post('/api/auth/student')
+async def verify_student_endpoint(params: StudentLoginParams):
+    """
+    Verify student credentials by calling Data API.
+    """
+    student_info = await check_student_credentials(
+        params.student_id, params.password, params.host_token
+    )
+    if not student_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Student verification failed',
+        )
+    return student_info
+
+
+@sio.event
+async def connect(sid, environ):
+    print(f'Client connected: {sid}')
+
+
+@sio.event
+async def disconnect(sid):
+    print(f'Client disconnected: {sid}')
+    for room_pin, room_data in list(room_states.items()):
+        players = room_data['players']
+        if sid in players:
+            del players[sid]
+            # Clean up the room if everyone left
+            if not players:
+                del room_states[room_pin]
+            else:
+                await broadcast_room_state(room_pin)
+            break
+
+
+@sio.event
+async def join_room(sid, data):
+    """
+    Client requests to join a room.
+    Host must provide the JWT token in data['token'] to initialize the room.
+    """
+    room_pin = str(data.get('room_pin'))
+
+    role = data.get('role')
+    student_id = data.get('student_id')
+    password = data.get('password')
+    token = data.get('token')
+
+    player_name = 'Unknown'
+
+    if role == 'host':
         player_name = 'Host_Teacher'
-    else:
-        student_info = await verify_student(student_id, password)
-        if not student_info:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        # Initialize room state and save the host's token
+        if room_pin not in room_states:
+            room_states[room_pin] = {'host_token': token, 'players': {}}
+        else:
+            # Update token if host reconnects
+            room_states[room_pin]['host_token'] = token
+
+    elif role == 'screen':
+        player_name = 'Projector_Screen'
+        if room_pin not in room_states:
+            await sio.emit('error', {'message': 'Room does not exist'}, to=sid)
+            await sio.disconnect(sid)
             return
+
+    elif role == 'client':
+        if room_pin not in room_states:
+            await sio.emit('error', {'message': 'Room does not exist'}, to=sid)
+            await sio.disconnect(sid)
+            return
+
+        host_token = room_states[room_pin].get('host_token')
+        student_info = await check_student_credentials(student_id, password, host_token)
+
+        if not student_info:
+            await sio.emit(
+                'error',
+                {'message': 'Verification failed or student not in your class'},
+                to=sid,
+            )
+            await sio.disconnect(sid)
+            return
+
         player_name = student_info['name']
 
-        if manager.is_player_in_room(room_pin, student_id):
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
+    else:
+        await sio.disconnect(sid)
+        return
 
-    await manager.connect(websocket, room_pin, student_id, player_name)
-    try:
-        while True:
-            data = await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(room_pin, student_id)
-        await manager.broadcast_room_state(room_pin)
+    room_states[room_pin]['players'][sid] = {
+        'role': role,
+        'name': player_name,
+        'student_id': student_id,
+    }
+
+    print(f'✅ {player_name} ({role}) joined room {room_pin}')
+    await broadcast_room_state(room_pin)
+
+
+async def broadcast_room_state(room_pin: str):
+    """
+    Broadcast current players in the room to everyone in that room.
+    """
+    if room_pin in room_states:
+        players_dict = room_states[room_pin]['players']
+        players_list = [
+            client_data['name']
+            for client_data in players_dict.values()
+            if client_data['role'] == 'client'
+        ]
+
+        print(
+            f'📡 Ready for broadcasting room state to room {room_pin} ({len(players_dict)} connections): {players_list}'
+        )
+
+        for target_sid in players_dict.keys():
+            await sio.emit(
+                'room_state',
+                {'room_pin': room_pin, 'players': players_list},
+                to=target_sid,
+            )
+        print('✅ Done')
