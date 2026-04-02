@@ -4,7 +4,7 @@ from typing import Dict
 import httpx
 import socketio
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 DATA_SERVICE_URL_BASE = os.getenv(
@@ -18,6 +18,8 @@ DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/student'
 # Initialize FastAPI app
 fastapi_app = FastAPI()
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/api/auth/login')
+
 # Initialize Socket.io AsyncServer
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
 
@@ -28,7 +30,7 @@ app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
 # Structure:
 # {
 #     "room_pin": {
-#         "host_token": "eyJhbG...",
+#         "token": "eyJhbG...",
 #         "players": {
 #             "sid": {"role": "host", "name": "Host_Teacher", "student_id": "Host_Teacher"}
 #         }
@@ -40,22 +42,22 @@ room_states: Dict[str, dict] = {}
 class StudentLoginParams(BaseModel):
     student_id: str
     password: str
-    host_token: str
+    token: str
 
 
-async def check_student_credentials(student_id: str, password: str, host_token: str):
-    if not host_token:
+async def check_student_credentials(student_id: str, password: str, token: str):
+    if not token:
         print('Error: No valid host token provided for this room.')
         return None
 
-    headers = {'Authorization': f'Bearer {host_token}'}
+    auth_header = f'Bearer {token}'
 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 DATA_SERVICE_STUDENT_AUTH_URL,
                 json={'student_id': student_id, 'password': password},
-                headers=headers,
+                headers={'Authorization': auth_header},
             )
             if response.status_code == 200:
                 return response.json()
@@ -70,7 +72,7 @@ async def check_student_credentials(student_id: str, password: str, host_token: 
 
 
 @fastapi_app.post('/api/auth/login')
-async def host_login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def proxy_auth_teacher(form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Authenticate host (teacher) by verifying credentials against Data Backend.
     Returns the JWT token if successful.
@@ -97,12 +99,12 @@ async def host_login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @fastapi_app.post('/api/auth/student')
-async def verify_student_endpoint(params: StudentLoginParams):
+async def proxy_auth_student(params: StudentLoginParams):
     """
     Verify student credentials by calling Data API.
     """
     student_info = await check_student_credentials(
-        params.student_id, params.password, params.host_token
+        params.student_id, params.password, params.token
     )
     if not student_info:
         raise HTTPException(
@@ -110,6 +112,44 @@ async def verify_student_endpoint(params: StudentLoginParams):
             detail='Student verification failed',
         )
     return student_info
+
+
+@fastapi_app.get('/api/exams/')
+async def proxy_get_my_exams(token: str = Depends(oauth2_scheme)):
+    """
+    Proxy request to get the currently logged-in teacher's exams.
+    Extracts the Authorization header and passes it to the Data Backend.
+    """
+    auth_header = f'Bearer {token}'
+
+    async with httpx.AsyncClient() as client:
+        # Request Data Backend's /api/exams/ endpoint (exact match with trailing slash)
+        response = await client.get(
+            f'{DATA_SERVICE_URL_BASE}/api/exams/',
+            headers={'Authorization': auth_header},
+            timeout=5.0,
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+        return response.json()
+
+
+@fastapi_app.get('/api/exams/{exam_id}')
+async def proxy_get_exam_details(exam_id: int, token: str = Depends(oauth2_scheme)):
+    """
+    Proxy request to get a specific exam with its questions.
+    """
+    auth_header = f'Bearer {token}'
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f'{DATA_SERVICE_URL_BASE}/api/exams/{exam_id}',
+            headers={'Authorization': auth_header},
+            timeout=5.0,
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+        return response.json()
 
 
 @sio.event
@@ -149,12 +189,16 @@ async def join_room(sid, data):
 
     if role == 'host':
         player_name = 'Host_Teacher'
-        # Initialize room state and save the host's token
         if room_pin not in room_states:
-            room_states[room_pin] = {'host_token': token, 'players': {}}
+            room_states[room_pin] = {
+                'token': token,
+                'players': {},
+                'broadcasted_questions': {},
+                'displayed_question': None,
+                'answers': {},
+            }
         else:
-            # Update token if host reconnects
-            room_states[room_pin]['host_token'] = token
+            room_states[room_pin]['token'] = token
 
     elif role == 'screen':
         player_name = 'Projector_Screen'
@@ -169,8 +213,8 @@ async def join_room(sid, data):
             await sio.disconnect(sid)
             return
 
-        host_token = room_states[room_pin].get('host_token')
-        student_info = await check_student_credentials(student_id, password, host_token)
+        token = room_states[room_pin].get('token')
+        student_info = await check_student_credentials(student_id, password, token)
 
         if not student_info:
             await sio.emit(
@@ -220,3 +264,65 @@ async def broadcast_room_state(room_pin: str):
                 to=target_sid,
             )
         print('✅ Done')
+
+
+@sio.event
+async def host_broadcast_questions(sid, data):
+    """
+    Host selects multiple questions and broadcasts them to clients.
+    """
+    room_pin = str(data.get('room_pin'))
+    questions = data.get('questions', [])
+
+    room = room_states.get(room_pin)
+    if not room:
+        return
+
+    player_info = room['players'].get(sid)
+    if not player_info or player_info['role'] != 'host':
+        return
+
+    new_broadcasts = []
+    for q in questions:
+        q_id = str(q['id'])
+        if q_id not in room['broadcasted_questions']:
+            room['broadcasted_questions'][q_id] = q
+            room['answers'][q_id] = {}
+            new_broadcasts.append(q)
+
+    if new_broadcasts:
+        print(f'📢 Host send {len(new_broadcasts)} questions to clients')
+        for target_sid, player in room['players'].items():
+            if player['role'] == 'client':
+                await sio.emit(
+                    'new_questions', {'questions': new_broadcasts}, to=target_sid
+                )
+
+
+@sio.event
+async def host_display_question(sid, data):
+    """
+    Host selects a specific question to display on the Projector Screen,
+    or sends null to clear the screen.
+    """
+    room_pin = str(data.get('room_pin'))
+    question = data.get('question')  # Nullable
+
+    room = room_states.get(room_pin)
+    if not room:
+        return
+
+    player_info = room['players'].get(sid)
+    if not player_info or player_info['role'] != 'host':
+        return
+
+    room['displayed_question'] = question
+
+    if question:
+        print(f'🖥️ Host broadcast question ID {question["id"]} on the screen')
+    else:
+        print('🖥️ Host clear the screen')
+
+    for target_sid, player in room['players'].items():
+        if player['role'] == 'screen':
+            await sio.emit('display_question', {'question': question}, to=target_sid)
