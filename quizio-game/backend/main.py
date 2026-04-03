@@ -21,7 +21,9 @@ fastapi_app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/api/auth/login')
 
 # Initialize Socket.io AsyncServer
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+sio = socketio.AsyncServer(
+    async_mode='asgi', cors_allowed_origins='*', ping_interval=25, ping_timeout=120
+)
 
 # Wrap FastAPI app with Socket.io ASGIApp
 app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
