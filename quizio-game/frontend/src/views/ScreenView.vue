@@ -26,48 +26,61 @@
         </div>
 
         <div v-else class="display-wrapper">
-            <div class="screen-header card">
-                <div class="header-left">
-                    <span class="join-instruction"
-                        >Join at <strong>quizio.com</strong></span
-                    >
-                </div>
-                <div class="header-center">
-                    <span class="pin-label">PIN:</span>
-                    <span class="pin-number">{{ roomPin }}</span>
-                </div>
+            <div class="screen-header-minimal">
                 <div class="header-right">
-                    <span class="player-count"
-                        >Players: {{ players.length }}</span
-                    >
+                    <span class="player-count">
+                        Students Joined: <strong>{{ players.length }}</strong>
+                    </span>
                 </div>
             </div>
 
-            <div v-if="currentView === 'lobby'" class="lobby-state">
-                <div class="idle-card card">
-                    <div class="pulse-ring"></div>
-                    <h2>Waiting for the host...</h2>
-                    <p>The teacher will display questions here shortly.</p>
+            <div v-if="currentView === 'lobby'" class="lobby-state-split">
+                <div class="join-hero-card card">
+                    <div class="qr-col">
+                        <QrcodeVue
+                            :value="joinUrl"
+                            :size="220"
+                            level="H"
+                            class="hero-qr"
+                        />
+                    </div>
+                    <div class="text-col">
+                        <div class="step-text">
+                            Join at <strong>{{ joinUrl }}</strong>
+                        </div>
+                        <div class="step-subtext">Room PIN:</div>
+                        <div class="hero-pin">{{ roomPin }}</div>
+                    </div>
                 </div>
 
-                <div class="players-grid card">
-                    <div v-if="players.length === 0" class="empty-players">
-                        Waiting for students to join...
+                <div class="waiting-hero-card card">
+                    <div class="waiting-header">
+                        <div class="pulse-ring"></div>
+                        <h2>Waiting for the host to start...</h2>
                     </div>
-                    <div v-else class="chips-container">
-                        <div
-                            v-for="player in players"
-                            :key="player"
-                            class="player-chip massive-chip"
-                        >
-                            {{ player }}
+
+                    <div class="players-container">
+                        <div v-if="players.length === 0" class="empty-players">
+                            Scan the QR code or enter the PIN to join the game!
+                        </div>
+                        <div v-else class="chips-grid">
+                            <div
+                                v-for="player in players"
+                                :key="player"
+                                class="player-chip massive-chip"
+                            >
+                                {{ player }}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div v-else-if="currentView === 'question'" class="question-state">
-                <div class="question-display-card card">
+            <div v-else class="game-active-state">
+                <div
+                    v-if="currentView === 'question'"
+                    class="question-display-card card"
+                >
                     <div class="q-meta">
                         <span class="q-type">{{
                             displayedQuestion?.type
@@ -115,30 +128,32 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div
-                v-else-if="currentView === 'leaderboard'"
-                class="leaderboard-state"
-            >
-                <div class="leaderboard-card card">
-                    <h1 class="lb-title">🏆 Top Scorers 🏆</h1>
-                    <div class="podium">
-                        <div
-                            v-for="(player, idx) in leaderboard.slice(0, 5)"
-                            :key="idx"
-                            class="lb-row"
-                            :class="'rank-' + (idx + 1)"
-                        >
-                            <span class="lb-rank">#{{ idx + 1 }}</span>
-                            <span class="lb-name">{{ player.name }}</span>
-                            <span class="lb-score">{{ player.score }} pts</span>
-                        </div>
-                        <div
-                            v-if="leaderboard.length === 0"
-                            class="empty-stats"
-                        >
-                            No scores available yet.
+                <div
+                    v-else-if="currentView === 'leaderboard'"
+                    class="leaderboard-state"
+                >
+                    <div class="leaderboard-card card">
+                        <h1 class="lb-title">🏆 Top Scorers 🏆</h1>
+                        <div class="podium">
+                            <div
+                                v-for="(player, idx) in leaderboard.slice(0, 5)"
+                                :key="idx"
+                                class="lb-row"
+                                :class="'rank-' + (idx + 1)"
+                            >
+                                <span class="lb-rank">#{{ idx + 1 }}</span>
+                                <span class="lb-name">{{ player.name }}</span>
+                                <span class="lb-score"
+                                    >{{ player.score }} pts</span
+                                >
+                            </div>
+                            <div
+                                v-if="leaderboard.length === 0"
+                                class="empty-stats"
+                            >
+                                No scores available yet.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -148,8 +163,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { socket } from '../utils/socket'
+import QrcodeVue from 'qrcode.vue'
 
 // --- Types ---
 interface Question {
@@ -178,12 +194,20 @@ const currentView = ref<'lobby' | 'question' | 'leaderboard'>('lobby')
 const displayedQuestion = ref<Question | null>(null)
 
 // Stats Data
-// For single/multiple: key is index. For boolean: 0 (True), 1 (False)
 const answerStats = ref<Record<string, number>>({})
 const totalAnswers = ref(0)
 
 // Leaderboard Data
 const leaderboard = ref<PlayerScore[]>([])
+
+// --- Computed ---
+
+// Raw URL string for the QR Code component
+const joinUrl = computed(() => {
+    if (!roomPin.value) return ''
+    const baseUrl = window.location.origin
+    return `${baseUrl}/join?pin=${roomPin.value}`
+})
 
 // --- Helpers ---
 const isChoiceQuestion = (type?: string) => {
@@ -223,26 +247,41 @@ const getBarPercentage = (idx: number | string): number => {
 }
 
 // --- Methods ---
+
+// Reusable join logic for both manual and auto-reconnect
+const performJoin = (pin: string) => {
+    isLoading.value = true
+    socket.connect()
+
+    socket.once('connect', () => {
+        socket.emit('join_room', {
+            room_pin: pin,
+            role: 'screen'
+        })
+
+        // Save the PIN to local storage for auto-reconnect on refresh
+        localStorage.setItem('quizio_screen_pin', pin)
+    })
+}
+
 const joinAsScreen = () => {
     errorMessage.value = ''
     if (!roomPin.value.trim()) {
         errorMessage.value = 'Please enter a valid Room PIN.'
         return
     }
-
-    isLoading.value = true
-    socket.connect()
-
-    socket.once('connect', () => {
-        socket.emit('join_room', {
-            room_pin: roomPin.value,
-            role: 'screen'
-        })
-    })
+    performJoin(roomPin.value)
 }
 
 // --- Lifecycle & Socket Events ---
 onMounted(() => {
+    // Check local storage for auto-reconnect
+    const savedPin = localStorage.getItem('quizio_screen_pin')
+    if (savedPin && !isConnected.value) {
+        roomPin.value = savedPin
+        performJoin(savedPin)
+    }
+
     // 1. Room state updates
     socket.on('room_state', (data: { room_pin: string; players: string[] }) => {
         if (String(data.room_pin) === String(roomPin.value)) {
@@ -252,7 +291,7 @@ onMounted(() => {
         }
     })
 
-    // 2. Display a question (Switch to Question View)
+    // 2. Display a question
     socket.on('display_question', (data: { question: Question | null }) => {
         if (data.question) {
             displayedQuestion.value = data.question
@@ -261,7 +300,9 @@ onMounted(() => {
             totalAnswers.value = 0
         } else {
             displayedQuestion.value = null
-            currentView.value = 'lobby'
+            if (currentView.value !== 'leaderboard') {
+                currentView.value = 'lobby'
+            }
         }
     })
 
@@ -274,7 +315,7 @@ onMounted(() => {
         }
     )
 
-    // 4. Show Leaderboard (Triggered by Host)
+    // 4. Show Leaderboard
     socket.on('show_leaderboard', (data: { leaderboard: PlayerScore[] }) => {
         leaderboard.value = data.leaderboard
         currentView.value = 'leaderboard'
@@ -286,6 +327,9 @@ onMounted(() => {
         isLoading.value = false
         socket.disconnect()
         isConnected.value = false
+
+        // Clear local storage if the room doesn't exist or host ended the game
+        localStorage.removeItem('quizio_screen_pin')
     })
 })
 
@@ -307,7 +351,7 @@ onUnmounted(() => {
     padding: 20px;
     max-width: 1400px;
     margin: 0 auto;
-    min-height: calc(100vh - 80px);
+    min-height: calc(100vh - 40px);
     display: flex;
     flex-direction: column;
 }
@@ -325,112 +369,125 @@ onUnmounted(() => {
 .display-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
     flex: 1;
 }
 
 /* --------------------------------------
-   Top Header Bar
+   Minimal Header
 --------------------------------------- */
-.screen-header {
+.screen-header-minimal {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    padding: 16px 32px;
-    background: var(--bg-card);
-    border-bottom: 4px solid var(--primary-light);
-}
-
-.header-left,
-.header-right {
-    flex: 1;
-}
-
-.header-right {
-    text-align: right;
-}
-
-.join-instruction {
-    font-size: 1.5rem;
-    color: var(--text-main);
-}
-
-.join-instruction strong {
-    color: var(--primary-color);
-}
-
-.header-center {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-}
-
-.pin-label {
-    font-size: 1.5rem;
-    color: var(--text-muted);
-    font-weight: bold;
-}
-
-.pin-number {
-    font-size: 3.5rem;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    background: linear-gradient(135deg, var(--primary-light) 0%, #8b5cf6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 .player-count {
     font-size: 1.5rem;
-    font-weight: bold;
     color: var(--text-main);
     background: var(--chip-bg);
-    padding: 8px 16px;
+    padding: 10px 24px;
     border-radius: 12px;
-    border: 1px solid var(--chip-border);
+    border: 2px solid var(--chip-border);
+}
+.player-count strong {
+    color: var(--primary-color);
+    font-size: 1.8rem;
+    margin-left: 8px;
 }
 
 /* --------------------------------------
-   Lobby State (Idle)
+   Split Lobby State (Robust & Beautiful)
 --------------------------------------- */
-.lobby-state {
+.lobby-state-split {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    flex: 1;
 }
 
-.idle-card {
-    text-align: center;
-    padding: 60px 20px;
+/* Top Card: Join Info */
+.join-hero-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+    padding: 50px;
+    border: 4px solid var(--primary-light);
+    background: var(--bg-card);
+}
+
+.hero-qr {
+    border-radius: 16px;
+    padding: 12px;
+    background: white;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.text-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.step-text {
+    font-size: 2.5rem;
+    color: var(--text-main);
+}
+.step-text strong {
+    color: var(--primary-color);
+    font-weight: 900;
+}
+
+.step-subtext {
+    font-size: 1.8rem;
+    color: var(--text-muted);
+    margin-top: 15px;
+    font-weight: 700;
+}
+
+.hero-pin {
+    font-size: 6.5rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: var(--text-main);
+    line-height: 1;
+    margin-top: 5px;
+    text-shadow: 2px 2px 0px rgba(99, 102, 241, 0.2);
+}
+
+/* Bottom Card: Waiting State */
+.waiting-hero-card {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    background: var(--highlight-bg);
-    border-color: var(--chip-border);
+    padding: 40px;
+    background: rgba(99, 102, 241, 0.03);
+    border: 2px dashed var(--border-color);
 }
 
-.idle-card h2 {
-    font-size: 2.5rem;
-    color: var(--primary-color);
-    margin-bottom: 10px;
-    z-index: 2;
+.waiting-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
 }
 
-.idle-card p {
-    font-size: 1.2rem;
+.waiting-header h2 {
+    font-size: 2.2rem;
     color: var(--text-muted);
-    z-index: 2;
+    font-weight: 700;
+    margin: 0;
 }
 
+/* Pulse Ring Animation */
 .pulse-ring {
-    width: 60px;
-    height: 60px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
-    background: var(--primary-light);
-    margin-bottom: 20px;
+    background: var(--primary-color);
     animation: pulse-ring-anim 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -449,20 +506,20 @@ onUnmounted(() => {
     }
 }
 
-.players-grid {
-    flex: 1;
-    min-height: 200px;
+/* Players Grid */
+.players-container {
+    width: 100%;
 }
 
 .empty-players {
     text-align: center;
+    font-size: 1.8rem;
     color: var(--text-muted);
-    font-size: 1.5rem;
-    padding: 40px;
     font-style: italic;
+    opacity: 0.7;
 }
 
-.chips-container {
+.chips-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
@@ -470,20 +527,40 @@ onUnmounted(() => {
 }
 
 .massive-chip {
-    font-size: 1.5rem;
-    padding: 12px 24px;
-    border-radius: 16px;
+    font-size: 1.8rem;
+    padding: 12px 30px;
+    border-radius: 20px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    color: var(--text-main);
+    font-weight: 700;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* --------------------------------------
+   Active Game State Layout
+--------------------------------------- */
+.game-active-state {
+    display: flex;
+    flex: 1;
+    position: relative;
 }
 
 /* --------------------------------------
    Question Display & Bar Charts
 --------------------------------------- */
-.question-state {
-    display: flex;
-    flex: 1;
-}
-
 .question-display-card {
     flex: 1;
     display: flex;
@@ -523,7 +600,6 @@ onUnmounted(() => {
     margin-top: auto;
 }
 
-/* Bar Chart Layout */
 .stat-bar-wrapper {
     display: flex;
     flex-direction: column;
@@ -554,7 +630,7 @@ onUnmounted(() => {
     height: 100%;
     width: 0%;
     border-radius: 12px;
-    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy animation */
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .bar-count {
@@ -573,7 +649,6 @@ onUnmounted(() => {
     color: white !important;
 }
 
-/* Text Answers Stats */
 .text-stats-container {
     text-align: center;
     background: var(--highlight-bg);
@@ -641,7 +716,6 @@ onUnmounted(() => {
     transition: transform 0.3s ease;
 }
 
-/* Podium Colors */
 .lb-row.rank-1 {
     background: linear-gradient(135deg, #ffd700 0%, #d4af37 100%);
     color: #000;
@@ -691,8 +765,16 @@ onUnmounted(() => {
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
-    .pin-number {
-        font-size: 2.5rem;
+    .join-hero-card {
+        flex-direction: column;
+        gap: 30px;
+        text-align: center;
+    }
+    .text-col {
+        align-items: center;
+    }
+    .hero-pin {
+        font-size: 5rem;
     }
     .q-content-huge {
         font-size: 2.5rem;
