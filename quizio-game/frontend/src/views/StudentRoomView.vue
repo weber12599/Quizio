@@ -305,6 +305,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { socket } from '../utils/socket'
 
 // --- Types ---
@@ -319,6 +320,8 @@ interface GradingResult {
     is_correct: boolean
     correct_answer: any
 }
+
+const route = useRoute()
 
 // --- State ---
 const roomPin = ref('')
@@ -488,22 +491,41 @@ const getOptionGradingIcon = (
 }
 
 // --- Methods ---
+const performJoin = (
+    pin: string,
+    sid: string,
+    pwd: string,
+    isAuto: bool = false
+) => {
+    if (!isAuto) {
+        errorMessage.value = ''
+    }
+
+    isLoading.value = true
+    socket.connect()
+
+    socket.once('connect', () => {
+        socket.emit('join_room', {
+            room_pin: pin,
+            role: 'client',
+            student_id: sid,
+            password: pwd
+        })
+
+        localStorage.setItem(
+            'quizio_student_creds',
+            JSON.stringify({ pin, sid, pwd })
+        )
+    })
+}
+
 const joinRoom = () => {
     errorMessage.value = ''
     if (!roomPin.value || !studentId.value || !password.value) {
         errorMessage.value = 'Please fill in all fields.'
         return
     }
-    isLoading.value = true
-    socket.connect()
-    socket.once('connect', () => {
-        socket.emit('join_room', {
-            room_pin: roomPin.value,
-            role: 'client',
-            student_id: studentId.value,
-            password: password.value
-        })
-    })
+    performJoin(roomPin.value, studentId.value, password.value)
 }
 
 const submitAnswer = (questionId: number, answer: any) => {
@@ -530,6 +552,7 @@ const submitAnswer = (questionId: number, answer: any) => {
 
 const leaveRoom = () => {
     socket.disconnect()
+    localStorage.removeItem('quizio_student_creds')
     isConnected.value = false
     questionsFeed.value = []
     submittedAnswers.value = {}
@@ -541,6 +564,21 @@ const leaveRoom = () => {
 
 // --- Lifecycle & Socket Events ---
 onMounted(() => {
+    if (route.query.pin) {
+        roomPin.value = route.query.pin as string
+    }
+
+    const saved = localStorage.getItem('quizio_student_creds')
+    if (saved && !isConnected.value) {
+        const { pin, sid, pwd } = JSON.parse(saved)
+        // 填充輸入框讓使用者看得到
+        roomPin.value = pin
+        studentId.value = sid
+        password.value = pwd
+        // 自動執行連線
+        performJoin(pin, sid, pwd, true)
+    }
+
     socket.on('room_state', (data: { room_pin: string; players: string[] }) => {
         if (String(data.room_pin) === String(roomPin.value)) {
             isConnected.value = true
@@ -549,10 +587,16 @@ onMounted(() => {
     })
 
     socket.on('error', (data: { message: string }) => {
-        errorMessage.value = data.message
-        isLoading.value = false
+        const hasCache = localStorage.getItem('quizio_student_creds') !== null
+
+        if (hasCache) {
+            localStorage.removeItem('quizio_student_creds')
+            isLoading.value = false
+        } else {
+            errorMessage.value = data.message
+            isLoading.value = false
+        }
         socket.disconnect()
-        isConnected.value = false
     })
 
     socket.on('new_questions', (data: { questions: Question[] }) => {
