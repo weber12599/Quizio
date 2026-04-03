@@ -2,7 +2,7 @@
     <div class="host-view">
         <h1>Host Control Panel</h1>
 
-        <div v-if="!isConnected" class="login-panel card">
+        <div v-if="!isConnected && !isReconnecting" class="login-panel card">
             <h2>Step 1: Login</h2>
             <div class="form-group">
                 <label>Teacher Username: </label>
@@ -14,6 +14,7 @@
                     v-model="password"
                     type="password"
                     placeholder="Enter password"
+                    @keyup.enter="loginAndCreateRoom"
                 />
             </div>
             <div class="form-group">
@@ -21,6 +22,7 @@
                 <input
                     v-model="roomPin"
                     placeholder="Enter custom PIN (e.g. 1234)"
+                    @keyup.enter="loginAndCreateRoom"
                 />
             </div>
 
@@ -55,6 +57,10 @@
                         End Game
                     </button>
                 </div>
+            </div>
+
+            <div v-if="isReconnecting" class="reconnect-banner">
+                ⚠️ 網路連線中斷，正在嘗試重新連回房間...
             </div>
 
             <div class="layout-grid">
@@ -268,6 +274,7 @@ const roomPin = ref('1234')
 const errorMessage = ref('')
 const isConnected = ref(false)
 const isLoading = ref(false)
+const isReconnecting = ref(false) // 🚀 新增：斷線重連狀態
 const players = ref<string[]>([])
 const authToken = ref('')
 const isLeaderboardDisplayed = ref(false)
@@ -319,7 +326,7 @@ const loadQuestions = async () => {
         )
         isQuestionsLoaded.value = true
 
-        // 🚀 新增：題目載入後，如果有之前未關閉的投放題目，把它高亮起來
+        // 題目載入後，如果有之前未關閉的投放題目，把它高亮起來
         if (recoveredDisplayedId.value) {
             currentDisplayedEq.value =
                 waitingPool.value.find(
@@ -341,14 +348,6 @@ const selectExam = (exam: Exam) => {
     isDropdownOpen.value = false
     isQuestionsLoaded.value = false
     waitingPool.value = []
-}
-
-const broadcastQuestion = (eq: ExamQuestion) => {
-    // Placeholder for Stage 3
-    console.log('Broadcasting question:', eq.question)
-    alert(
-        `Broadcasting Q${eq.sort_order}: ${eq.question.content}\n\n(Socket emission will be implemented in Stage 3)`
-    )
 }
 
 const broadcastSelected = () => {
@@ -375,64 +374,12 @@ const displayOnScreen = (eq: ExamQuestion) => {
             question: null
         })
     } else {
-        // 投影新題目時，必須關閉「排行榜」的按鈕狀態
         currentDisplayedEq.value = eq
         isLeaderboardDisplayed.value = false
         socket.emit('host_display_question', {
             room_pin: roomPin.value,
             question: eq.question
         })
-    }
-}
-
-// Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement
-    if (!target.closest('.custom-select-container')) {
-        isDropdownOpen.value = false
-    }
-})
-
-// --- Core Auth & Socket ---
-const loginAndCreateRoom = async () => {
-    errorMessage.value = ''
-    isLoading.value = true
-    if (!username.value || !password.value) {
-        errorMessage.value = 'Please enter both username and password.'
-        isLoading.value = false
-        return
-    }
-
-    try {
-        const formData = new URLSearchParams()
-        formData.append('username', username.value)
-        formData.append('password', password.value)
-
-        const data: any = await api.post('/auth/login', formData.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        })
-
-        authToken.value = data.access_token
-        localStorage.setItem('host_token', data.access_token)
-
-        await fetchMyExams()
-
-        socket.connect()
-        socket.off('connect')
-        socket.on('connect', () => {
-            socket.emit('join_room', {
-                room_pin: roomPin.value,
-                role: 'host',
-                student_id: 'Host_Teacher',
-                password: '',
-                token: authToken.value
-            })
-            isConnected.value = true
-            isLoading.value = false
-        })
-    } catch (error: any) {
-        errorMessage.value = error.response?.data?.detail || 'Login failed.'
-        isLoading.value = false
     }
 }
 
@@ -452,12 +399,93 @@ const toggleLeaderboard = () => {
     }
 }
 
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement
+    if (!target.closest('.custom-select-container')) {
+        isDropdownOpen.value = false
+    }
+})
+
+// --- Core Auth & Socket ---
+
+// 🚀 新增：獨立處理 Socket 連線與監聽邏輯
+const initSocketConnection = () => {
+    socket.off('connect')
+    socket.on('connect', () => {
+        socket.emit('join_room', {
+            room_pin: roomPin.value,
+            role: 'host',
+            student_id: 'Host_Teacher',
+            password: '',
+            token: authToken.value
+        })
+        isConnected.value = true
+        isLoading.value = false
+        isReconnecting.value = false // 連線成功，解除重連狀態
+    })
+
+    // 🚀 監聽異常斷線，觸發重連 Banner，但不退回首頁
+    socket.off('disconnect')
+    socket.on('disconnect', (reason) => {
+        console.warn('Host disconnected:', reason)
+        if (
+            reason === 'io server disconnect' ||
+            reason === 'io client disconnect'
+        ) {
+            isConnected.value = false
+            isReconnecting.value = false
+        } else {
+            isReconnecting.value = true
+        }
+    })
+
+    socket.connect()
+}
+
+const loginAndCreateRoom = async () => {
+    errorMessage.value = ''
+    isLoading.value = true
+    if (!username.value || !password.value) {
+        errorMessage.value = 'Please enter both username and password.'
+        isLoading.value = false
+        return
+    }
+
+    try {
+        const formData = new URLSearchParams()
+        formData.append('username', username.value)
+        formData.append('password', password.value)
+
+        const data: any = await api.post('/auth/login', formData.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        })
+
+        authToken.value = data.access_token
+
+        // 🚀 儲存登入憑證與房號供 F5 恢復使用
+        localStorage.setItem('host_token', data.access_token)
+        localStorage.setItem('quizio_host_pin', roomPin.value)
+
+        await fetchMyExams()
+        initSocketConnection()
+    } catch (error: any) {
+        errorMessage.value = error.response?.data?.detail || 'Login failed.'
+        isLoading.value = false
+    }
+}
+
 const leaveRoom = () => {
     if (isConnected.value) {
         socket.emit('end_game', { room_pin: roomPin.value })
     }
 
+    // 🚀 徹底清除房號記憶
+    localStorage.removeItem('quizio_host_pin')
+    localStorage.removeItem('host_token')
+
     isConnected.value = false
+    isReconnecting.value = false
     players.value = []
     authToken.value = ''
     selectedExam.value = null
@@ -472,13 +500,25 @@ const leaveRoom = () => {
     examSearchQuery.value = ''
 
     setTimeout(() => {
-        socket.disconnect()
+        socket.disconnect() // 這裡會觸發 reason: 'io client disconnect'
     }, 100)
-
-    localStorage.removeItem('host_token')
 }
 
 onMounted(() => {
+    // 🚀 F5 重新整理自動恢復機制
+    const savedPin = localStorage.getItem('quizio_host_pin')
+    const savedToken = localStorage.getItem('host_token')
+
+    if (savedPin && savedToken && !isConnected.value) {
+        roomPin.value = savedPin
+        authToken.value = savedToken
+
+        // 背景載入考卷清單並自動發起 Socket 連線
+        fetchMyExams()
+        initSocketConnection()
+    }
+
+    // --- Socket Events ---
     socket.on(
         'room_state',
         async (data: { room_pin: string; players: string[] }) => {
@@ -500,7 +540,6 @@ onMounted(() => {
             isLeaderboardDisplayed.value = data.is_leaderboard_displayed
             recoveredDisplayedId.value = data.displayed_question_id
 
-            // 如果題目列表已經載入（例如 Socket 瞬斷重連），立刻綁定高亮狀態
             if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
                 currentDisplayedEq.value =
                     waitingPool.value.find(
@@ -517,6 +556,8 @@ onUnmounted(() => {
     socket.disconnect()
     socket.off('room_state')
     socket.off('host_recovered_state')
+    socket.off('connect')
+    socket.off('disconnect')
 })
 </script>
 
@@ -524,7 +565,6 @@ onUnmounted(() => {
 /* --------------------------------------
    Layout & Panel Structure
 --------------------------------------- */
-/* Base View & Typography */
 .host-view {
     padding: 20px 15px;
     max-width: 1000px;
@@ -552,20 +592,45 @@ h3 {
     margin-bottom: 16px;
 }
 
-/* 登入區塊置中處理 */
+/* Login Panel */
 .login-panel {
     max-width: 480px;
     margin: 40px auto;
 }
 
-/* 遊戲控制台主容器 */
+/* Game Panel Main Container */
 .game-panel {
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
 
-/* 左右欄網格排版 */
+/* 🚀 Reconnect Banner Styles */
+.reconnect-banner {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    animation: alert-pulse 2s infinite;
+}
+
+@keyframes alert-pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Layout Grid */
 .layout-grid {
     display: flex;
     gap: 24px;
@@ -573,7 +638,7 @@ h3 {
     align-items: flex-start;
 }
 
-/* 左欄 (考卷與題目區) */
+/* Left Column */
 .left-col {
     flex: 2;
     min-width: 320px;
@@ -582,7 +647,7 @@ h3 {
     gap: 24px;
 }
 
-/* 右欄 (玩家名單區) */
+/* Right Column */
 .right-col {
     flex: 1;
     min-width: 280px;
