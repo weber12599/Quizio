@@ -1,8 +1,10 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
 import models
 from core.security import get_password_hash
+from core.tasks import media_garbage_collection_task
 
 # Ensure this matches the name of your async session maker in database.py
 from database import AsyncSessionLocal
@@ -52,6 +54,10 @@ async def lifespan(app: FastAPI):
         else:
             print(f"Superuser '{ADMIN_USERNAME}' already exists. Skipping creation.")
 
+    # Start the background Garbage Collection task
+    print('Starting background task: Media Garbage Collection...')
+    gc_task = asyncio.create_task(media_garbage_collection_task())
+
     # Yield control back to FastAPI to start accepting requests
     yield
 
@@ -59,6 +65,13 @@ async def lifespan(app: FastAPI):
     # Shutdown Event Logic
     # ==========================================
     print('Shutting down the application safely...')
+
+    # Gracefully cancel the GC task when the server shuts down
+    gc_task.cancel()
+    try:
+        await gc_task
+    except asyncio.CancelledError:
+        print('Background Garbage Collection task cancelled successfully.')
 
 
 # Initialize the FastAPI app and attach the lifespan context manager

@@ -101,3 +101,14 @@ class ExamQuestion(Base):
 
     exam = relationship('Exam', back_populates='exam_questions')
     question = relationship('Question')
+
+
+class Media(Base):
+    __tablename__ = 'media'
+
+    id = Column(Integer, primary_key=True, index=True)
+    fid = Column(String, unique=True, index=True, nullable=False)
+    uploader_id = Column(
+        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
