@@ -165,11 +165,9 @@
                 </el-form-item>
 
                 <el-form-item label="Content" required>
-                    <el-input
+                    <TiptapEditor
                         v-model="formData.content"
-                        type="textarea"
-                        :rows="3"
-                        placeholder="Enter question content..."
+                        placeholder="Please enter the question text; pasting or dragging and dropping images is supported."
                     />
                 </el-form-item>
 
@@ -182,24 +180,28 @@
                                 :key="index"
                                 class="option-row"
                             >
-                                <el-input
-                                    v-model="formData.options[index]"
-                                    placeholder="Option text..."
-                                >
-                                    <template #prepend>{{
-                                        String.fromCharCode(65 + index)
-                                    }}</template>
-                                    <template #append>
-                                        <el-button
-                                            @click="removeOption(index)"
-                                            :icon="Delete"
-                                            :disabled="
-                                                formData.options.length <= 2
-                                            "
-                                        />
-                                    </template>
-                                </el-input>
+                                <div class="option-prefix">
+                                    {{ String.fromCharCode(65 + index) }}
+                                </div>
+
+                                <div class="option-editor-wrapper">
+                                    <TiptapEditor
+                                        v-model="formData.options[index]"
+                                        minimal
+                                        placeholder="Option text..."
+                                    />
+                                </div>
+
+                                <el-button
+                                    type="danger"
+                                    plain
+                                    @click="removeOption(index)"
+                                    :icon="Delete"
+                                    :disabled="formData.options.length <= 2"
+                                    class="option-delete-btn"
+                                />
                             </div>
+
                             <el-button
                                 @click="addOption"
                                 plain
@@ -335,6 +337,7 @@ import {
 } from '@element-plus/icons-vue'
 import api from '../api'
 import { useAuthStore } from '../stores/auth'
+import TiptapEditor from '../components/TiptapEditor.vue'
 
 const authStore = useAuthStore()
 
@@ -369,7 +372,7 @@ const formData = ref<any>({
     id: null,
     type: 'single',
     content: '',
-    options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+    options: ['', '', '', ''],
     reference_answer: 0,
     difficulty: 1,
     lesson: '',
@@ -427,7 +430,7 @@ const openAddDialog = () => {
         id: null,
         type: 'single',
         content: '',
-        options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+        options: ['', '', '', ''],
         reference_answer: 0,
         difficulty: 1,
         lesson: '',
@@ -468,20 +471,10 @@ const openEditDialog = (row: Question) => {
 // Dynamic Form Handlers
 const handleTypeChange = (newType: string) => {
     if (newType === 'single') {
-        formData.value.options = [
-            'Option 1',
-            'Option 2',
-            'Option 3',
-            'Option 4'
-        ]
+        formData.value.options = ['', '', '', '']
         formData.value.reference_answer = 0
     } else if (newType === 'multiple') {
-        formData.value.options = [
-            'Option 1',
-            'Option 2',
-            'Option 3',
-            'Option 4'
-        ]
+        formData.value.options = ['', '', '', '', '']
         formData.value.reference_answer = []
     } else if (newType === 'boolean') {
         formData.value.options = []
@@ -493,7 +486,7 @@ const handleTypeChange = (newType: string) => {
 }
 
 const addOption = () => {
-    formData.value.options.push(`Option ${formData.value.options.length + 1}`)
+    formData.value.options.push('')
 }
 
 const removeOption = (index: number) => {
@@ -602,12 +595,42 @@ onMounted(() => {
     margin-bottom: 5px;
 }
 .options-container {
-    display: flex;
-    flex-direction: column;
     width: 100%;
 }
+
 .option-row {
-    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
     width: 100%;
+}
+
+.option-prefix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    font-weight: bold;
+    color: var(--el-text-color-regular);
+    flex-shrink: 0;
+    /* Align with the toolbar of the minimal editor */
+    margin-top: 2px;
+}
+
+.option-editor-wrapper {
+    flex-grow: 1;
+    /* Prevent editor from overflowing its flex container */
+    min-width: 0;
+}
+
+.option-delete-btn {
+    flex-shrink: 0;
+    height: 36px;
+    margin-top: 2px;
 }
 </style>
