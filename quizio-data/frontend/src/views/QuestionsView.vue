@@ -220,7 +220,7 @@
                         <el-radio
                             v-for="(opt, index) in formData.options"
                             :key="index"
-                            :label="index"
+                            :value="index"
                         >
                             Option {{ String.fromCharCode(65 + index) }}
                         </el-radio>
@@ -233,7 +233,7 @@
                         <el-checkbox
                             v-for="(opt, index) in formData.options"
                             :key="index"
-                            :label="index"
+                            :value="index"
                         >
                             Option {{ String.fromCharCode(65 + index) }}
                         </el-checkbox>
@@ -243,8 +243,8 @@
                         v-if="formData.type === 'boolean'"
                         v-model="formData.reference_answer"
                     >
-                        <el-radio :label="true">True (O)</el-radio>
-                        <el-radio :label="false">False (X)</el-radio>
+                        <el-radio :value="true">True (O)</el-radio>
+                        <el-radio :value="false">False (X)</el-radio>
                     </el-radio-group>
 
                     <el-input
