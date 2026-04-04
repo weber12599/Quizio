@@ -28,8 +28,13 @@ async def get_questions(
     question_type: str = None,
     difficulty: int = None,
     lesson: str = None,
+    include_archived: bool = False,
 ):
-    query = select(models.Question).where(models.Question.is_archived.is_not(True))
+    query = select(models.Question)
+
+    # Conditionally apply the archived filter
+    if not include_archived:
+        query = query.where(models.Question.is_archived.is_not(True))
 
     # Data isolation: Regular teachers see their own questions + public questions
     if not current_user.is_superuser:

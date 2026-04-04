@@ -16,6 +16,7 @@ async def read_questions(
     question_type: Optional[str] = None,
     difficulty: Optional[int] = None,
     lesson: Optional[str] = None,
+    include_archived: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -25,6 +26,7 @@ async def read_questions(
         question_type=question_type,
         difficulty=difficulty,
         lesson=lesson,
+        include_archived=include_archived,
     )
 
 

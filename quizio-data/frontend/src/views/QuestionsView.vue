@@ -45,6 +45,11 @@
                     />
                 </el-form-item>
                 <el-form-item>
+                    <el-checkbox v-model="filterIncludeArchived" border>
+                        Include Archived
+                    </el-checkbox>
+                </el-form-item>
+                <el-form-item>
                     <el-button type="primary" @click="handleSearch">
                         <el-icon><Search /></el-icon> Search
                     </el-button>
@@ -59,6 +64,16 @@
                 style="width: 100%"
             >
                 <el-table-column prop="id" label="ID" width="60" />
+
+                <el-table-column label="Status" width="100" align="center">
+                    <template #default="scope">
+                        <el-tag v-if="scope.row.is_archived" type="info"
+                            >Archived</el-tag
+                        >
+                        <el-tag v-else type="success">Active</el-tag>
+                    </template>
+                </el-table-column>
+
                 <el-table-column label="Type" width="130">
                     <template #default="scope">
                         <el-tag :type="getTypeConfig(scope.row.type).tagType">
@@ -126,7 +141,10 @@
                         </el-button>
 
                         <el-button
-                            v-if="authStore.user?.id === scope.row.owner_id"
+                            v-if="
+                                authStore.user?.id === scope.row.owner_id &&
+                                !scope.row.is_archived
+                            "
                             size="small"
                             type="warning"
                             plain
@@ -353,6 +371,7 @@ interface Question {
     difficulty: number | null
     lesson: string | null
     literacy_tags: string[] | null
+    is_archived: boolean
     is_public: boolean
     owner_id: number
 }
@@ -367,6 +386,7 @@ const originalIsPublic = ref(false)
 const filterType = ref<string>('')
 const filterDifficulty = ref<number | null>(null)
 const filterLesson = ref<string>('')
+const filterIncludeArchived = ref<boolean>(false)
 
 // Form State
 const dialogVisible = ref(false)
@@ -403,6 +423,7 @@ const fetchQuestions = async () => {
         if (filterType.value) params.type = filterType.value
         if (filterDifficulty.value) params.difficulty = filterDifficulty.value
         if (filterLesson.value) params.lesson = filterLesson.value
+        if (filterIncludeArchived.value) params.include_archived = true
 
         // Remember to keep the trailing slash
         const response = await api.get('/questions/', { params })
@@ -422,6 +443,7 @@ const resetFilters = () => {
     filterType.value = ''
     filterDifficulty.value = null
     filterLesson.value = ''
+    filterIncludeArchived.value = false
     fetchQuestions()
 }
 
