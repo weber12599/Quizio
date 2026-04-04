@@ -25,7 +25,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     # Tell cloudflared to point to our Vue frontend dev server
-    command: tunnel --url http://frontend:5173
+    command: tunnel --url http://frontend:5173 --protocol http2
     restart: unless-stopped
     depends_on:
       - frontend
