@@ -2,8 +2,6 @@
     <div class="host-view">
         <ButtonLangToggle />
 
-        <h1>{{ $t('host.title') }}</h1>
-
         <div v-if="!isConnected && !isReconnecting" class="login-panel card">
             <h2>{{ $t('host.step_login') }}</h2>
             <div class="form-group">
@@ -632,7 +630,7 @@ h3 {
     gap: 24px;
 }
 
-/* 🚀 Reconnect Banner Styles */
+/* Reconnect Banner Styles */
 .reconnect-banner {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     color: white;
@@ -681,7 +679,7 @@ h3 {
 }
 
 /* --------------------------------------
-   Room Header & Indicators
+   Room Header & Indicators (Height Locked)
 --------------------------------------- */
 .room-header {
     display: grid;
@@ -691,6 +689,8 @@ h3 {
     border-left: 4px solid var(--primary-light);
     padding: 16px 24px;
     gap: 16px;
+    min-height: 80px; /* Lock the minimum height of the entire header */
+    box-sizing: border-box;
 }
 
 .room-header h2 {
@@ -699,6 +699,8 @@ h3 {
     color: var(--text-main);
     grid-column: 1;
     justify-self: start;
+    line-height: 1.2; /* Lock line-height to ignore CJK/Latin differences */
+    white-space: nowrap;
 }
 
 .status-indicator {
@@ -706,10 +708,14 @@ h3 {
     font-weight: 600;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     grid-column: 2;
     justify-self: center;
     margin: 0;
+    height: 36px; /* Lock the height of the badge */
+    line-height: 1;
+    white-space: nowrap; /* Prevent text from wrapping */
 }
 
 .header-actions {
@@ -720,9 +726,13 @@ h3 {
 }
 
 .header-actions button {
-    min-width: 180px; /* Prevent layout shift when toggling Show/Hide Leaderboard */
+    min-width: 180px;
+    height: 40px; /* Force buttons to be exactly the same height */
     display: inline-flex;
     justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    white-space: nowrap;
 }
 
 /* --------------------------------------
@@ -921,6 +931,9 @@ h3 {
     background-color: var(--highlight-bg);
 }
 
+/* --------------------------------------
+   Question Pool Actions (Double Height/Width Locked)
+--------------------------------------- */
 .q-actions {
     display: flex;
     justify-content: flex-end;
@@ -928,45 +941,26 @@ h3 {
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px dashed var(--border-color);
-    min-height: 48px;
+    min-height: 56px; /* Lock outer container height */
     gap: 12px;
+    box-sizing: border-box;
 }
 
 .status-badge {
     margin-right: auto;
     background: rgba(16, 185, 129, 0.15);
     color: var(--success-color);
-    padding: 4px 10px;
+    padding: 0 12px;
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 700;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-}
-
-.q-actions button {
-    min-width: 180px;
-    display: inline-flex;
-    justify-content: center;
-}
-
-@media (max-width: 640px) {
-    .room-header {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .room-header h2,
-    .status-indicator,
-    .header-actions {
-        grid-column: auto;
-        justify-self: stretch;
-        justify-content: center;
-    }
-    .header-actions button {
-        width: 100%;
-    }
+    height: 28px; /* Lock badge height */
+    line-height: 1;
+    box-sizing: border-box;
+    white-space: nowrap;
 }
 
 .status-badge::before {
@@ -976,13 +970,25 @@ h3 {
     height: 6px;
     background-color: var(--success-color);
     border-radius: 50%;
+    flex-shrink: 0; /* Ensure dot does not deform */
+}
+
+.q-actions button {
+    min-width: 200px; /* Expand to 200px to perfectly wrap "Display on Screen" */
+    height: 40px; /* Lock button height */
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+    line-height: 1;
 }
 
 /* Displaying Animation */
 .btn-secondary.is-displaying {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     color: white;
-    border: none;
+    border-color: transparent !important; /* Keep border placeholder but make it invisible */
     box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.2);
     animation: pulse-orange 2s infinite;
 }
@@ -1039,14 +1045,26 @@ h3 {
     .card {
         padding: 16px;
     }
+
+    /* Header Grid Reset */
     .room-header {
+        display: flex;
         flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
+        align-items: stretch;
+        min-height: auto; /* Release height lock on mobile */
     }
-    .room-header button {
+    .room-header h2,
+    .status-indicator,
+    .header-actions {
+        grid-column: auto;
+        justify-self: stretch;
+        justify-content: center;
+        text-align: center;
+    }
+    .header-actions button {
         width: 100%;
     }
+
     .pool-header {
         flex-direction: column;
         align-items: stretch;

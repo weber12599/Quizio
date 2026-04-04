@@ -674,13 +674,19 @@ onUnmounted(() => {
     padding: 16px 20px;
     border-left: 4px solid var(--primary-color);
     gap: 16px;
+    min-height: 76px; /* 🚀 Key 1: Lock minimum height */
+    box-sizing: border-box;
 }
+
 .room-header h2 {
     margin: 0;
     font-size: 1.25rem;
     grid-column: 1;
     justify-self: start;
+    line-height: 1.2;
+    white-space: nowrap;
 }
+
 .status-indicator {
     display: flex;
     align-items: center;
@@ -689,17 +695,26 @@ onUnmounted(() => {
     font-weight: 600;
     font-size: 0.9rem;
     background: var(--chip-bg);
-    padding: 6px 12px;
+    padding: 0 16px; /* Adjust padding to match locked height */
     border-radius: 20px;
     grid-column: 2;
     justify-self: center;
+    height: 36px; /* 🚀 Key 2: Force exact badge height */
+    line-height: 1;
+    white-space: nowrap;
+    box-sizing: border-box;
 }
+
 .room-header button {
     grid-column: 3;
     justify-self: end;
     min-width: 120px;
+    height: 40px; /* 🚀 Key 3: Force exact button height */
     display: inline-flex;
     justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    white-space: nowrap;
 }
 
 @media (max-width: 640px) {
@@ -707,6 +722,7 @@ onUnmounted(() => {
         display: flex;
         flex-direction: column;
         align-items: stretch;
+        min-height: auto;
     }
     .room-header h2,
     .status-indicator,
@@ -725,6 +741,8 @@ onUnmounted(() => {
     background-color: var(--success-color);
     border-radius: 50%;
     animation: pulse 1.5s infinite;
+    flex-shrink: 0; /* Crucial: Do not let text push or shrink the dot */
+    margin-right: 2px;
 }
 @keyframes pulse {
     0% {
