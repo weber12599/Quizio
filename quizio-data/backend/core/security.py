@@ -5,9 +5,9 @@ import bcrypt
 import jwt
 
 # JWT Configuration settings
-SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your_super_secret_jwt_key_here')
-ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', '1440'))
+SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+ALGORITHM = os.getenv('JWT_ALGORITHM')
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES'))
 
 
 def get_password_hash(password: str) -> str:

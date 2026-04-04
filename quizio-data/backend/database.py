@@ -4,10 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import declarative_base
 
 # Fetch database URL from environment variable
-DATABASE_URL = os.getenv(
-    'DATABASE_URL',
-    'postgresql+asyncpg://quizio_admin:your_secure_db_password@db:5432/quizio_data',
-)
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Create asynchronous database engine
 engine = create_async_engine(DATABASE_URL, echo=True)

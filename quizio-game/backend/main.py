@@ -7,9 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
-DATA_SERVICE_URL_BASE = os.getenv(
-    'DATA_SERVICE_URL_BASE', 'http://host.docker.internal:8080'
-)
+DATA_SERVICE_URL_BASE = os.getenv('DATA_SERVICE_URL_BASE')
 
 DATA_SERVICE_TEACHER_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/login'
 DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/student'

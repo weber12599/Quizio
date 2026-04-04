@@ -14,8 +14,8 @@ from sqlalchemy import select
 
 # Load initial admin credentials from environment variables
 # Provide default values just in case they are missing during local dev
-ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME')
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 
 
 @asynccontextmanager

@@ -28,10 +28,7 @@ if config.config_file_name is not None:
 
 # 4. Dynamically load the DATABASE_URL from environment variables
 # This ensures it connects to the same DB as your FastAPI app
-DATABASE_URL = os.getenv(
-    'DATABASE_URL',
-    'postgresql+asyncpg://quizio_admin:your_secure_db_password@db:5432/quizio_data',
-)
+DATABASE_URL = os.getenv('DATABASE_URL')
 config.set_main_option('sqlalchemy.url', DATABASE_URL)
 
 # 5. Point target_metadata to your Base.metadata for autogeneration
