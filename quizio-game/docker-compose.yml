@@ -7,7 +7,7 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - DATA_SERVICE_URL_BASE=${DATA_SERVICE_URL_BASE}
+      - DATA_SERVICE_BASE_URL=${DATA_SERVICE_BASE_URL}
     volumes:
       - ./backend:/app
     restart: unless-stopped
@@ -15,6 +15,9 @@ services:
     build: ./frontend
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_PROXY_BASE_URL=${VITE_API_PROXY_BASE_URL}
+      - VITE_SOCKET_PROXY_BASE_URL=${VITE_SOCKET_PROXY_BASE_URL}
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -24,8 +27,7 @@ services:
       - backend
   cloudflared:
     image: cloudflare/cloudflared:latest
-    # Tell cloudflared to point to our Vue frontend dev server
-    command: tunnel --url http://frontend:5173 --protocol http2
+    command: tunnel --url ${GAME_BASE_URL} --protocol http2
     restart: unless-stopped
     depends_on:
       - frontend

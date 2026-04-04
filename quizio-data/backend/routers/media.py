@@ -1,3 +1,5 @@
+import os
+
 import httpx
 import models
 from core.deps import get_current_user
@@ -6,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 router = APIRouter(prefix='/api/media', tags=['media'])
 
 # Fetch the internal storage URL from environment variables
-SEAWEEDFS_MASTER_URL = 'http://seaweedfs-master:9333'
+SEAWEEDFS_MASTER_URL = os.getenv('SEAWEEDFS_MASTER_URL')
 
 # Fail fast to prevent silent connection errors
 if not SEAWEEDFS_MASTER_URL:

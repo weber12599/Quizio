@@ -7,10 +7,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
-DATA_SERVICE_URL_BASE = os.getenv('DATA_SERVICE_URL_BASE')
+DATA_SERVICE_BASE_URL = os.getenv('DATA_SERVICE_BASE_URL')
 
-DATA_SERVICE_TEACHER_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/login'
-DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_URL_BASE}/api/auth/student'
+DATA_SERVICE_TEACHER_AUTH_URL = f'{DATA_SERVICE_BASE_URL}/api/auth/login'
+DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_BASE_URL}/api/auth/student'
 
 
 # Initialize FastAPI app
@@ -201,7 +201,7 @@ async def proxy_get_my_exams(token: str = Depends(oauth2_scheme)):
     async with httpx.AsyncClient() as client:
         # Request Data Backend's /api/exams/ endpoint (exact match with trailing slash)
         response = await client.get(
-            f'{DATA_SERVICE_URL_BASE}/api/exams/',
+            f'{DATA_SERVICE_BASE_URL}/api/exams/',
             headers={'Authorization': auth_header},
             timeout=5.0,
         )
@@ -219,7 +219,7 @@ async def proxy_get_exam_details(exam_id: int, token: str = Depends(oauth2_schem
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f'{DATA_SERVICE_URL_BASE}/api/exams/{exam_id}',
+            f'{DATA_SERVICE_BASE_URL}/api/exams/{exam_id}',
             headers={'Authorization': auth_header},
             timeout=5.0,
         )

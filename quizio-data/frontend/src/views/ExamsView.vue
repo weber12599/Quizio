@@ -321,7 +321,7 @@ const filteredQuestions = computed(() => {
 const fetchExams = async () => {
     loading.value = true
     try {
-        const response = await api.get('/api/exams/')
+        const response = await api.get('/exams/')
         exams.value = response.data
     } catch (error) {
         ElMessage.error('Failed to fetch exams')
@@ -333,7 +333,7 @@ const fetchExams = async () => {
 const fetchQuestions = async () => {
     questionsLoading.value = true
     try {
-        const response = await api.get('/api/questions/')
+        const response = await api.get('/questions/')
         bankQuestions.value = response.data
     } catch (error) {
         ElMessage.error('Failed to fetch question bank')
@@ -423,10 +423,10 @@ const submitForm = async () => {
         }
 
         if (dialogType.value === 'add') {
-            await api.post('/api/exams/', payload)
+            await api.post('/exams/', payload)
             ElMessage.success('Exam created successfully')
         } else {
-            await api.put(`/api/exams/${formData.value.id}`, payload)
+            await api.put(`/exams/${formData.value.id}`, payload)
             ElMessage.success('Exam updated successfully')
         }
 
@@ -450,7 +450,7 @@ const handleDelete = (row: Exam) => {
     )
         .then(async () => {
             try {
-                await api.delete(`/api/exams/${row.id}`)
+                await api.delete(`/exams/${row.id}`)
                 ElMessage.success('Exam deleted')
                 fetchExams()
             } catch (error) {
@@ -469,7 +469,7 @@ const handleLock = (row: Exam) => {
     )
         .then(async () => {
             try {
-                await api.put(`/api/exams/${row.id}`, { is_locked: true })
+                await api.put(`/exams/${row.id}`, { is_locked: true })
                 ElMessage.success('Exam locked successfully')
                 fetchExams()
             } catch (error) {

@@ -9,8 +9,13 @@ export default defineConfig({
         strictPort: true,
         proxy: {
             '/api': {
-                target: 'http://backend:8080',
+                target: process.env.VITE_API_PROXY_BASE_URL,
                 changeOrigin: true
+            },
+            '/media': {
+                target: process.env.VITE_MEDIA_PROXY_BASE_URL,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/media/, '')
             }
         }
     }

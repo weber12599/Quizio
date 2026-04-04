@@ -200,7 +200,7 @@ const fetchTeachers = async () => {
     loading.value = true
     try {
         // 🌟 注意結尾斜線，避免 307 導向錯誤
-        const response = await api.get('/api/users/')
+        const response = await api.get('/users/')
         teachers.value = response.data
     } catch (error: any) {
         ElMessage.error(
@@ -247,10 +247,10 @@ const handleSubmit = async () => {
 
                 if (dialogType.value === 'add') {
                     // 🌟 注意結尾斜線
-                    await api.post('/api/users/', payload)
+                    await api.post('/users/', payload)
                     ElMessage.success('Teacher added successfully')
                 } else {
-                    await api.put(`/api/users/${formData.id}`, payload)
+                    await api.put(`/users/${formData.id}`, payload)
                     ElMessage.success('Teacher updated successfully')
                 }
 

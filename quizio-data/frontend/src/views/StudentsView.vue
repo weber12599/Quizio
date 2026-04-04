@@ -181,7 +181,7 @@ const fetchStudents = async () => {
         if (filterYear.value) params.admission_year = filterYear.value
         if (filterClass.value) params.class_name = filterClass.value
 
-        const response = await api.get('/api/students/', { params })
+        const response = await api.get('/students/', { params })
         students.value = response.data
     } catch (error: any) {
         if (error.response?.status === 401) {
@@ -251,7 +251,7 @@ const submitForm = async () => {
             const payload = { ...formData.value }
             if (payload.email === '') payload.email = null
 
-            await api.post('/api/students/', payload)
+            await api.post('/students/', payload)
             ElMessage.success('Student added successfully')
         } else {
             const updateData: any = { ...formData.value }
@@ -261,10 +261,7 @@ const submitForm = async () => {
             }
             if (updateData.email === '') updateData.email = null
 
-            await api.put(
-                `/api/students/${formData.value.student_id}`,
-                updateData
-            )
+            await api.put(`/students/${formData.value.student_id}`, updateData)
             ElMessage.success('Student updated successfully')
         }
         dialogVisible.value = false
@@ -289,7 +286,7 @@ const handleDelete = (row: Student) => {
     )
         .then(async () => {
             try {
-                await api.delete(`/api/students/${row.student_id}`)
+                await api.delete(`/students/${row.student_id}`)
                 ElMessage.success('Student deleted successfully')
                 fetchStudents()
             } catch (error) {

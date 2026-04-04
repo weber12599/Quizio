@@ -399,7 +399,7 @@ const fetchQuestions = async () => {
         if (filterLesson.value) params.lesson = filterLesson.value
 
         // Remember to keep the trailing slash
-        const response = await api.get('/api/questions/', { params })
+        const response = await api.get('/questions/', { params })
         questions.value = response.data
     } catch (error: any) {
         ElMessage.error('Failed to fetch questions.')
@@ -534,10 +534,10 @@ const submitForm = async () => {
         if (!payload.difficulty) payload.difficulty = 1
 
         if (dialogType.value === 'add') {
-            await api.post('/api/questions/', payload)
+            await api.post('/questions/', payload)
             ElMessage.success('Question added successfully')
         } else {
-            await api.put(`/api/questions/${formData.value.id}`, payload)
+            await api.put(`/questions/${formData.value.id}`, payload)
             ElMessage.success('Question updated successfully')
         }
 
@@ -564,7 +564,7 @@ const handleArchive = (row: Question) => {
         .then(async () => {
             try {
                 // Remember to keep the trailing slash if required by your router
-                await api.delete(`/api/questions/${row.id}`)
+                await api.delete(`/questions/${row.id}`)
                 ElMessage.success('Question archived successfully')
                 fetchQuestions()
             } catch (error) {

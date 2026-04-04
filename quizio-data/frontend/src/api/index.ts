@@ -3,7 +3,7 @@ import router from '../router'
 
 // Create a centralized Axios instance
 const api = axios.create({
-    baseURL: '',
+    baseURL: '/api',
     timeout: 10000
 })
 
@@ -38,5 +38,31 @@ api.interceptors.response.use(
         return Promise.reject(error)
     }
 )
+
+export interface MediaUploadResponse {
+    fid: string
+    filename: string
+    content_type: string
+    size: number
+    url: string
+}
+
+/**
+ * Upload a media file to the backend, which proxies it to SeaweedFS
+ * @param file The file object to upload (preferably compressed WebP)
+ * @returns A Promise resolving to the upload response containing the fid
+ */
+export const uploadMedia = async (file: File): Promise<MediaUploadResponse> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await api.post('/media/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+
+    return response.data
+}
 
 export default api

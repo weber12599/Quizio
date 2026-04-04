@@ -10,11 +10,11 @@ export default defineConfig({
         allowedHosts: ['.trycloudflare.com'],
         proxy: {
             '/api': {
-                target: 'http://backend:8000',
+                target: process.env.VITE_API_PROXY_BASE_URL,
                 changeOrigin: true
             },
             '/socket.io': {
-                target: 'http://backend:8000',
+                target: process.env.VITE_SOCKET_PROXY_BASE_URL,
                 ws: true,
                 changeOrigin: true
             }
