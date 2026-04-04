@@ -6,7 +6,9 @@
         "end_game": "End Game",
         "network_disconnected": "⚠️ Network disconnected. Reconnecting to the room...",
         "change": "Change",
-        "loading": "Loading..."
+        "loading": "Loading...",
+        "true_option": "True",
+        "false_option": "False"
     },
     "question_type": {
         "single": "Single Choice",
@@ -54,6 +56,23 @@
         "placeholder_student_id": "Enter your student ID",
         "placeholder_password": "Enter your password",
         "btn_join": "Join Room",
-        "room": "Room: "
+        "room": "Room: ",
+        "connected": "Connected",
+        "leave": "Leave",
+        "waiting_teacher": "Waiting for Teacher...",
+        "questions_appear_auto": "Questions will appear here automatically.",
+        "graded": "Graded",
+        "submitted": "Submitted",
+        "submit_answer": "Submit Answer",
+        "placeholder_essay": "Write your essay answer here...",
+        "placeholder_short": "Type your short answer here...",
+        "your_answer": "Your Answer",
+        "correct_answer": "Correct Answer",
+        "your_submission": "Your Submission",
+        "reference_answer": "Reference Answer",
+        "banner_pending_review": "Submission Received (Pending Manual Review)",
+        "banner_correct": "Correct!",
+        "banner_incorrect": "Incorrect",
+        "error_fill_fields": "Please fill in all fields."
     }
 }

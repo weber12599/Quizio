@@ -1,42 +1,46 @@
 <template>
     <div class="student-view">
+        <ButtonLangToggle />
+
         <div v-if="!isConnected" class="login-panel card">
-            <h2>Join a Game</h2>
+            <h2>{{ $t('student.title') }}</h2>
             <p class="subtitle">
-                Enter the Room PIN and your student credentials.
+                {{ $t('student.subtitle') }}
             </p>
 
             <div class="form-group">
-                <label>Room PIN: </label>
+                <label>{{ $t('common.room_pin') }}</label>
                 <input
                     v-model="roomPin"
-                    placeholder="e.g. 1234"
+                    :placeholder="$t('student.placeholder_pin')"
                     type="text"
                     inputmode="numeric"
                 />
             </div>
 
             <div class="form-group">
-                <label>Student ID: </label>
+                <label>{{ $t('student.student_id') }}</label>
                 <input
                     v-model="studentId"
-                    placeholder="Enter your student ID"
+                    :placeholder="$t('student.placeholder_student_id')"
                     type="text"
                 />
             </div>
 
             <div class="form-group">
-                <label>Password: </label>
+                <label>{{ $t('common.password') }}</label>
                 <input
                     v-model="password"
-                    placeholder="Enter your password"
+                    :placeholder="$t('student.placeholder_password')"
                     type="password"
                     @keyup.enter="joinRoom"
                 />
             </div>
 
             <button @click="joinRoom" class="btn-primary" :disabled="isLoading">
-                {{ isLoading ? 'Connecting...' : 'Join Room' }}
+                {{
+                    isLoading ? $t('common.connecting') : $t('student.btn_join')
+                }}
             </button>
 
             <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
@@ -44,13 +48,13 @@
 
         <div v-else class="game-panel">
             <div class="room-header card">
-                <h2>Room: {{ roomPin }}</h2>
+                <h2>{{ $t('student.room') }}{{ roomPin }}</h2>
                 <div class="status-indicator">
                     <span class="pulse-dot"></span>
-                    Connected
+                    {{ $t('student.connected') }}
                 </div>
                 <button @click="leaveRoom" class="btn-danger small-btn">
-                    Leave
+                    {{ $t('student.leave') }}
                 </button>
             </div>
 
@@ -60,8 +64,8 @@
                     class="waiting-card card"
                 >
                     <div class="loader-spinner"></div>
-                    <h3>Waiting for Teacher...</h3>
-                    <p>Questions will appear here automatically.</p>
+                    <h3>{{ $t('student.waiting_teacher') }}</h3>
+                    <p>{{ $t('student.questions_appear_auto') }}</p>
                 </div>
 
                 <div v-else class="question-list">
@@ -80,12 +84,12 @@
                             <span
                                 v-if="gradingResults[q.id]"
                                 class="badge-success"
-                                >Graded</span
+                                >{{ $t('student.graded') }}</span
                             >
                             <span
                                 v-else-if="submittedAnswers[q.id] !== undefined"
                                 class="badge-pending"
-                                >Submitted</span
+                                >{{ $t('student.submitted') }}</span
                             >
                         </div>
 
@@ -138,7 +142,7 @@
                                     class="btn-primary mt-3"
                                     :disabled="!canSubmit(q.id, q.type)"
                                 >
-                                    Submit Answer
+                                    {{ $t('student.submit_answer') }}
                                 </button>
                             </div>
 
@@ -170,7 +174,7 @@
                                     class="btn-primary mt-3"
                                     :disabled="!canSubmit(q.id, q.type)"
                                 >
-                                    Submit Answer
+                                    {{ $t('student.submit_answer') }}
                                 </button>
                             </div>
 
@@ -183,14 +187,18 @@
                                 <textarea
                                     v-if="q.type === 'essay'"
                                     v-model="tempAnswers[q.id]"
-                                    placeholder="Write your essay answer here..."
+                                    :placeholder="
+                                        $t('student.placeholder_essay')
+                                    "
                                     class="answer-input textarea"
                                     rows="5"
                                 ></textarea>
                                 <input
                                     v-else
                                     v-model="tempAnswers[q.id]"
-                                    placeholder="Type your short answer here..."
+                                    :placeholder="
+                                        $t('student.placeholder_short')
+                                    "
                                     class="answer-input"
                                 />
 
@@ -201,7 +209,7 @@
                                     class="btn-primary mt-3"
                                     :disabled="!canSubmit(q.id, q.type)"
                                 >
-                                    Submit Answer
+                                    {{ $t('student.submit_answer') }}
                                 </button>
                             </div>
                         </div>
@@ -244,8 +252,8 @@
                                 >
                                     <span class="indicator">{{
                                         gradingResults[q.id]?.is_correct
-                                            ? '✅ Your Answer'
-                                            : '❌ Your Answer'
+                                            ? `✅ ${$t('student.your_answer')}`
+                                            : `❌ ${$t('student.your_answer')}`
                                     }}</span>
                                     <div class="val">
                                         {{ submittedAnswers[q.id] }}
@@ -256,7 +264,8 @@
                                     class="correct-text-box"
                                 >
                                     <span class="indicator"
-                                        >🎯 Correct Answer</span
+                                        >🎯
+                                        {{ $t('student.correct_answer') }}</span
                                     >
                                     <div class="val">
                                         {{
@@ -275,7 +284,10 @@
                             >
                                 <div class="student-text-box box-neutral">
                                     <span class="indicator"
-                                        >📝 Your Submission</span
+                                        >📝
+                                        {{
+                                            $t('student.your_submission')
+                                        }}</span
                                     >
                                     <div class="val">
                                         {{ submittedAnswers[q.id] }}
@@ -283,7 +295,10 @@
                                 </div>
                                 <div class="correct-text-box box-reference">
                                     <span class="indicator"
-                                        >💡 Reference Answer</span
+                                        >💡
+                                        {{
+                                            $t('student.reference_answer')
+                                        }}</span
                                     >
                                     <div class="val">
                                         {{
@@ -306,7 +321,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
+import { formatQuestionType } from '../utils/locales'
+import ButtonLangToggle from '../components/ButtonLangToggle.vue'
+
+// Initialize i18n
+const { t } = useI18n()
 
 // --- Types ---
 interface Question {
@@ -337,17 +358,6 @@ const submittedAnswers = ref<Record<string, any>>({})
 const gradingResults = ref<Record<string, GradingResult>>({})
 
 // --- Helpers ---
-const formatQuestionType = (type: string): string => {
-    const typeMap: Record<string, string> = {
-        single: '單選題',
-        boolean: '是非題',
-        multiple: '多選題',
-        short: '簡答題',
-        essay: '申論題'
-    }
-    return typeMap[type] || type
-}
-
 const getOptions = (q: Question): string[] => {
     let optsRaw = q.options
     let parsedOpts: string[] = []
@@ -365,9 +375,9 @@ const getOptions = (q: Question): string[] => {
             parsedOpts = []
         }
     }
-    // Return default translations for boolean options
+    // Return localized translations for boolean options
     if (q.type === 'boolean' && parsedOpts.length === 0) {
-        return ['是 (True)', '非 (False)']
+        return [t('common.true_option'), t('common.false_option')]
     }
     return parsedOpts
 }
@@ -379,42 +389,36 @@ const formatSubmittedAnswer = (ans: any): string => {
 
 // --- Answer Handling Logic ---
 
-// Determines if the submit button should be enabled
 const canSubmit = (qId: number, type: string): boolean => {
     const ans = tempAnswers.value[qId]
     if (ans === undefined || ans === null) return false
     if (type === 'multiple') return Array.isArray(ans) && ans.length > 0
     if (type === 'short' || type === 'essay')
         return typeof ans === 'string' && ans.trim().length > 0
-    return true // Single and Boolean just need to be not undefined
+    return true
 }
 
-// Check if a specific option index is selected
 const isSelected = (qId: number, type: string, idx: number): boolean => {
     const ans = tempAnswers.value[qId]
     if (ans === undefined || ans === null) return false
 
     if (type === 'boolean') {
-        // True corresponds to idx 0, False to idx 1
         return ans === (idx === 0)
     }
     if (type === 'multiple') {
         return Array.isArray(ans) && ans.includes(idx)
     }
-    // Single choice
     return ans === idx
 }
 
-// Set answer for single choice or boolean questions
 const setSingleAnswer = (qId: number, type: string, idx: number) => {
     if (type === 'boolean') {
-        tempAnswers.value[qId] = idx === 0 // Boolean True for index 0, False for index 1
+        tempAnswers.value[qId] = idx === 0
     } else {
-        tempAnswers.value[qId] = idx // Store index directly
+        tempAnswers.value[qId] = idx
     }
 }
 
-// Toggle multi-select index
 const toggleMultiSelect = (qId: number, idx: number) => {
     if (!tempAnswers.value[qId] || !Array.isArray(tempAnswers.value[qId])) {
         tempAnswers.value[qId] = []
@@ -446,11 +450,12 @@ const getBannerIcon = (qId: number, type: string): string => {
 const getBannerText = (qId: number, type: string): string => {
     const grade = gradingResults.value[qId]
     if (!grade) return ''
-    if (type === 'essay') return 'Submission Received (Pending Manual Review)'
-    return grade.is_correct ? 'Correct!' : 'Incorrect'
+    if (type === 'essay') return t('student.banner_pending_review')
+    return grade.is_correct
+        ? t('student.banner_correct')
+        : t('student.banner_incorrect')
 }
 
-// Determines the CSS class based on backend grading results (using index)
 const getOptionGradingClass = (
     qId: number,
     type: string,
@@ -461,7 +466,6 @@ const getOptionGradingClass = (
 
     if (!grade) return 'opt-pending'
 
-    // The value to compare depends on question type
     const valToCheck = type === 'boolean' ? idx === 0 : idx
 
     const isStuSelected = Array.isArray(stuAns)
@@ -495,7 +499,7 @@ const performJoin = (
     pin: string,
     sid: string,
     pwd: string,
-    isAuto: bool = false
+    isAuto: boolean = false // Fixed TS type here (bool -> boolean)
 ) => {
     if (!isAuto) {
         errorMessage.value = ''
@@ -522,20 +526,17 @@ const performJoin = (
 const joinRoom = () => {
     errorMessage.value = ''
     if (!roomPin.value || !studentId.value || !password.value) {
-        errorMessage.value = 'Please fill in all fields.'
+        errorMessage.value = t('student.error_fill_fields')
         return
     }
     performJoin(roomPin.value, studentId.value, password.value)
 }
 
 const submitAnswer = (questionId: number, answer: any) => {
-    // Basic validation handled by canSubmit, but double check
     if (answer === undefined || answer === null) return
 
-    // Optimistic UI Update
     submittedAnswers.value[questionId] = answer
 
-    // Send to backend and WAIT for grading callback
     socket.emit(
         'submit_answer',
         {
@@ -571,11 +572,9 @@ onMounted(() => {
     const saved = localStorage.getItem('quizio_student_creds')
     if (saved && !isConnected.value) {
         const { pin, sid, pwd } = JSON.parse(saved)
-        // 填充輸入框讓使用者看得到
         roomPin.value = pin
         studentId.value = sid
         password.value = pwd
-        // 自動執行連線
         performJoin(pin, sid, pwd, true)
     }
 
@@ -593,6 +592,8 @@ onMounted(() => {
             localStorage.removeItem('quizio_student_creds')
             isLoading.value = false
         } else {
+            // Note: If backend sends dynamic messages, you might need mapping,
+            // but for now we display it directly or you could map via i18n
             errorMessage.value = data.message
             isLoading.value = false
         }

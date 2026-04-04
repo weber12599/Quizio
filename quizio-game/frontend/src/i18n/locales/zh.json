@@ -6,7 +6,9 @@
         "end_game": "結束遊戲",
         "network_disconnected": "⚠️ 網路連線中斷，正在嘗試重新連回房間...",
         "change": "更改",
-        "loading": "載入中..."
+        "loading": "載入中...",
+        "true_option": "是",
+        "false_option": "非"
     },
     "question_type": {
         "single": "單選題",
@@ -54,6 +56,23 @@
         "placeholder_student_id": "請輸入學號",
         "placeholder_password": "請輸入密碼",
         "btn_join": "加入房間",
-        "room": "房間："
+        "room": "房間：",
+        "connected": "已連線",
+        "leave": "離開",
+        "waiting_teacher": "等待老師派題...",
+        "questions_appear_auto": "題目將會自動顯示於此。",
+        "graded": "已批改",
+        "submitted": "已送出",
+        "submit_answer": "送出答案",
+        "placeholder_essay": "請在此撰寫申論題答案...",
+        "placeholder_short": "請在此輸入簡答題答案...",
+        "your_answer": "你的答案",
+        "correct_answer": "正確答案",
+        "your_submission": "你的作答",
+        "reference_answer": "參考解答",
+        "banner_pending_review": "已收到作答（等待手動批改）",
+        "banner_correct": "答對了！",
+        "banner_incorrect": "答錯了",
+        "error_fill_fields": "請填寫所有欄位。"
     }
 }
