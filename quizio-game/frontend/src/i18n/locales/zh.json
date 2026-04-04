@@ -8,7 +8,8 @@
         "change": "更改",
         "loading": "載入中...",
         "true_option": "是",
-        "false_option": "非"
+        "false_option": "非",
+        "pts": "分"
     },
     "question_type": {
         "single": "單選題",
@@ -46,7 +47,14 @@
         "subtitle": "請輸入有效的房間 PIN 碼以連線投放。",
         "placeholder_pin": "請輸入房間 PIN 碼 (例如 1234)",
         "btn_connect": "連線至房間",
-        "students_joined": "已加入學生："
+        "students_joined": "已加入學生：",
+        "join_at": "請前往 ",
+        "waiting_host": "等待老師投放...",
+        "scan_to_join_desc": "掃描 QR Code 或輸入 PIN 碼以加入遊戲！",
+        "responses_received": "已收到作答數",
+        "top_scorers": "🏆 最高分排行榜 🏆",
+        "no_scores": "尚無分數紀錄。",
+        "error_invalid_pin": "請輸入有效的房間 PIN 碼。"
     },
     "student": {
         "title": "加入遊戲",

@@ -1,16 +1,18 @@
 <template>
     <div class="screen-view">
+        <ButtonLangToggle />
+
         <div v-if="!isConnected" class="login-panel card">
-            <h2>Screen / Projector Setup</h2>
+            <h2>{{ $t('screen.title') }}</h2>
             <p class="subtitle">
-                Enter the active Room PIN to connect this display.
+                {{ $t('screen.subtitle') }}
             </p>
 
             <div class="form-group">
-                <label>Room PIN:</label>
+                <label>{{ $t('common.room_pin') }}</label>
                 <input
                     v-model="roomPin"
-                    placeholder="Enter Room PIN (e.g. 1234)"
+                    :placeholder="$t('screen.placeholder_pin')"
                     @keyup.enter="joinAsScreen"
                 />
             </div>
@@ -20,7 +22,11 @@
                 class="btn-primary"
                 :disabled="isLoading"
             >
-                {{ isLoading ? 'Connecting...' : 'Connect to Room' }}
+                {{
+                    isLoading
+                        ? $t('common.connecting')
+                        : $t('screen.btn_connect')
+                }}
             </button>
             <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
         </div>
@@ -29,7 +35,8 @@
             <div class="screen-header-minimal">
                 <div class="header-right">
                     <span class="player-count">
-                        Students Joined: <strong>{{ players.length }}</strong>
+                        {{ $t('screen.students_joined') }}
+                        <strong>{{ players.length }}</strong>
                     </span>
                 </div>
             </div>
@@ -46,9 +53,12 @@
                     </div>
                     <div class="text-col">
                         <div class="step-text">
-                            Join at <strong>{{ joinUrl }}</strong>
+                            {{ $t('screen.join_at')
+                            }}<strong>{{ joinUrl }}</strong>
                         </div>
-                        <div class="step-subtext">Room PIN:</div>
+                        <div class="step-subtext">
+                            {{ $t('common.room_pin') }}
+                        </div>
                         <div class="hero-pin">{{ roomPin }}</div>
                     </div>
                 </div>
@@ -56,12 +66,12 @@
                 <div class="waiting-hero-card card">
                     <div class="waiting-header">
                         <div class="pulse-ring"></div>
-                        <h2>Waiting for the host to start...</h2>
+                        <h2>{{ $t('screen.waiting_host') }}</h2>
                     </div>
 
                     <div class="players-container">
                         <div v-if="players.length === 0" class="empty-players">
-                            Scan the QR code or enter the PIN to join the game!
+                            {{ $t('screen.scan_to_join_desc') }}
                         </div>
                         <div v-else class="chips-grid">
                             <div
@@ -83,7 +93,7 @@
                 >
                     <div class="q-meta">
                         <span class="q-type">{{
-                            displayedQuestion?.type
+                            formatQuestionType(displayedQuestion?.type || '')
                         }}</span>
                     </div>
                     <h1 class="q-content-huge">
@@ -124,7 +134,9 @@
 
                         <div v-else class="text-stats-container">
                             <div class="big-number">{{ totalAnswers }}</div>
-                            <div class="stats-label">Responses Received</div>
+                            <div class="stats-label">
+                                {{ $t('screen.responses_received') }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -134,7 +146,7 @@
                     class="leaderboard-state"
                 >
                     <div class="leaderboard-card card">
-                        <h1 class="lb-title">🏆 Top Scorers 🏆</h1>
+                        <h1 class="lb-title">{{ $t('screen.top_scorers') }}</h1>
                         <div class="podium">
                             <div
                                 v-for="(player, idx) in leaderboard.slice(0, 5)"
@@ -145,14 +157,15 @@
                                 <span class="lb-rank">#{{ idx + 1 }}</span>
                                 <span class="lb-name">{{ player.name }}</span>
                                 <span class="lb-score"
-                                    >{{ player.score }} pts</span
+                                    >{{ player.score }}
+                                    {{ $t('common.pts') }}</span
                                 >
                             </div>
                             <div
                                 v-if="leaderboard.length === 0"
                                 class="empty-stats"
                             >
-                                No scores available yet.
+                                {{ $t('screen.no_scores') }}
                             </div>
                         </div>
                     </div>
@@ -164,8 +177,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import QrcodeVue from 'qrcode.vue'
+import { formatQuestionType } from '../utils/locales'
+import ButtonLangToggle from '../components/ButtonLangToggle.vue'
+
+// Initialize i18n
+const { t } = useI18n()
 
 // --- Types ---
 interface Question {
@@ -235,7 +254,8 @@ const getOptions = (q: Question | null): string[] => {
     }
 
     if (q.type === 'boolean' && parsedOpts.length === 0) {
-        return ['是 (True)', '非 (False)']
+        // localized fallback for boolean options
+        return [t('common.true_option'), t('common.false_option')]
     }
     return parsedOpts
 }
@@ -267,7 +287,7 @@ const performJoin = (pin: string) => {
 const joinAsScreen = () => {
     errorMessage.value = ''
     if (!roomPin.value.trim()) {
-        errorMessage.value = 'Please enter a valid Room PIN.'
+        errorMessage.value = t('screen.error_invalid_pin')
         return
     }
     performJoin(roomPin.value)
@@ -323,6 +343,8 @@ onMounted(() => {
 
     // 5. Handle errors
     socket.on('error', (data: { message: string }) => {
+        // If the error message from backend has dynamic translation needs,
+        // you may handle it here, otherwise we display as is.
         errorMessage.value = data.message
         isLoading.value = false
         socket.disconnect()
