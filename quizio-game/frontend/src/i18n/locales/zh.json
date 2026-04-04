@@ -1,0 +1,59 @@
+{
+    "common": {
+        "password": "密碼：",
+        "room_pin": "房間 PIN 碼：",
+        "connecting": "連線中...",
+        "end_game": "結束遊戲",
+        "network_disconnected": "⚠️ 網路連線中斷，正在嘗試重新連回房間...",
+        "change": "更改",
+        "loading": "載入中..."
+    },
+    "question_type": {
+        "single": "單選題",
+        "boolean": "是非題",
+        "multiple": "多選題",
+        "short": "簡答題",
+        "essay": "申論題"
+    },
+    "host": {
+        "title": "主控台",
+        "step_login": "第一步：登入",
+        "teacher_username": "老師帳號：",
+        "placeholder_username": "請輸入帳號",
+        "placeholder_password": "請輸入密碼",
+        "placeholder_pin": "請輸入自訂 PIN 碼 (例如 1234)",
+        "btn_login_create": "登入並建立房間",
+        "waiting_players": "● 等待玩家加入...",
+        "hide_leaderboard": "隱藏排行榜",
+        "show_leaderboard": "顯示排行榜",
+        "select_exam": "選擇考卷",
+        "search_exam_title": "搜尋考卷標題...",
+        "exam_id": "ID：",
+        "no_exams_found": "找不到考卷。",
+        "load_questions": "載入題目",
+        "question_pool": "題目池",
+        "broadcast_selected": "派發選中題目",
+        "sent": "已派發",
+        "stop_displaying": "停止投放",
+        "display_on_screen": "大螢幕投放",
+        "joined_players": "已加入學生",
+        "no_students_joined": "尚未有學生加入。"
+    },
+    "screen": {
+        "title": "大螢幕投放設定",
+        "subtitle": "請輸入有效的房間 PIN 碼以連線投放。",
+        "placeholder_pin": "請輸入房間 PIN 碼 (例如 1234)",
+        "btn_connect": "連線至房間",
+        "students_joined": "已加入學生："
+    },
+    "student": {
+        "title": "加入遊戲",
+        "subtitle": "請輸入房間 PIN 碼與學生登入資訊。",
+        "placeholder_pin": "例如 1234",
+        "student_id": "學號：",
+        "placeholder_student_id": "請輸入學號",
+        "placeholder_password": "請輸入密碼",
+        "btn_join": "加入房間",
+        "room": "房間："
+    }
+}

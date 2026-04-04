@@ -1,0 +1,59 @@
+{
+    "common": {
+        "password": "Password: ",
+        "room_pin": "Room PIN: ",
+        "connecting": "Connecting...",
+        "end_game": "End Game",
+        "network_disconnected": "⚠️ Network disconnected. Reconnecting to the room...",
+        "change": "Change",
+        "loading": "Loading..."
+    },
+    "question_type": {
+        "single": "Single Choice",
+        "boolean": "True/False",
+        "multiple": "Multiple Choice",
+        "short": "Short Answer",
+        "essay": "Essay"
+    },
+    "host": {
+        "title": "Host Control Panel",
+        "step_login": "Step 1: Login",
+        "teacher_username": "Teacher Username: ",
+        "placeholder_username": "Enter username",
+        "placeholder_password": "Enter password",
+        "placeholder_pin": "Enter custom PIN (e.g. 1234)",
+        "btn_login_create": "Login & Create Room",
+        "waiting_players": "● Waiting for players...",
+        "hide_leaderboard": "Hide Leaderboard",
+        "show_leaderboard": "Show Leaderboard",
+        "select_exam": "Select an Exam",
+        "search_exam_title": "Search exam title...",
+        "exam_id": "ID: ",
+        "no_exams_found": "No exams found.",
+        "load_questions": "Load Questions",
+        "question_pool": "Question Pool",
+        "broadcast_selected": "Broadcast Selected",
+        "sent": "Sent",
+        "stop_displaying": "Stop Displaying",
+        "display_on_screen": "Display on Screen",
+        "joined_players": "Joined Players",
+        "no_students_joined": "No students have joined yet."
+    },
+    "screen": {
+        "title": "Screen / Projector Setup",
+        "subtitle": "Enter the active Room PIN to connect this display.",
+        "placeholder_pin": "Enter Room PIN (e.g. 1234)",
+        "btn_connect": "Connect to Room",
+        "students_joined": "Students Joined: "
+    },
+    "student": {
+        "title": "Join a Game",
+        "subtitle": "Enter the Room PIN and your student credentials.",
+        "placeholder_pin": "e.g. 1234",
+        "student_id": "Student ID: ",
+        "placeholder_student_id": "Enter your student ID",
+        "placeholder_password": "Enter your password",
+        "btn_join": "Join Room",
+        "room": "Room: "
+    }
+}
