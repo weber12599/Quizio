@@ -586,19 +586,12 @@ onMounted(() => {
     })
 
     socket.on('error', (data: { message: string }) => {
-        const hasCache = localStorage.getItem('quizio_student_creds') !== null
-
-        if (hasCache) {
-            localStorage.removeItem('quizio_student_creds')
-            isLoading.value = false
-        } else {
-            // Note: If backend sends dynamic messages, you might need mapping,
-            // but for now we display it directly or you could map via i18n
-            errorMessage.value = data.message
-            isLoading.value = false
-        }
+        errorMessage.value = data.message
+        isLoading.value = false
         socket.disconnect()
         isConnected.value = false
+
+        localStorage.removeItem('quizio_student_creds')
     })
 
     socket.on('new_questions', (data: { questions: Question[] }) => {
