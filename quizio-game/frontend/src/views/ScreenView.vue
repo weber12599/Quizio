@@ -391,20 +391,31 @@ onUnmounted(() => {
 
 <style scoped>
 /* --------------------------------------
-   Layout Structure
+   Layout Structure (Optimized for 100% Viewport)
 --------------------------------------- */
 .screen-view {
-    padding: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
-    min-height: calc(100vh - 40px);
+    /* Force full viewport size & fixed position to bypass App.vue wrappers */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    padding: 3vh 3vw; /* Use viewport units for safe area margins */
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden; /* Absolutely no scrollbars on the projector */
+    background-color: var(--bg-color, #f3f4f6);
+    z-index: 50; /* Ensure it sits on top */
 }
 
+/* Center login panel perfectly in 100vh */
 .login-panel {
     max-width: 480px;
-    margin: 10vh auto;
+    width: 100%;
+    margin: auto;
 }
 
 .subtitle {
@@ -415,8 +426,11 @@ onUnmounted(() => {
 .display-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
     flex: 1;
+    height: 100%;
+    width: 100%;
+    min-height: 0; /* Crucial flex trick to allow children to compute 100% height */
 }
 
 /* --------------------------------------
@@ -424,8 +438,9 @@ onUnmounted(() => {
 --------------------------------------- */
 .screen-header-minimal {
     display: flex;
-    justify-content: space-between; /* Changed from flex-end */
+    justify-content: space-between;
     align-items: center;
+    flex-shrink: 0; /* Prevent header from squishing */
 }
 
 .player-count {
@@ -443,29 +458,33 @@ onUnmounted(() => {
 }
 
 /* --------------------------------------
-   Split Lobby State (Robust & Beautiful)
+   Split Lobby State (Optimized for 16:9 Landscape)
 --------------------------------------- */
 .lobby-state-split {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 24px;
+    flex-direction: row; /* Stack side-by-side for 16:9 screens */
+    gap: 32px;
+    min-height: 0;
 }
 
-/* Top Card: Join Info */
+/* Left Card: Join Info */
 .join-hero-card {
+    flex: 1;
     display: flex;
+    flex-direction: column; /* Stack QR and text vertically */
     align-items: center;
     justify-content: center;
-    gap: 60px;
-    padding: 50px;
+    gap: 40px;
+    padding: 40px;
     border: 4px solid var(--primary-light);
     background: var(--bg-card);
+    border-radius: 24px;
 }
 
 .hero-qr {
     border-radius: 16px;
-    padding: 12px;
+    padding: 16px;
     background: white;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
@@ -473,11 +492,12 @@ onUnmounted(() => {
 .text-col {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
 }
 
 .step-text {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
     color: var(--text-main);
 }
 .step-text strong {
@@ -502,15 +522,28 @@ onUnmounted(() => {
     text-shadow: 2px 2px 0px rgba(99, 102, 241, 0.2);
 }
 
-/* Bottom Card: Waiting State */
+/* Right Card: Waiting State */
 .waiting-hero-card {
-    flex: 1;
+    flex: 1.5; /* Give player list slightly more room */
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 40px;
     background: rgba(99, 102, 241, 0.03);
     border: 2px dashed var(--border-color);
+    border-radius: 24px;
+    overflow-y: auto; /* Only scroll this card if many players join */
+}
+
+.waiting-hero-card::-webkit-scrollbar {
+    width: 8px;
+}
+.waiting-hero-card::-webkit-scrollbar-track {
+    background: transparent;
+}
+.waiting-hero-card::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
 }
 
 .waiting-header {
@@ -519,6 +552,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 20px;
     margin-bottom: 40px;
+    flex-shrink: 0;
 }
 
 .waiting-header h2 {
@@ -602,6 +636,7 @@ onUnmounted(() => {
     display: flex;
     flex: 1;
     position: relative;
+    min-height: 0;
 }
 
 /* --------------------------------------
@@ -611,13 +646,17 @@ onUnmounted(() => {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 60px 80px;
+    padding: 4vh 4vw; /* Responsive padding */
     border: 4px solid var(--primary-light);
+    border-radius: 24px;
+    background: var(--bg-card);
+    box-sizing: border-box;
 }
 
 .q-meta {
     margin-bottom: 20px;
     text-align: center;
+    flex-shrink: 0;
 }
 
 .q-type {
@@ -637,20 +676,24 @@ onUnmounted(() => {
     line-height: 1.4;
     color: var(--text-main);
     text-align: center;
-    margin: 0 auto 50px;
+    margin: 0 auto 40px;
     font-weight: 800;
+    flex-shrink: 0;
 }
 
 .stats-container {
     width: 100%;
-    margin-top: auto;
+    margin-top: auto; /* Push to bottom */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
 }
 
 .stat-bar-wrapper {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-bottom: 24px;
+    margin-bottom: 2vh;
 }
 
 .stat-label {
@@ -661,7 +704,8 @@ onUnmounted(() => {
 
 .bar-bg {
     background: var(--border-color);
-    height: 60px;
+    height: 6vh; /* Responsive height */
+    min-height: 40px;
     border-radius: 12px;
     position: relative;
     overflow: hidden;
@@ -701,6 +745,7 @@ onUnmounted(() => {
     padding: 40px;
     border-radius: 20px;
     border: 2px dashed var(--primary-light);
+    margin-top: auto;
 }
 
 .big-number {
@@ -729,11 +774,12 @@ onUnmounted(() => {
 
 .leaderboard-card {
     width: 100%;
-    max-width: 1000px;
+    max-width: 1200px;
     padding: 60px 80px;
     text-align: center;
     border: 4px solid var(--primary-color);
     background: var(--bg-card);
+    border-radius: 24px;
 }
 
 .lb-title {
@@ -792,12 +838,10 @@ onUnmounted(() => {
     width: 100px;
     text-align: left;
 }
-
 .lb-name {
     flex: 1;
     text-align: left;
 }
-
 .lb-score {
     font-weight: 900;
 }
@@ -809,15 +853,10 @@ onUnmounted(() => {
     padding: 40px;
 }
 
-/* Responsive adjustments */
+/* Fallback for smaller screens if forced to display */
 @media (max-width: 1024px) {
-    .join-hero-card {
+    .lobby-state-split {
         flex-direction: column;
-        gap: 30px;
-        text-align: center;
-    }
-    .text-col {
-        align-items: center;
     }
     .hero-pin {
         font-size: 5rem;
