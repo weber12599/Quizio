@@ -9,7 +9,8 @@
         "loading": "Loading...",
         "true_option": "True",
         "false_option": "False",
-        "pts": "pts"
+        "pts": "pts",
+        "leave": "Leave"
     },
     "question_type": {
         "single": "Single Choice",
@@ -66,7 +67,6 @@
         "btn_join": "Join Room",
         "room": "Room: ",
         "connected": "Connected",
-        "leave": "Leave",
         "waiting_teacher": "Waiting for Teacher...",
         "questions_appear_auto": "Questions will appear here automatically.",
         "graded": "Graded",

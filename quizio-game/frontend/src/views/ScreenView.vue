@@ -1,6 +1,6 @@
 <template>
     <div class="screen-view">
-        <ButtonLangToggle />
+        <ButtonLangToggle v-if="!isConnected" />
 
         <div v-if="!isConnected" class="login-panel card">
             <h2>{{ $t('screen.title') }}</h2>
@@ -33,6 +33,12 @@
 
         <div v-else class="display-wrapper">
             <div class="screen-header-minimal">
+                <div class="header-left">
+                    <button @click="leaveRoom" class="btn-danger small-btn">
+                        {{ $t('common.leave') }}
+                    </button>
+                </div>
+
                 <div class="header-right">
                     <span class="player-count">
                         {{ $t('screen.students_joined') }}
@@ -181,7 +187,7 @@ import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import QrcodeVue from 'qrcode.vue'
 import { formatQuestionType } from '../utils/locales'
-import ButtonLangToggle from '../components/ButtonLangToggle.vue'
+import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
 
 // Initialize i18n
 const { t } = useI18n()
@@ -293,6 +299,24 @@ const joinAsScreen = () => {
     performJoin(roomPin.value)
 }
 
+const leaveRoom = () => {
+    // Disconnect socket and clear storage
+    socket.disconnect()
+    localStorage.removeItem('quizio_screen_pin')
+
+    // Reset all states to default
+    isConnected.value = false
+    roomPin.value = '' // Clear so they can input a new pin
+    players.value = []
+    displayedQuestion.value = null
+    currentView.value = 'lobby'
+    answerStats.value = {}
+    totalAnswers.value = 0
+    leaderboard.value = []
+    errorMessage.value = ''
+    isLoading.value = false
+}
+
 // --- Lifecycle & Socket Events ---
 onMounted(() => {
     // Check local storage for auto-reconnect
@@ -400,7 +424,7 @@ onUnmounted(() => {
 --------------------------------------- */
 .screen-header-minimal {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between; /* Changed from flex-end */
     align-items: center;
 }
 

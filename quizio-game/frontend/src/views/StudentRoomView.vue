@@ -54,7 +54,7 @@
                     {{ $t('student.connected') }}
                 </div>
                 <button @click="leaveRoom" class="btn-danger small-btn">
-                    {{ $t('student.leave') }}
+                    {{ $t('common.leave') }}
                 </button>
             </div>
 
@@ -324,7 +324,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import { formatQuestionType } from '../utils/locales'
-import ButtonLangToggle from '../components/ButtonLangToggle.vue'
+import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
 
 // Initialize i18n
 const { t } = useI18n()
@@ -668,15 +668,18 @@ onUnmounted(() => {
 
 /* Header */
 .room-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     padding: 16px 20px;
     border-left: 4px solid var(--primary-color);
+    gap: 16px;
 }
 .room-header h2 {
     margin: 0;
     font-size: 1.25rem;
+    grid-column: 1;
+    justify-self: start;
 }
 .status-indicator {
     display: flex;
@@ -688,7 +691,34 @@ onUnmounted(() => {
     background: var(--chip-bg);
     padding: 6px 12px;
     border-radius: 20px;
+    grid-column: 2;
+    justify-self: center;
 }
+.room-header button {
+    grid-column: 3;
+    justify-self: end;
+    min-width: 120px;
+    display: inline-flex;
+    justify-content: center;
+}
+
+@media (max-width: 640px) {
+    .room-header {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .room-header h2,
+    .status-indicator,
+    .room-header button {
+        grid-column: auto;
+        justify-self: stretch;
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+}
+
 .pulse-dot {
     width: 8px;
     height: 8px;

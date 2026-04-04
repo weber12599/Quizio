@@ -265,7 +265,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import api from '../api'
-import ButtonLangToggle from '../components/ButtonLangToggle.vue'
+import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
 import { formatQuestionType } from '../utils/locales'
 
 // --- Types ---
@@ -684,19 +684,21 @@ h3 {
    Room Header & Indicators
 --------------------------------------- */
 .room-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    flex-wrap: wrap;
     background: var(--bg-card);
     border-left: 4px solid var(--primary-light);
     padding: 16px 24px;
+    gap: 16px;
 }
 
 .room-header h2 {
     margin: 0;
     font-size: 1.5rem;
     color: var(--text-main);
+    grid-column: 1;
+    justify-self: start;
 }
 
 .status-indicator {
@@ -705,6 +707,22 @@ h3 {
     display: flex;
     align-items: center;
     gap: 6px;
+    grid-column: 2;
+    justify-self: center;
+    margin: 0;
+}
+
+.header-actions {
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    gap: 12px;
+}
+
+.header-actions button {
+    min-width: 180px; /* Prevent layout shift when toggling Show/Hide Leaderboard */
+    display: inline-flex;
+    justify-content: center;
 }
 
 /* --------------------------------------
@@ -905,14 +923,17 @@ h3 {
 
 .q-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px dashed var(--border-color);
+    min-height: 48px;
+    gap: 12px;
 }
 
 .status-badge {
+    margin-right: auto;
     background: rgba(16, 185, 129, 0.15);
     color: var(--success-color);
     padding: 4px 10px;
@@ -922,6 +943,30 @@ h3 {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+}
+
+.q-actions button {
+    min-width: 180px;
+    display: inline-flex;
+    justify-content: center;
+}
+
+@media (max-width: 640px) {
+    .room-header {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .room-header h2,
+    .status-indicator,
+    .header-actions {
+        grid-column: auto;
+        justify-self: stretch;
+        justify-content: center;
+    }
+    .header-actions button {
+        width: 100%;
+    }
 }
 
 .status-badge::before {

@@ -9,7 +9,8 @@
         "loading": "載入中...",
         "true_option": "是",
         "false_option": "非",
-        "pts": "分"
+        "pts": "分",
+        "leave": "離開"
     },
     "question_type": {
         "single": "單選題",
@@ -66,7 +67,6 @@
         "btn_join": "加入房間",
         "room": "房間：",
         "connected": "已連線",
-        "leave": "離開",
         "waiting_teacher": "等待老師派題...",
         "questions_appear_auto": "題目將會自動顯示於此。",
         "graded": "已批改",
