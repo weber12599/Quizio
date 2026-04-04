@@ -67,11 +67,14 @@
                     </template>
                 </el-table-column>
                 <el-table-column
-                    prop="content"
                     label="Content"
                     show-overflow-tooltip
                     min-width="250"
-                />
+                >
+                    <template #default="scope">
+                        {{ stripMarkdown(scope.row.content) }}
+                    </template>
+                </el-table-column>
                 <el-table-column label="Difficulty" width="120" align="center">
                     <template #default="scope">
                         <el-rate
@@ -147,7 +150,6 @@
                     <el-select
                         v-model="formData.type"
                         @change="handleTypeChange"
-                        :disabled="dialogType === 'edit'"
                         style="width: 100%"
                     >
                         <el-option
@@ -337,6 +339,7 @@ import {
 } from '@element-plus/icons-vue'
 import api from '../api'
 import { useAuthStore } from '../stores/auth'
+import { stripMarkdown } from '../utils/format'
 import TiptapEditor from '../components/TiptapEditor.vue'
 
 const authStore = useAuthStore()
@@ -505,9 +508,47 @@ const removeOption = (index: number) => {
 
 // Submit Data (Simplified: direct mapping to backend JSON schema)
 const submitForm = async () => {
-    if (!formData.value.content) {
+    // 1. Validate Question Content
+    if (!formData.value.content || formData.value.content.trim() === '') {
         ElMessage.warning('Question content is required.')
         return
+    }
+
+    // 2. Validate Options for Single and Multiple Choice
+    if (['single', 'multiple'].includes(formData.value.type)) {
+        // Check if any option is empty (handling potential empty Tiptap HTML tags)
+        const hasEmptyOption = formData.value.options.some((opt: string) => {
+            const cleanOpt = opt ? opt.trim() : ''
+            return cleanOpt === '' || cleanOpt === '<p></p>'
+        })
+
+        if (hasEmptyOption) {
+            ElMessage.warning('All options must be filled.')
+            return
+        }
+
+        // 3. Validate Reference Answer Selection
+        if (
+            formData.value.type === 'single' &&
+            (formData.value.reference_answer === null ||
+                formData.value.reference_answer === undefined)
+        ) {
+            ElMessage.warning(
+                'Please select a correct answer for the single choice question.'
+            )
+            return
+        }
+
+        if (
+            formData.value.type === 'multiple' &&
+            (!Array.isArray(formData.value.reference_answer) ||
+                formData.value.reference_answer.length === 0)
+        ) {
+            ElMessage.warning(
+                'Please select at least one correct answer for the multiple choice question.'
+            )
+            return
+        }
     }
 
     submitLoading.value = true
