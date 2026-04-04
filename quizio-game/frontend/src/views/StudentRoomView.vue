@@ -598,6 +598,7 @@ onMounted(() => {
             isLoading.value = false
         }
         socket.disconnect()
+        isConnected.value = false
     })
 
     socket.on('new_questions', (data: { questions: Question[] }) => {
