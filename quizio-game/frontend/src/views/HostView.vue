@@ -1,27 +1,32 @@
 <template>
     <div class="host-view">
-        <h1>Host Control Panel</h1>
+        <ButtonLangToggle />
+
+        <h1>{{ $t('host.title') }}</h1>
 
         <div v-if="!isConnected && !isReconnecting" class="login-panel card">
-            <h2>Step 1: Login</h2>
+            <h2>{{ $t('host.step_login') }}</h2>
             <div class="form-group">
-                <label>Teacher Username: </label>
-                <input v-model="username" placeholder="Enter username" />
+                <label>{{ $t('host.teacher_username') }}</label>
+                <input
+                    v-model="username"
+                    :placeholder="$t('host.placeholder_username')"
+                />
             </div>
             <div class="form-group">
-                <label>Password: </label>
+                <label>{{ $t('common.password') }}</label>
                 <input
                     v-model="password"
                     type="password"
-                    placeholder="Enter password"
+                    :placeholder="$t('host.placeholder_password')"
                     @keyup.enter="loginAndCreateRoom"
                 />
             </div>
             <div class="form-group">
-                <label>Room PIN: </label>
+                <label>{{ $t('common.room_pin') }}</label>
                 <input
                     v-model="roomPin"
-                    placeholder="Enter custom PIN (e.g. 1234)"
+                    :placeholder="$t('host.placeholder_pin')"
                     @keyup.enter="loginAndCreateRoom"
                 />
             </div>
@@ -31,15 +36,21 @@
                 class="btn-primary"
                 :disabled="isLoading"
             >
-                {{ isLoading ? 'Connecting...' : 'Login & Create Room' }}
+                {{
+                    isLoading
+                        ? $t('common.connecting')
+                        : $t('host.btn_login_create')
+                }}
             </button>
             <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
         </div>
 
         <div v-else class="game-panel">
             <div class="room-header card">
-                <h2>Room PIN: {{ roomPin }}</h2>
-                <p class="status-indicator">● Waiting for players...</p>
+                <h2>{{ $t('common.room_pin') }} {{ roomPin }}</h2>
+                <p v-if="players.length === 0" class="status-indicator">
+                    {{ $t('host.waiting_players') }}
+                </p>
                 <div class="header-actions" style="display: flex; gap: 12px">
                     <button
                         @click="toggleLeaderboard"
@@ -49,24 +60,24 @@
                         🏆
                         {{
                             isLeaderboardDisplayed
-                                ? 'Hide Leaderboard'
-                                : 'Show Leaderboard'
+                                ? $t('host.hide_leaderboard')
+                                : $t('host.show_leaderboard')
                         }}
                     </button>
                     <button @click="leaveRoom" class="btn-danger small-btn">
-                        End Game
+                        {{ $t('common.end_game') }}
                     </button>
                 </div>
             </div>
 
             <div v-if="isReconnecting" class="reconnect-banner">
-                ⚠️ 網路連線中斷，正在嘗試重新連回房間...
+                {{ $t('common.network_disconnected') }}
             </div>
 
             <div class="layout-grid">
                 <div class="left-col">
                     <div class="exam-selection card">
-                        <h3>Select an Exam</h3>
+                        <h3>{{ $t('host.select_exam') }}</h3>
 
                         <div
                             v-if="!selectedExam"
@@ -74,7 +85,7 @@
                         >
                             <input
                                 v-model="examSearchQuery"
-                                placeholder="Search exam title..."
+                                :placeholder="$t('host.search_exam_title')"
                                 class="search-input"
                                 @focus="isDropdownOpen = true"
                             />
@@ -90,14 +101,14 @@
                                         {{ exam.title }}
                                     </div>
                                     <div class="exam-meta">
-                                        ID: {{ exam.id }}
+                                        {{ $t('host.exam_id') }}{{ exam.id }}
                                     </div>
                                 </div>
                                 <div
                                     v-if="filteredExams.length === 0"
                                     class="dropdown-item empty"
                                 >
-                                    No exams found.
+                                    {{ $t('host.no_exams_found') }}
                                 </div>
                             </div>
                         </div>
@@ -110,7 +121,7 @@
                                     @click="selectedExam = null"
                                     class="btn-secondary small-btn"
                                 >
-                                    Change
+                                    {{ $t('common.change') }}
                                 </button>
                             </div>
 
@@ -128,7 +139,9 @@
                                 :disabled="isLoading"
                             >
                                 {{
-                                    isLoading ? 'Loading...' : 'Load Questions'
+                                    isLoading
+                                        ? $t('common.loading')
+                                        : $t('host.load_questions')
                                 }}
                             </button>
                         </div>
@@ -136,13 +149,17 @@
 
                     <div v-if="isQuestionsLoaded" class="waiting-pool card">
                         <div class="pool-header">
-                            <h3>Question Pool ({{ waitingPool.length }})</h3>
+                            <h3>
+                                {{ $t('host.question_pool') }} ({{
+                                    waitingPool.length
+                                }})
+                            </h3>
                             <button
                                 @click="broadcastSelected"
                                 class="btn-primary small-btn"
                                 :disabled="selectedQuestionIds.length === 0"
                             >
-                                Broadcast Selected ({{
+                                {{ $t('host.broadcast_selected') }} ({{
                                     selectedQuestionIds.length
                                 }})
                             </button>
@@ -172,11 +189,11 @@
                                             "
                                         />
                                         <span class="q-number"
-                                            >Q{{ eq.sort_order }}</span
+                                            >Q{{ eq.sort_order + 1 }}</span
                                         >
                                     </label>
                                     <span class="q-type">{{
-                                        eq.question.type
+                                        formatQuestionType(eq.question.type)
                                     }}</span>
                                 </div>
 
@@ -192,7 +209,7 @@
                                             )
                                         "
                                         class="status-badge"
-                                        >Sent</span
+                                        >{{ $t('host.sent') }}</span
                                     >
 
                                     <button
@@ -207,8 +224,8 @@
                                         {{
                                             currentDisplayedEq?.question_id ===
                                             eq.question_id
-                                                ? 'Stop Displaying'
-                                                : 'Display on Screen'
+                                                ? $t('host.stop_displaying')
+                                                : $t('host.display_on_screen')
                                         }}
                                     </button>
                                 </div>
@@ -219,7 +236,11 @@
 
                 <div class="right-col">
                     <div class="player-list card">
-                        <h3>Joined Players ({{ players.length }})</h3>
+                        <h3>
+                            {{ $t('host.joined_players') }} ({{
+                                players.length
+                            }})
+                        </h3>
                         <ul v-if="players.length > 0">
                             <li
                                 v-for="player in players"
@@ -230,7 +251,7 @@
                             </li>
                         </ul>
                         <p v-else class="empty-text">
-                            No students have joined yet.
+                            {{ $t('host.no_students_joined') }}
                         </p>
                     </div>
                 </div>
@@ -241,8 +262,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import api from '../api'
+import ButtonLangToggle from '../components/ButtonLangToggle.vue'
+import { formatQuestionType } from '../utils/locales'
 
 // --- Types ---
 interface Exam {
@@ -266,6 +290,9 @@ interface ExamQuestion {
     sort_order: number
     question: Question
 }
+
+// Initialize i18n
+const { t } = useI18n()
 
 // --- State ---
 const username = ref('')
