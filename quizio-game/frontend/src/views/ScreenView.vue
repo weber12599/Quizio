@@ -344,9 +344,7 @@ onMounted(() => {
             totalAnswers.value = 0
         } else {
             displayedQuestion.value = null
-            if (currentView.value !== 'leaderboard') {
-                currentView.value = 'lobby'
-            }
+            currentView.value = 'lobby'
         }
     })
 
