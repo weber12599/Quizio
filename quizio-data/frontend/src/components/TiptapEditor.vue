@@ -24,7 +24,6 @@
                     <span class="line-through">S</span>
                 </el-button>
                 <el-button
-                    v-if="!minimal"
                     size="small"
                     @click="editor.chain().focus().toggleCodeBlock().run()"
                     :class="{ 'is-active': editor.isActive('codeBlock') }"
