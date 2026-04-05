@@ -81,18 +81,48 @@
 
         <el-dialog
             v-model="dialogVisible"
-            :title="
-                dialogType === 'add'
-                    ? 'Create New Exam'
-                    : dialogType === 'preview'
-                      ? 'Preview Exam'
-                      : 'Edit Exam'
-            "
             fullscreen
             destroy-on-close
+            :show-close="false"
         >
+            <template #header>
+                <div
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        width: 100%;
+                    "
+                >
+                    <span class="el-dialog__title">
+                        {{
+                            dialogType === 'add'
+                                ? 'Create New Exam'
+                                : dialogType === 'preview'
+                                  ? 'Preview Exam'
+                                  : 'Edit Exam'
+                        }}
+                    </span>
+                    <div>
+                        <el-switch
+                            v-if="dialogType !== 'preview'"
+                            v-model="isPreviewing"
+                            active-text="Preview Paper"
+                            inactive-text="Edit Mode"
+                            style="margin-right: 20px"
+                        />
+                        <el-button @click="dialogVisible = false" circle>
+                            <el-icon><Close /></el-icon>
+                        </el-button>
+                    </div>
+                </div>
+            </template>
+
             <div class="editor-layout">
-                <div class="left-panel" v-if="dialogType !== 'preview'">
+                <div
+                    class="left-panel"
+                    v-if="dialogType !== 'preview' && !isPreviewing"
+                >
                     <h3>Question Bank</h3>
                     <el-input
                         v-model="searchKeyword"
@@ -107,15 +137,43 @@
                             :key="q.id"
                             class="question-card"
                             shadow="hover"
+                            :body-style="{ padding: '15px' }"
                         >
                             <div class="q-card-content">
-                                <div>
+                                <div
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        overflow: hidden;
+                                        flex: 1;
+                                    "
+                                >
+                                    <el-button
+                                        link
+                                        @click="toggleBankQ(q.id)"
+                                        style="margin-right: 5px; padding: 0"
+                                    >
+                                        <el-icon>
+                                            <ArrowDown
+                                                v-if="
+                                                    expandedBankQs.includes(
+                                                        q.id
+                                                    )
+                                                "
+                                            />
+                                            <ArrowRight v-else />
+                                        </el-icon>
+                                    </el-button>
                                     <el-tag
                                         size="small"
                                         style="margin-right: 8px"
                                         >{{ q.type }}</el-tag
                                     >
-                                    <span class="q-text">{{ q.content }}</span>
+                                    <span
+                                        class="q-text"
+                                        :title="stripMarkdown(q.content)"
+                                        >{{ stripMarkdown(q.content) }}</span
+                                    >
                                 </div>
                                 <el-button
                                     type="primary"
@@ -126,6 +184,84 @@
                                     <el-icon><Plus /></el-icon>
                                 </el-button>
                             </div>
+
+                            <div
+                                v-if="expandedBankQs.includes(q.id)"
+                                class="q-expanded-view"
+                            >
+                                <div
+                                    class="q-content"
+                                    v-html="renderMarkdown(q.content)"
+                                ></div>
+
+                                <div
+                                    v-if="
+                                        ['single', 'multiple'].includes(
+                                            q.type
+                                        ) && q.options
+                                    "
+                                    class="q-options"
+                                >
+                                    <div
+                                        v-for="(opt, optIndex) in q.options"
+                                        :key="optIndex"
+                                        class="q-option"
+                                    >
+                                        <span class="opt-label"
+                                            >{{
+                                                String.fromCharCode(
+                                                    65 + optIndex
+                                                )
+                                            }}.</span
+                                        >
+                                        <div
+                                            class="opt-content"
+                                            v-html="renderMarkdown(opt)"
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                <div class="q-answer-box">
+                                    <span class="answer-label">【解答】</span>
+                                    <template v-if="q.type === 'single'">
+                                        {{
+                                            String.fromCharCode(
+                                                65 + q.reference_answer
+                                            )
+                                        }}
+                                    </template>
+                                    <template v-else-if="q.type === 'multiple'">
+                                        {{
+                                            Array.isArray(q.reference_answer)
+                                                ? q.reference_answer
+                                                      .map((ans: number) =>
+                                                          String.fromCharCode(
+                                                              65 + ans
+                                                          )
+                                                      )
+                                                      .join(', ')
+                                                : ''
+                                        }}
+                                    </template>
+                                    <template v-else-if="q.type === 'boolean'">
+                                        {{
+                                            q.reference_answer
+                                                ? 'O (True)'
+                                                : 'X (False)'
+                                        }}
+                                    </template>
+                                    <template v-else>
+                                        <div
+                                            v-html="
+                                                renderMarkdown(
+                                                    q.reference_answer
+                                                )
+                                            "
+                                            class="answer-content"
+                                        ></div>
+                                    </template>
+                                </div>
+                            </div>
                         </el-card>
                         <el-empty
                             v-if="filteredQuestions.length === 0"
@@ -134,98 +270,346 @@
                     </div>
                 </div>
 
-                <div class="right-panel">
-                    <h3>Exam Details</h3>
-                    <el-form :model="formData" label-position="top">
-                        <el-form-item label="Exam Title" required>
-                            <el-input
-                                v-model="formData.title"
-                                placeholder="Enter exam title..."
-                                :disabled="dialogType === 'preview'"
-                            />
-                        </el-form-item>
-                        <el-form-item label="Description">
-                            <el-input
-                                v-model="formData.description"
-                                type="textarea"
-                                :rows="2"
-                                placeholder="Optional description or instructions..."
-                                :disabled="dialogType === 'preview'"
-                            />
-                        </el-form-item>
-                    </el-form>
-
-                    <el-divider
-                        >Selected Questions ({{
-                            selectedQuestions.length
-                        }})</el-divider
+                <div
+                    class="right-panel"
+                    :class="{
+                        'is-preview-mode':
+                            dialogType === 'preview' || isPreviewing
+                    }"
+                >
+                    <div
+                        v-if="dialogType === 'preview' || isPreviewing"
+                        class="exam-preview-paper"
+                        :class="`print-mode-${currentPrintMode}`"
                     >
+                        <div class="paper-header">
+                            <h1 class="paper-title">
+                                {{ formData.title || 'Untitled Exam' }}
+                            </h1>
+                            <p v-if="formData.description" class="paper-desc">
+                                {{ formData.description }}
+                            </p>
+                        </div>
 
-                    <div class="selected-list">
-                        <el-card
-                            v-for="(q, index) in selectedQuestions"
-                            :key="index"
-                            class="selected-card"
-                            shadow="never"
-                        >
-                            <div class="s-card-header">
-                                <strong>Q{{ index + 1 }}</strong>
+                        <div class="paper-body">
+                            <div
+                                v-for="(q, index) in selectedQuestions"
+                                :key="index"
+                                class="paper-question"
+                            >
+                                <div class="q-title">
+                                    <span class="q-number"
+                                        >{{ index + 1 }}.</span
+                                    >
+                                    <div
+                                        class="q-content"
+                                        v-html="renderMarkdown(q.content)"
+                                    ></div>
+                                </div>
+
                                 <div
-                                    v-if="dialogType !== 'preview'"
-                                    class="s-card-actions"
+                                    v-if="
+                                        ['single', 'multiple'].includes(
+                                            q.type
+                                        ) && q.options
+                                    "
+                                    class="q-options"
                                 >
-                                    <el-button
-                                        size="small"
-                                        @click="moveUp(index)"
-                                        :disabled="index === 0"
-                                        circle
+                                    <div
+                                        v-for="(opt, optIndex) in q.options"
+                                        :key="optIndex"
+                                        class="q-option"
                                     >
-                                        <el-icon><Top /></el-icon>
-                                    </el-button>
-                                    <el-button
-                                        size="small"
-                                        @click="moveDown(index)"
-                                        :disabled="
-                                            index ===
-                                            selectedQuestions.length - 1
-                                        "
-                                        circle
-                                    >
-                                        <el-icon><Bottom /></el-icon>
-                                    </el-button>
-                                    <el-button
-                                        size="small"
-                                        type="danger"
-                                        @click="removeQuestionFromExam(index)"
-                                        circle
-                                    >
-                                        <el-icon><Minus /></el-icon>
-                                    </el-button>
+                                        <span class="opt-label"
+                                            >{{
+                                                String.fromCharCode(
+                                                    65 + optIndex
+                                                )
+                                            }}.</span
+                                        >
+                                        <div
+                                            class="opt-content"
+                                            v-html="renderMarkdown(opt)"
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                <div class="q-answer-box">
+                                    <span class="answer-label">【解答】</span>
+                                    <template v-if="q.type === 'single'">
+                                        {{
+                                            String.fromCharCode(
+                                                65 + q.reference_answer
+                                            )
+                                        }}
+                                    </template>
+                                    <template v-else-if="q.type === 'multiple'">
+                                        {{
+                                            Array.isArray(q.reference_answer)
+                                                ? q.reference_answer
+                                                      .map((ans: number) =>
+                                                          String.fromCharCode(
+                                                              65 + ans
+                                                          )
+                                                      )
+                                                      .join(', ')
+                                                : ''
+                                        }}
+                                    </template>
+                                    <template v-else-if="q.type === 'boolean'">
+                                        {{
+                                            q.reference_answer
+                                                ? 'O (True)'
+                                                : 'X (False)'
+                                        }}
+                                    </template>
+                                    <template v-else>
+                                        <div
+                                            v-html="
+                                                renderMarkdown(
+                                                    q.reference_answer
+                                                )
+                                            "
+                                            class="answer-content"
+                                        ></div>
+                                    </template>
                                 </div>
                             </div>
-                            <div class="s-card-body">
-                                <el-tag
-                                    size="small"
-                                    type="info"
-                                    style="margin-right: 8px"
-                                    >{{ q.type }}</el-tag
-                                >
-                                {{ q.content }}
-                            </div>
-                        </el-card>
-                        <el-empty
-                            v-if="selectedQuestions.length === 0"
-                            description="No questions selected"
-                        />
+                            <el-empty
+                                v-if="selectedQuestions.length === 0"
+                                description="No questions selected yet"
+                            />
+                        </div>
+                    </div>
+
+                    <div v-else class="edit-mode-container">
+                        <h3>Exam Details</h3>
+                        <el-form :model="formData" label-position="top">
+                            <el-form-item label="Exam Title" required>
+                                <el-input
+                                    v-model="formData.title"
+                                    placeholder="Enter exam title..."
+                                />
+                            </el-form-item>
+                            <el-form-item label="Description">
+                                <el-input
+                                    v-model="formData.description"
+                                    type="textarea"
+                                    :rows="2"
+                                    placeholder="Optional description or instructions..."
+                                />
+                            </el-form-item>
+                        </el-form>
+
+                        <el-divider
+                            >Selected Questions ({{
+                                selectedQuestions.length
+                            }})</el-divider
+                        >
+
+                        <div class="selected-list">
+                            <el-card
+                                v-for="(q, index) in selectedQuestions"
+                                :key="index"
+                                class="selected-card"
+                                shadow="never"
+                            >
+                                <div class="s-card-header">
+                                    <strong>Q{{ index + 1 }}</strong>
+                                    <div class="s-card-actions">
+                                        <el-button
+                                            size="small"
+                                            @click="toggleSelectedQ(index)"
+                                            circle
+                                        >
+                                            <el-icon>
+                                                <ArrowDown
+                                                    v-if="
+                                                        expandedSelectedQs.includes(
+                                                            index
+                                                        )
+                                                    "
+                                                />
+                                                <ArrowRight v-else />
+                                            </el-icon>
+                                        </el-button>
+                                        <el-button
+                                            size="small"
+                                            @click="moveUp(index)"
+                                            :disabled="index === 0"
+                                            circle
+                                        >
+                                            <el-icon><Top /></el-icon>
+                                        </el-button>
+                                        <el-button
+                                            size="small"
+                                            @click="moveDown(index)"
+                                            :disabled="
+                                                index ===
+                                                selectedQuestions.length - 1
+                                            "
+                                            circle
+                                        >
+                                            <el-icon><Bottom /></el-icon>
+                                        </el-button>
+                                        <el-button
+                                            size="small"
+                                            type="danger"
+                                            @click="
+                                                removeQuestionFromExam(index)
+                                            "
+                                            circle
+                                        >
+                                            <el-icon><Minus /></el-icon>
+                                        </el-button>
+                                    </div>
+                                </div>
+                                <div class="s-card-body">
+                                    <div
+                                        v-if="
+                                            !expandedSelectedQs.includes(index)
+                                        "
+                                    >
+                                        <el-tag
+                                            size="small"
+                                            type="info"
+                                            style="margin-right: 8px"
+                                            >{{ q.type }}</el-tag
+                                        >
+                                        {{ stripMarkdown(q.content) }}
+                                    </div>
+
+                                    <div
+                                        v-else
+                                        class="q-expanded-view"
+                                        style="
+                                            margin-top: 0;
+                                            padding-top: 5px;
+                                            border-top: none;
+                                        "
+                                    >
+                                        <el-tag
+                                            size="small"
+                                            type="info"
+                                            style="margin-bottom: 12px"
+                                            >{{ q.type }}</el-tag
+                                        >
+                                        <div
+                                            class="q-content"
+                                            v-html="renderMarkdown(q.content)"
+                                        ></div>
+
+                                        <div
+                                            v-if="
+                                                ['single', 'multiple'].includes(
+                                                    q.type
+                                                ) && q.options
+                                            "
+                                            class="q-options"
+                                        >
+                                            <div
+                                                v-for="(
+                                                    opt, optIndex
+                                                ) in q.options"
+                                                :key="optIndex"
+                                                class="q-option"
+                                            >
+                                                <span class="opt-label"
+                                                    >{{
+                                                        String.fromCharCode(
+                                                            65 + optIndex
+                                                        )
+                                                    }}.</span
+                                                >
+                                                <div
+                                                    class="opt-content"
+                                                    v-html="renderMarkdown(opt)"
+                                                ></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="q-answer-box">
+                                            <span class="answer-label"
+                                                >【解答】</span
+                                            >
+                                            <template
+                                                v-if="q.type === 'single'"
+                                            >
+                                                {{
+                                                    String.fromCharCode(
+                                                        65 + q.reference_answer
+                                                    )
+                                                }}
+                                            </template>
+                                            <template
+                                                v-else-if="
+                                                    q.type === 'multiple'
+                                                "
+                                            >
+                                                {{
+                                                    Array.isArray(
+                                                        q.reference_answer
+                                                    )
+                                                        ? q.reference_answer
+                                                              .map(
+                                                                  (
+                                                                      ans: number
+                                                                  ) =>
+                                                                      String.fromCharCode(
+                                                                          65 +
+                                                                              ans
+                                                                      )
+                                                              )
+                                                              .join(', ')
+                                                        : ''
+                                                }}
+                                            </template>
+                                            <template
+                                                v-else-if="q.type === 'boolean'"
+                                            >
+                                                {{
+                                                    q.reference_answer
+                                                        ? 'O (True)'
+                                                        : 'X (False)'
+                                                }}
+                                            </template>
+                                            <template v-else>
+                                                <div
+                                                    v-html="
+                                                        renderMarkdown(
+                                                            q.reference_answer
+                                                        )
+                                                    "
+                                                    class="answer-content"
+                                                ></div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </el-card>
+                            <el-empty
+                                v-if="selectedQuestions.length === 0"
+                                description="No questions selected"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="dialogVisible = false">{{
-                        dialogType === 'preview' ? 'Close' : 'Cancel'
-                    }}</el-button>
+                    <template v-if="dialogType === 'preview'">
+                        <el-button @click="handlePrint('questions')">
+                            <el-icon><Printer /></el-icon> Print (Questions)
+                        </el-button>
+                        <el-button @click="handlePrint('answers')">
+                            <el-icon><Printer /></el-icon> Print (With Answers)
+                        </el-button>
+                    </template>
+
+                    <el-button @click="dialogVisible = false"
+                        >{{ dialogType === 'preview' ? 'Close' : 'Cancel' }}
+                    </el-button>
                     <el-button
                         v-if="dialogType !== 'preview'"
                         type="primary"
@@ -240,7 +624,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, nextTick, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
     Plus,
@@ -251,8 +635,14 @@ import {
     Top,
     Bottom,
     Minus,
-    View
+    View,
+    Printer,
+    Close,
+    ArrowDown,
+    ArrowRight
 } from '@element-plus/icons-vue'
+import { renderMarkdown } from '../utils/markdown'
+import { stripMarkdown } from '../utils/format'
 import api from '../api'
 
 // Interfaces
@@ -290,6 +680,12 @@ interface Exam {
 const exams = ref<Exam[]>([])
 const loading = ref(false)
 const submitLoading = ref(false)
+const isPreviewing = ref(false)
+const currentPrintMode = ref<'questions' | 'answers'>('questions')
+
+// Expand states
+const expandedBankQs = ref<number[]>([])
+const expandedSelectedQs = ref<number[]>([])
 
 // Editor State
 const dialogVisible = ref(false)
@@ -317,6 +713,39 @@ const filteredQuestions = computed(() => {
     )
 })
 
+// Expand Handlers
+const toggleBankQ = (id: number) => {
+    const index = expandedBankQs.value.indexOf(id)
+    if (index > -1) expandedBankQs.value.splice(index, 1)
+    else expandedBankQs.value.push(id)
+}
+
+const toggleSelectedQ = (index: number) => {
+    const pos = expandedSelectedQs.value.indexOf(index)
+    if (pos > -1) expandedSelectedQs.value.splice(pos, 1)
+    else expandedSelectedQs.value.push(index)
+}
+
+// Helper to swap expand state when moving items
+const swapExpandedState = (idx1: number, idx2: number) => {
+    const has1 = expandedSelectedQs.value.includes(idx1)
+    const has2 = expandedSelectedQs.value.includes(idx2)
+
+    if (has1 !== has2) {
+        if (has1) {
+            expandedSelectedQs.value = expandedSelectedQs.value.filter(
+                (i) => i !== idx1
+            )
+            expandedSelectedQs.value.push(idx2)
+        } else {
+            expandedSelectedQs.value = expandedSelectedQs.value.filter(
+                (i) => i !== idx2
+            )
+            expandedSelectedQs.value.push(idx1)
+        }
+    }
+}
+
 // API Calls
 const fetchExams = async () => {
     loading.value = true
@@ -343,8 +772,17 @@ const fetchQuestions = async () => {
 }
 
 // Handlers
+const handlePrint = async (mode: 'questions' | 'answers') => {
+    currentPrintMode.value = mode
+    await nextTick()
+    window.print()
+}
+
 const openAddDialog = async () => {
     dialogType.value = 'add'
+    isPreviewing.value = false
+    expandedBankQs.value = []
+    expandedSelectedQs.value = []
     formData.value = { id: null, title: '', description: '' }
     selectedQuestions.value = []
     searchKeyword.value = ''
@@ -353,8 +791,10 @@ const openAddDialog = async () => {
 }
 
 const openEditDialog = async (row: Exam) => {
-    // Determine mode based on lock status
     dialogType.value = row.is_locked ? 'preview' : 'edit'
+    isPreviewing.value = false
+    expandedBankQs.value = []
+    expandedSelectedQs.value = []
 
     formData.value = {
         id: row.id,
@@ -370,7 +810,6 @@ const openEditDialog = async (row: Exam) => {
     searchKeyword.value = ''
     dialogVisible.value = true
 
-    // Only fetch the full question bank if we are actively editing
     if (dialogType.value !== 'preview') {
         await fetchQuestions()
     }
@@ -378,16 +817,16 @@ const openEditDialog = async (row: Exam) => {
 
 // Editor actions
 const addQuestionToExam = (question: Question) => {
-    // Optional: Prevent duplicates if desired
-    // if (selectedQuestions.value.some(q => q.id === question.id)) {
-    //     ElMessage.warning('Question already added')
-    //     return
-    // }
     selectedQuestions.value.push(question)
 }
 
 const removeQuestionFromExam = (index: number) => {
     selectedQuestions.value.splice(index, 1)
+
+    // Shift the expanded states down for items after the deleted one
+    expandedSelectedQs.value = expandedSelectedQs.value
+        .filter((i) => i !== index) // Remove the deleted one
+        .map((i) => (i > index ? i - 1 : i)) // Shift others down
 }
 
 const moveUp = (index: number) => {
@@ -395,6 +834,7 @@ const moveUp = (index: number) => {
         const temp = selectedQuestions.value[index]
         selectedQuestions.value[index] = selectedQuestions.value[index - 1]
         selectedQuestions.value[index - 1] = temp
+        swapExpandedState(index, index - 1)
     }
 }
 
@@ -403,6 +843,7 @@ const moveDown = (index: number) => {
         const temp = selectedQuestions.value[index]
         selectedQuestions.value[index] = selectedQuestions.value[index + 1]
         selectedQuestions.value[index + 1] = temp
+        swapExpandedState(index, index + 1)
     }
 }
 
@@ -418,7 +859,6 @@ const submitForm = async () => {
         const payload = {
             title: formData.value.title,
             description: formData.value.description || null,
-            // Extract IDs in the current sorted order
             question_ids: selectedQuestions.value.map((q) => q.id)
         }
 
@@ -560,5 +1000,159 @@ onMounted(() => {
 .s-card-body {
     font-size: 0.95rem;
     color: #303133;
+}
+
+/* ==========================================
+   展開視圖專用樣式 (Expanded View)
+========================================== */
+.q-expanded-view {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #ebeef5;
+    background-color: #fafafa;
+    border-radius: 4px;
+    padding: 15px;
+}
+</style>
+
+<style scoped>
+/* ==========================================
+   試卷預覽模式 (Test Paper View)
+========================================== */
+.right-panel.is-preview-mode {
+    background-color: #f0f2f5;
+    padding: 20px;
+    align-items: center;
+}
+
+.exam-preview-paper {
+    background-color: white;
+    width: 100%;
+    max-width: 800px;
+    padding: 40px;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+    color: #303133;
+}
+
+.paper-title {
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.paper-desc {
+    text-align: center;
+    color: #606266;
+    margin-bottom: 30px;
+    white-space: pre-wrap;
+}
+
+.paper-question {
+    margin-bottom: 30px;
+    border-bottom: 1px dashed #ebeef5;
+    padding-bottom: 20px;
+}
+.paper-question:last-child {
+    border-bottom: none;
+}
+
+.q-title {
+    display: flex;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.q-number {
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+.q-content :deep(p) {
+    margin: 0 0 10px 0;
+}
+.q-content :deep(img),
+.opt-content :deep(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.q-options {
+    padding-left: 25px;
+    margin-bottom: 15px;
+}
+
+.q-option {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.opt-label {
+    margin-right: 8px;
+    font-weight: bold;
+}
+
+.q-answer-box {
+    background-color: #fdf6ec;
+    color: #e6a23c;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    margin-top: 15px;
+}
+.answer-label {
+    font-weight: bold;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+.answer-content :deep(p) {
+    margin: 0;
+}
+
+.edit-mode-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+</style>
+
+<style>
+/* ==========================================
+   全域列印樣式 (Global Print CSS)
+========================================== */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    .exam-preview-paper,
+    .exam-preview-paper * {
+        visibility: visible !important;
+    }
+    .exam-preview-paper {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .el-overlay {
+        background-color: transparent !important;
+    }
+    .el-dialog__header,
+    .el-dialog__footer {
+        display: none !important;
+    }
+
+    .exam-preview-paper.print-mode-questions .q-answer-box {
+        display: none !important;
+    }
 }
 </style>
