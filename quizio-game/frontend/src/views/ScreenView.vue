@@ -103,7 +103,10 @@
                         }}</span>
                     </div>
                     <h1 class="q-content-huge">
-                        {{ displayedQuestion?.content }}
+                        <div
+                            class="markdown-body"
+                            v-html="renderMarkdown(displayedQuestion?.content)"
+                        ></div>
                     </h1>
 
                     <div class="stats-container">
@@ -188,6 +191,7 @@ import { socket } from '../utils/socket'
 import QrcodeVue from 'qrcode.vue'
 import { formatQuestionType } from '../utils/locales'
 import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
+import { renderMarkdown } from '../utils/markdown'
 
 // Initialize i18n
 const { t } = useI18n()
@@ -644,15 +648,17 @@ onUnmounted(() => {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 4vh 4vw; /* Responsive padding */
+    padding: 4vh 4vw;
     border: 4px solid var(--primary-light);
     border-radius: 24px;
     background: var(--bg-card);
     box-sizing: border-box;
+    overflow: hidden;
+    max-height: 100%;
 }
 
 .q-meta {
-    margin-bottom: 20px;
+    margin-bottom: 2vh;
     text-align: center;
     flex-shrink: 0;
 }
@@ -670,21 +676,31 @@ onUnmounted(() => {
 }
 
 .q-content-huge {
-    font-size: 3.5rem;
-    line-height: 1.4;
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    margin: 0 auto 3vh;
+    padding-right: 10px;
     color: var(--text-main);
-    text-align: center;
-    margin: 0 auto 40px;
-    font-weight: 800;
-    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-light) transparent;
+}
+
+.q-content-huge::-webkit-scrollbar {
+    width: 8px;
+}
+.q-content-huge::-webkit-scrollbar-thumb {
+    background: var(--primary-light);
+    border-radius: 4px;
 }
 
 .stats-container {
     width: 100%;
-    margin-top: auto; /* Push to bottom */
+    margin-top: auto;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
+    flex-shrink: 0;
 }
 
 .stat-bar-wrapper {
@@ -869,5 +885,74 @@ onUnmounted(() => {
     .lb-title {
         font-size: 2.5rem;
     }
+}
+</style>
+
+<style scoped>
+/* ==========================================
+   Markdown Content Styles for Game UI
+========================================== */
+.markdown-body {
+    width: 100%;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.markdown-body :deep(p) {
+    margin: 0 0 1.5vh 0;
+    line-height: 1.4;
+    font-size: clamp(2rem, 4.5vh, 3.5rem);
+    font-weight: 800;
+    text-align: center;
+}
+.markdown-body :deep(p:last-child) {
+    margin-bottom: 0;
+}
+
+.markdown-body :deep(img) {
+    max-width: 100%;
+    max-height: 35vh;
+    height: auto;
+    border-radius: 12px;
+    margin: 2vh auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    object-fit: contain;
+    display: block;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+    padding-left: 2rem;
+    margin: 0 auto 2vh auto;
+    display: inline-block;
+    text-align: left;
+    font-size: clamp(1.8rem, 4vh, 3rem);
+    font-weight: 700;
+}
+.markdown-body :deep(li) {
+    margin-bottom: 1vh;
+}
+
+.markdown-body :deep(pre) {
+    background-color: #282c34;
+    color: #abb2bf;
+    padding: 1.5vh 1.5vw;
+    border-radius: 12px;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: clamp(1.2rem, 2.5vh, 2rem);
+    text-align: left;
+    width: 100%;
+    max-width: 90%;
+}
+.markdown-body :deep(code) {
+    background-color: rgba(0, 0, 0, 0.08);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-family: monospace;
 }
 </style>

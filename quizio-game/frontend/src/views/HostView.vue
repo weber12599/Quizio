@@ -196,7 +196,12 @@
                                 </div>
 
                                 <div class="q-content">
-                                    {{ eq.question.content }}
+                                    <div
+                                        class="markdown-body"
+                                        v-html="
+                                            renderMarkdown(eq.question.content)
+                                        "
+                                    ></div>
                                 </div>
 
                                 <div class="q-actions">
@@ -265,6 +270,7 @@ import { socket } from '../utils/socket'
 import api from '../api'
 import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
 import { formatQuestionType } from '../utils/locales'
+import { renderMarkdown } from '../utils/markdown'
 
 // --- Types ---
 interface Exam {
@@ -1070,5 +1076,64 @@ h3 {
         align-items: stretch;
         gap: 12px;
     }
+}
+</style>
+
+<style scoped>
+/* ==========================================
+   Markdown Content Styles for Game UI
+========================================== */
+.markdown-body {
+    width: 100%;
+    color: inherit; /* Inherit text color from your game theme */
+}
+
+/* Ensure paragraph spacing is comfortable */
+.markdown-body :deep(p) {
+    margin: 0 0 1rem 0;
+    line-height: 1.6;
+    font-size: 1.2rem; /* Larger font size for game readability */
+}
+.markdown-body :deep(p:last-child) {
+    margin-bottom: 0;
+}
+
+/* Make images responsive and rounded */
+.markdown-body :deep(img) {
+    max-width: 100%;
+    max-height: 40vh; /* Prevent extremely tall images from taking over the screen */
+    height: auto;
+    border-radius: 8px;
+    margin: 10px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Add a nice shadow for game aesthetics */
+    object-fit: contain;
+    display: block; /* Avoid inline spacing issues */
+}
+
+/* Style lists */
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+    padding-left: 2rem;
+    margin: 0 0 1rem 0;
+}
+.markdown-body :deep(li) {
+    margin-bottom: 0.5rem;
+}
+
+/* Code block styles (if teachers include code snippets) */
+.markdown-body :deep(pre) {
+    background-color: #282c34;
+    color: #abb2bf;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 1rem;
+}
+.markdown-body :deep(code) {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
 }
 </style>

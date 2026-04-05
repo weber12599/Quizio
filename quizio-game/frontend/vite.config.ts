@@ -17,6 +17,11 @@ export default defineConfig({
                 target: process.env.VITE_SOCKET_PROXY_BASE_URL,
                 ws: true,
                 changeOrigin: true
+            },
+            '/media': {
+                target: process.env.VITE_MEDIA_PROXY_BASE_URL,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/media/, '')
             }
         }
     }
