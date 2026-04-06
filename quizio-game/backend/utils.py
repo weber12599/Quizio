@@ -1,0 +1,131 @@
+import os
+
+import httpx
+import nh3
+
+DATA_SERVICE_BASE_URL = os.getenv('DATA_SERVICE_BASE_URL')
+DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_BASE_URL}/api/auth/student'
+
+
+def sanitize_rich_text(html_content: str) -> str:
+    if not html_content:
+        return html_content
+
+    allowed_tags = {
+        'p',
+        'b',
+        'i',
+        'u',
+        'strong',
+        'em',
+        'br',
+        'ul',
+        'ol',
+        'li',
+        'img',
+        'h1',
+        'h2',
+        'h3',
+        'blockquote',
+        'code',
+        'pre',
+        's',
+    }
+    allowed_attributes = {
+        'img': {'src', 'alt', 'title', 'width', 'height'},
+        'code': {'class'},
+    }
+    return nh3.clean(html_content, tags=allowed_tags, attributes=allowed_attributes)
+
+
+async def check_student_credentials(student_id: str, password: str, token: str):
+    if not token:
+        print('Error: No valid host token provided for this room.')
+        return None
+
+    auth_header = f'Bearer {token}'
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                DATA_SERVICE_STUDENT_AUTH_URL,
+                json={'student_id': student_id, 'password': password},
+                headers={'Authorization': auth_header},
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(
+                    f'Student verification failed: {response.status_code} - {response.text}'
+                )
+                return None
+        except Exception as e:
+            print(f'Network error (cannot connect to quizio-data): {e}')
+            return None
+
+
+def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
+    """Evaluate student's answer based on the question type."""
+    if not correct_answer:
+        return False
+
+    if q_type == 'essay':
+        return False
+
+    if q_type == 'multiple':
+        if not isinstance(student_answer, list) or not isinstance(correct_answer, list):
+            return False
+        return set(student_answer) == set(correct_answer)
+
+    if q_type in ['single', 'boolean']:
+        return str(student_answer).strip() == str(correct_answer).strip()
+
+    if q_type == 'short':
+        return (
+            str(student_answer).strip().lower() == str(correct_answer).strip().lower()
+        )
+
+    return False
+
+
+def compute_stats(q_type: str, answers_dict: dict) -> tuple:
+    """Compute answer statistics for the bar charts."""
+    stats = {}
+    total = len(answers_dict)
+
+    for sid, ans in answers_dict.items():
+        if q_type == 'multiple' and isinstance(ans, list):
+            for a in ans:
+                stats[str(a)] = stats.get(str(a), 0) + 1
+        elif q_type == 'boolean':
+            ans_idx = '0' if ans else '1'
+            stats[ans_idx] = stats.get(ans_idx, 0) + 1
+        elif q_type == 'single':
+            stats[str(ans)] = stats.get(str(ans), 0) + 1
+
+    return stats, total
+
+
+def generate_leaderboard(room: dict) -> list:
+    """Helper function to calculate scores and generate leaderboard."""
+    scores = {}
+    names = {}
+
+    for p_sid, p in room['players'].items():
+        if p['role'] == 'client':
+            st_id = p['student_id']
+            scores[st_id] = 0
+            names[st_id] = p['name']
+
+    gradings = room.get('gradings', {})
+    for q_id, q_gradings in gradings.items():
+        for st_id, result in q_gradings.items():
+            if result.get('is_correct'):
+                scores[st_id] = scores.get(st_id, 0) + 100
+
+    leaderboard = [
+        {'name': names.get(st_id, 'Unknown'), 'score': score}
+        for st_id, score in scores.items()
+    ]
+    leaderboard.sort(key=lambda x: x['score'], reverse=True)
+    return leaderboard

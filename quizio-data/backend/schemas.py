@@ -1,7 +1,52 @@
 from datetime import date, datetime
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+import nh3
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+
+
+def sanitize_rich_text(html_content: str) -> str:
+    """
+    Sanitize HTML content to prevent XSS attacks.
+    Allows safe formatting tags and images.
+    """
+    if not html_content:
+        return html_content
+
+    allowed_tags = {
+        'p',
+        'b',
+        'i',
+        'u',
+        'strong',
+        'em',
+        'br',
+        'ul',
+        'ol',
+        'li',
+        'img',
+        'h1',
+        'h2',
+        'h3',
+        'blockquote',
+        'code',
+        'pre',
+        's',
+    }
+    allowed_attributes = {
+        'img': {'src', 'alt', 'title', 'width', 'height'},
+        'code': {'class'},
+    }
+    return nh3.clean(html_content, tags=allowed_tags, attributes=allowed_attributes)
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
 
 
 class UserBase(BaseModel):
@@ -75,6 +120,11 @@ class QuestionBase(BaseModel):
     owner_id: Optional[int] = None
     is_public: bool = False
 
+    @field_validator('content')
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        return sanitize_rich_text(v)
+
 
 class QuestionCreate(QuestionBase):
     pass
@@ -90,6 +140,13 @@ class QuestionUpdate(BaseModel):
     literacy_tags: Optional[List[str]] = None
     is_archived: Optional[bool] = None
     is_public: Optional[bool] = None
+
+    @field_validator('content')
+    @classmethod
+    def sanitize_content(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return sanitize_rich_text(v)
+        return v
 
 
 class Question(QuestionBase):
@@ -140,3 +197,48 @@ class UserWithDetails(UserResponse):
     students: List[Student] = []
     questions: List[Question] = []
     exams: List[ExamResponse] = []
+
+
+class StudentAnswerBase(BaseModel):
+    question_id: int
+    answer_content: Optional[str] = None
+    is_correct: Optional[bool] = None
+    score: Optional[int] = None
+
+    @field_validator('answer_content')
+    @classmethod
+    def sanitize_student_answer(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return sanitize_rich_text(v)
+        return v
+
+
+class StudentAnswerCreate(StudentAnswerBase):
+    pass
+
+
+class StudentAnswer(StudentAnswerBase):
+    id: int
+    submission_id: int
+    exam_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StudentSubmissionBase(BaseModel):
+    exam_id: int
+    student_id: Optional[int] = None
+    guest_name: Optional[str] = None
+
+
+class StudentSubmissionCreate(StudentSubmissionBase):
+    answers: List[StudentAnswerCreate] = []
+
+
+class StudentSubmission(StudentSubmissionBase):
+    id: int
+    created_at: datetime
+    answers: List[StudentAnswer] = []
+
+    model_config = ConfigDict(from_attributes=True)
