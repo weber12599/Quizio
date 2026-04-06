@@ -1,7 +1,7 @@
 import os
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from utils import check_student_credentials
@@ -81,3 +81,47 @@ async def proxy_get_exam_details(exam_id: int, token: str = Depends(oauth2_schem
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=response.text)
         return response.json()
+
+
+@router.post('/api/media/upload')
+async def proxy_upload_media(
+    file: UploadFile = File(...),
+    authorization: str = Header(None),
+):
+    """
+    Proxy media upload to the Data Backend.
+    Both Host (Teacher) and Client (Student) will upload through this game-backend endpoint.
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Missing authorization header',
+        )
+
+    headers = {'Authorization': authorization}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            file_content = await file.read()
+            files = {'file': (file.filename, file_content, file.content_type)}
+
+            response = await client.post(
+                f'{DATA_SERVICE_BASE_URL}/api/media/upload',
+                headers=headers,
+                files=files,
+                timeout=30.0,
+            )
+
+            if response.status_code not in (200, 201):
+                raise HTTPException(
+                    status_code=response.status_code, detail=response.text
+                )
+
+            return response.json()
+
+        except httpx.RequestError as e:
+            print(f'Upload proxy error: {e}')
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail='Data service is unavailable for upload',
+            )

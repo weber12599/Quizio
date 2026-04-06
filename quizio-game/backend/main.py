@@ -55,6 +55,7 @@ async def join_room(sid, data):
     token = data.get('token')
 
     player_name = 'Unknown'
+    upload_token = 'Unknown'
 
     if role == 'host':
         player_name = 'Host_Teacher'
@@ -97,7 +98,8 @@ async def join_room(sid, data):
             return
 
         player_name = student_info['name']
-
+        upload_token = student_info.get('upload_token')
+        await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
     else:
         await sio.disconnect(sid)
         return

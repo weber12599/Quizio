@@ -189,15 +189,13 @@
                                 "
                                 class="text-answer-container"
                             >
-                                <textarea
+                                <GameTiptapEditor
                                     v-if="q.type === 'essay'"
                                     v-model="tempAnswers[q.id]"
                                     :placeholder="
                                         $t('student.placeholder_essay')
                                     "
-                                    class="answer-input textarea"
-                                    rows="5"
-                                ></textarea>
+                                />
                                 <input
                                     v-else
                                     v-model="tempAnswers[q.id]"
@@ -294,9 +292,14 @@
                                             $t('student.your_submission')
                                         }}</span
                                     >
-                                    <div class="val">
-                                        {{ submittedAnswers[q.id] }}
-                                    </div>
+                                    <div
+                                        class="val markdown-body"
+                                        v-html="
+                                            renderMarkdown(
+                                                submittedAnswers[q.id]
+                                            )
+                                        "
+                                    ></div>
                                 </div>
                                 <div class="correct-text-box box-reference">
                                     <span class="indicator"
@@ -305,14 +308,15 @@
                                             $t('student.reference_answer')
                                         }}</span
                                     >
-                                    <div class="val">
-                                        {{
-                                            formatSubmittedAnswer(
+                                    <div
+                                        class="val markdown-body"
+                                        v-html="
+                                            renderMarkdown(
                                                 gradingResults[q.id]
-                                                    ?.correct_answer
+                                                    ?.correct_answer || ''
                                             )
-                                        }}
-                                    </div>
+                                        "
+                                    ></div>
                                 </div>
                             </div>
                         </div>
@@ -330,6 +334,7 @@ import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import { formatQuestionType } from '../utils/locales'
 import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
+import GameTiptapEditor from '../components/GameTiptapEditor.vue'
 import { renderMarkdown } from '../utils/markdown'
 
 // Initialize i18n
@@ -560,6 +565,7 @@ const submitAnswer = (questionId: number, answer: any) => {
 const leaveRoom = () => {
     socket.disconnect()
     localStorage.removeItem('quizio_student_creds')
+    localStorage.removeItem('quizio_upload_token')
     isConnected.value = false
     questionsFeed.value = []
     submittedAnswers.value = {}
@@ -591,6 +597,12 @@ onMounted(() => {
         }
     })
 
+    socket.on('auth_success', (data: { upload_token: string }) => {
+        if (data.upload_token) {
+            localStorage.setItem('quizio_upload_token', data.upload_token)
+        }
+    })
+
     socket.on('error', (data: { message: string }) => {
         errorMessage.value = data.message
         isLoading.value = false
@@ -598,6 +610,7 @@ onMounted(() => {
         isConnected.value = false
 
         localStorage.removeItem('quizio_student_creds')
+        localStorage.removeItem('quizio_upload_token')
     })
 
     socket.on('new_questions', (data: { questions: Question[] }) => {
