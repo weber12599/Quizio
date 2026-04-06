@@ -1,7 +1,11 @@
 import models
 import schemas
 from core.deps import get_current_user
-from core.security import create_access_token, verify_password
+from core.security import (
+    create_access_token,
+    create_student_upload_token,
+    verify_password,
+)
 from crud import students as crud_students
 from crud import users as crud_users
 from database import get_db
@@ -52,8 +56,14 @@ async def verify_student(
             detail='Invalid student ID or password',
         )
 
+    # Retrieve upload token
+    upload_token = create_student_upload_token(
+        teacher_id=current_user.id, student_id=student.student_id
+    )
+
     return {
         'name': student.name,
         'student_id': student.student_id,
         'class_name': student.class_name,
+        'upload_token': upload_token,
     }

@@ -2,7 +2,7 @@ import os
 
 import httpx
 import models
-from core.deps import get_current_user
+from core.deps import get_current_user, get_uploader_id
 from database import get_db
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
@@ -23,10 +23,10 @@ if not SEAWEEDFS_MASTER_URL:
 @router.post('/upload', status_code=status.HTTP_201_CREATED)
 async def upload_media(
     file: UploadFile = File(...),
-    current_user: models.User = Depends(get_current_user),
+    uploader_id: int = Depends(get_uploader_id),
     db: AsyncSession = Depends(get_db),
 ):
-    # Only authenticated users can reach this point
+    # Both authenticated teachers and students (via temporary token) can reach this point
     async with httpx.AsyncClient() as client:
         try:
             # Step 1: Request an FID and volume location from the Master server
@@ -48,7 +48,7 @@ async def upload_media(
             upload_data = upload_resp.json()
 
             # Step 3: Record the uploaded media in the database for GC tracking
-            new_media = models.Media(fid=fid, uploader_id=current_user.id)
+            new_media = models.Media(fid=fid, uploader_id=uploader_id)
             db.add(new_media)
             await db.commit()
 

@@ -44,18 +44,17 @@ def create_access_token(data: dict) -> str:
     return encoded_jwt
 
 
-def create_student_upload_token(teacher_id: int, room_pin: str) -> str:
+def create_student_upload_token(teacher_id: int, student_id: str) -> str:
     """
     Generate a temporary JWT token for students to upload media via Tiptap.
-    The storage quota and ownership will be attributed to the teacher who created the room.
+    The storage quota is attributed to the teacher, but the action is traced to the student.
     """
-    # Set expiration for the duration of a typical test session (e.g., 4 hours)
-    expire = datetime.now(timezone.utc) + timedelta(hours=4)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode = {
         'sub': str(teacher_id),
         'scope': 'student_upload',
-        'room_pin': room_pin,
+        'student_id': student_id,
         'exp': expire,
     }
 
