@@ -75,6 +75,13 @@ async def get_exams(db: AsyncSession, current_user: models.User):
 async def create_exam(
     db: AsyncSession, exam: schemas.ExamCreate, current_user: models.User
 ):
+    # Verify if the user has access to the provided question_ids
+    if exam.question_ids:
+        has_access = await verify_questions_access(db, exam.question_ids, current_user)
+        if not has_access:
+            # Raise an appropriate error to be caught by the exception handler
+            raise ValueError('Unauthorized access to one or more questions.')
+
     # Extract basic exam data, exclude question_ids for now
     exam_data = exam.model_dump(exclude={'question_ids'})
     exam_data['owner_id'] = current_user.id
@@ -105,6 +112,15 @@ async def update_exam(
     exam_update: schemas.ExamUpdate,
     current_user: models.User,
 ):
+    # Verify if the user has access to the provided question_ids
+    if exam_update.question_ids:
+        has_access = await verify_questions_access(
+            db, exam_update.question_ids, current_user
+        )
+        if not has_access:
+            # Raise an appropriate error to be caught by the exception handler
+            raise ValueError('Unauthorized access to one or more questions.')
+
     update_data = exam_update.model_dump(exclude_unset=True, exclude={'question_ids'})
 
     # Update basic fields (title, description, is_locked)

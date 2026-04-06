@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -101,6 +101,7 @@ class Question(QuestionBase):
 class ExamBase(BaseModel):
     title: str
     description: Optional[str] = None
+    target_date: Optional[date] = None
 
 
 class ExamCreate(ExamBase):
@@ -110,6 +111,7 @@ class ExamCreate(ExamBase):
 class ExamUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    target_date: Optional[date] = None
     question_ids: Optional[List[int]] = None
     is_locked: Optional[bool] = None
 
@@ -128,6 +130,7 @@ class ExamResponse(ExamBase):
     owner_id: int
     is_locked: bool
     created_at: datetime
+    updated_at: Optional[datetime] = None
     exam_questions: List[ExamQuestionResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

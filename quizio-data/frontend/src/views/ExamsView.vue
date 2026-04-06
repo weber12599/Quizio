@@ -38,6 +38,20 @@
                         </el-tag>
                     </template>
                 </el-table-column>
+                <el-table-column label="Target Date" width="130" align="center">
+                    <template #default="scope">
+                        {{ scope.row.target_date || '-' }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="Last Updated" width="180">
+                    <template #default="scope">
+                        {{
+                            new Date(
+                                scope.row.updated_at || scope.row.created_at
+                            ).toLocaleString()
+                        }}
+                    </template>
+                </el-table-column>
                 <el-table-column label="Created At" width="180">
                     <template #default="scope">
                         {{ new Date(scope.row.created_at).toLocaleString() }}
@@ -391,6 +405,16 @@
                                     placeholder="Enter exam title..."
                                 />
                             </el-form-item>
+                            <el-form-item label="Target Date">
+                                <el-date-picker
+                                    v-model="formData.target_date"
+                                    type="date"
+                                    placeholder="Select scheduled date"
+                                    format="YYYY-MM-DD"
+                                    value-format="YYYY-MM-DD"
+                                    style="width: 100%"
+                                />
+                            </el-form-item>
                             <el-form-item label="Description">
                                 <el-input
                                     v-model="formData.description"
@@ -671,7 +695,9 @@ interface Exam {
     title: string
     description: string | null
     is_locked: boolean
+    target_date: string | null
     created_at: string
+    updated_at: string | null
     owner_id: number
     exam_questions: ExamQuestionResponse[]
 }
@@ -693,7 +719,8 @@ const dialogType = ref<'add' | 'edit' | 'preview'>('add')
 const formData = ref({
     id: null as number | null,
     title: '',
-    description: ''
+    description: '',
+    target_date: null as string | null
 })
 
 // Question Bank State
@@ -783,7 +810,8 @@ const openAddDialog = async () => {
     isPreviewing.value = false
     expandedBankQs.value = []
     expandedSelectedQs.value = []
-    formData.value = { id: null, title: '', description: '' }
+
+    formData.value = { id: null, title: '', description: '', target_date: null }
     selectedQuestions.value = []
     searchKeyword.value = ''
     dialogVisible.value = true
@@ -799,7 +827,8 @@ const openEditDialog = async (row: Exam) => {
     formData.value = {
         id: row.id,
         title: row.title,
-        description: row.description || ''
+        description: row.description || '',
+        target_date: row.target_date || null
     }
 
     const sortedExamQs = [...row.exam_questions].sort(
@@ -859,6 +888,7 @@ const submitForm = async () => {
         const payload = {
             title: formData.value.title,
             description: formData.value.description || null,
+            target_date: formData.value.target_date || null,
             question_ids: selectedQuestions.value.map((q) => q.id)
         }
 
