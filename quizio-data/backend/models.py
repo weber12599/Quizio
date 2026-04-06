@@ -3,6 +3,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -74,6 +75,10 @@ class Exam(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     is_locked = Column(Boolean, default=False, nullable=False)
+    target_date = Column(Date, nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     owner_id = Column(
         Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
@@ -109,6 +114,51 @@ class Media(Base):
     id = Column(Integer, primary_key=True, index=True)
     fid = Column(String, unique=True, index=True, nullable=False)
     uploader_id = Column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
+        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class StudentSubmission(Base):
+    __tablename__ = 'student_submissions'
+
+    id = Column(Integer, primary_key=True, index=True)
+    exam_id = Column(
+        Integer, ForeignKey('exams.id', ondelete='CASCADE'), nullable=False
+    )
+    student_id = Column(
+        Integer, ForeignKey('students.id', ondelete='SET NULL'), nullable=True
+    )
+    guest_name = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    exam = relationship('Exam')
+    student = relationship('Student')
+    answers = relationship(
+        'StudentAnswer', back_populates='submission', cascade='all, delete-orphan'
+    )
+
+
+class StudentAnswer(Base):
+    __tablename__ = 'student_answers'
+
+    id = Column(Integer, primary_key=True, index=True)
+    submission_id = Column(
+        Integer,
+        ForeignKey('student_submissions.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    exam_id = Column(
+        Integer, ForeignKey('exams.id', ondelete='CASCADE'), nullable=False
+    )
+    question_id = Column(
+        Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False
+    )
+    answer_content = Column(Text, nullable=True)
+    is_correct = Column(Boolean, nullable=True)
+    score = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    submission = relationship('StudentSubmission', back_populates='answers')
+    exam = relationship('Exam')
+    question = relationship('Question')
