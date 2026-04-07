@@ -1,3 +1,4 @@
+import json
 from typing import Dict
 
 import socketio
@@ -9,6 +10,7 @@ from utils import (
     generate_leaderboard,
     grade_answer,
     sanitize_rich_text,
+    submit_batch_submissions,
 )
 
 # Initialize FastAPI app
@@ -56,6 +58,7 @@ async def join_room(sid, data):
 
     player_name = 'Unknown'
     upload_token = 'Unknown'
+    student_db_id = 'Unknown'
 
     if role == 'host':
         player_name = 'Host_Teacher'
@@ -99,6 +102,7 @@ async def join_room(sid, data):
 
         player_name = student_info['name']
         upload_token = student_info.get('upload_token')
+        student_db_id = student_info.get('id')
         await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
     else:
         await sio.disconnect(sid)
@@ -108,6 +112,7 @@ async def join_room(sid, data):
         'role': role,
         'name': player_name,
         'student_id': student_id,
+        'student_db_id': student_db_id,
     }
 
     print(f'✅ {player_name} ({role}) joined room {room_pin}')
@@ -276,7 +281,14 @@ async def host_display_question(sid, data):
 @sio.event
 async def submit_answer(sid, data):
     if 'answer' in data and data['answer']:
-        data['answer'] = sanitize_rich_text(data['answer'])
+        if isinstance(data['answer'], str):
+            data['answer'] = sanitize_rich_text(data['answer'])
+        elif isinstance(data['answer'], list):
+            # Sanitize each string element inside the list for multiple choice questions
+            data['answer'] = [
+                sanitize_rich_text(item) if isinstance(item, str) else item
+                for item in data['answer']
+            ]
 
     room_pin = str(data.get('room_pin'))
     q_id = str(data.get('question_id'))
@@ -351,6 +363,8 @@ async def host_show_leaderboard(sid, data):
 @sio.event
 async def end_game(sid, data):
     room_pin = str(data.get('room_pin'))
+    exam_id = data.get('exam_id')
+
     room = room_states.get(room_pin)
     if not room:
         return
@@ -359,7 +373,60 @@ async def end_game(sid, data):
     if not player_info or player_info['role'] != 'host':
         return
 
-    print(f'🛑 Host ended game. Cleaning up room {room_pin}')
+    print('🛑 Host ended game.')
+    # --- Start Batch Submission Persistence Logic ---
+    if exam_id and 'token' in room:
+        print(f'🛑 Submitting batch data & cleaning up room {room_pin}')
+        token = room['token']
+        batch_payload = []
+
+        for p_sid, p_data in room['players'].items():
+            if p_data['role'] == 'client':
+                student_string_id = p_data.get('student_id')
+                student_db_id = p_data.get('student_db_id')
+
+                answers_payload = []
+                for q_id_str, student_answers in room.get('answers', {}).items():
+                    if student_string_id in student_answers:
+                        ans_content = student_answers[student_string_id]
+
+                        if isinstance(ans_content, list):
+                            ans_content_str = json.dumps(ans_content)
+                        else:
+                            ans_content_str = (
+                                str(ans_content) if ans_content is not None else None
+                            )
+
+                        grading = (
+                            room.get('gradings', {})
+                            .get(q_id_str, {})
+                            .get(student_string_id, {})
+                        )
+
+                        answers_payload.append(
+                            {
+                                'question_id': int(q_id_str),
+                                'answer_content': ans_content_str,
+                                'is_correct': grading.get('is_correct'),
+                                'score': 100 if grading.get('is_correct') else 0,
+                            }
+                        )
+
+                if answers_payload:
+                    submission_payload = {
+                        'exam_id': int(exam_id),
+                        'student_id': student_db_id,
+                        'guest_name': p_data['name'] if not student_db_id else None,
+                        'answers': answers_payload,
+                    }
+                    batch_payload.append(submission_payload)
+
+        # Execute ONE single HTTP request for the entire room
+        if batch_payload:
+            print(f'📦 Submitting a batch of {len(batch_payload)} student records...')
+            await submit_batch_submissions(token, batch_payload)
+            print('✅ Batch submission archived successfully.')
+    # --- End Batch Submission Persistence Logic ---
 
     for target_sid, player in list(room['players'].items()):
         if target_sid != sid:

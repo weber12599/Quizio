@@ -64,6 +64,43 @@ async def check_student_credentials(student_id: str, password: str, token: str):
             return None
 
 
+async def submit_student_submission(token: str, payload: dict):
+    """
+    Send a single student's submission (answers + gradings) to the Data Backend.
+    """
+    url = f'{DATA_SERVICE_BASE_URL}/api/submissions/'
+    headers = {'Authorization': f'Bearer {token}'}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                url, json=payload, headers=headers, timeout=10.0
+            )
+            if response.status_code not in (200, 201):
+                print(f'Error submitting data to data-backend: {response.text}')
+        except Exception as e:
+            print(f'Network error while submitting data: {e}')
+
+
+async def submit_batch_submissions(token: str, payload: list):
+    """
+    Send all student submissions as a single batch to the Data Backend.
+    """
+    url = f'{DATA_SERVICE_BASE_URL}/api/submissions/batch'
+    headers = {'Authorization': f'Bearer {token}'}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            # Increased timeout slightly for batch processing
+            response = await client.post(
+                url, json=payload, headers=headers, timeout=15.0
+            )
+            if response.status_code not in (200, 201):
+                print(f'Error submitting batch data to data-backend: {response.text}')
+        except Exception as e:
+            print(f'Network error while submitting batch data: {e}')
+
+
 def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
     """Evaluate student's answer based on the question type."""
     if not correct_answer:

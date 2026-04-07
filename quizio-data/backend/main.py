@@ -11,7 +11,7 @@ from database import AsyncSessionLocal
 from fastapi import FastAPI
 
 # Import all your routers
-from routers import auth, exams, media, questions, students, users
+from routers import auth, exams, media, questions, students, submissions, users
 from sqlalchemy import select
 
 # Load initial admin credentials from environment variables
@@ -84,3 +84,4 @@ app.include_router(students.router)
 app.include_router(questions.router)
 app.include_router(exams.router)
 app.include_router(media.router)
+app.include_router(submissions.router)

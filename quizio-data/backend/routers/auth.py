@@ -62,6 +62,7 @@ async def verify_student(
     )
 
     return {
+        'id': student.id,
         'name': student.name,
         'student_id': student.student_id,
         'class_name': student.class_name,

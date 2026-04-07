@@ -508,7 +508,10 @@ const loginAndCreateRoom = async () => {
 
 const leaveRoom = () => {
     if (isConnected.value) {
-        socket.emit('end_game', { room_pin: roomPin.value })
+        socket.emit('end_game', {
+            room_pin: roomPin.value,
+            exam_id: selectedExam.value?.id
+        })
     }
 
     // 🚀 徹底清除房號記憶
