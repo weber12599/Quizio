@@ -116,6 +116,7 @@ async def grade_student_answer(
         .options(
             selectinload(models.StudentAnswer.grading_histories),
             selectinload(models.StudentAnswer.question),
+            selectinload(models.StudentAnswer.exam),
         )
         .where(models.StudentAnswer.id == answer_id)
     )
@@ -123,6 +124,9 @@ async def grade_student_answer(
 
     if not db_answer:
         return None
+
+    if db_answer.exam.owner_id != teacher_id:
+        raise ValueError('UNAUTHORIZED_GRADING')
 
     # Record the history before changing the score
     history = models.AnswerGradingHistory(
@@ -271,9 +275,19 @@ async def get_student_submission_details(db: AsyncSession, submission_id: int):
         .options(
             selectinload(models.StudentSubmission.answers).selectinload(
                 models.StudentAnswer.question
-            )
+            ),
+            selectinload(models.StudentSubmission.exam).selectinload(
+                models.Exam.exam_questions
+            ),
         )
         .where(models.StudentSubmission.id == submission_id)
     )
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    submission = result.scalar_one_or_none()
+
+    if submission:
+        sort_map = {
+            eq.question_id: eq.sort_order for eq in submission.exam.exam_questions
+        }
+        submission.answers.sort(key=lambda ans: sort_map.get(ans.question_id, 999))
+    return submission

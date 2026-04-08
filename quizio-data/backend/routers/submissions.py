@@ -57,9 +57,17 @@ async def grade_student_answer(
     Manually grade or override a student's answer score.
     Automatically creates an entry in the grading history ledger.
     """
-    updated_answer = await crud_submissions.grade_student_answer(
-        db=db, answer_id=answer_id, new_score=score, teacher_id=current_user.id
-    )
+    try:
+        updated_answer = await crud_submissions.grade_student_answer(
+            db=db, answer_id=answer_id, new_score=score, teacher_id=current_user.id
+        )
+    except ValueError as e:
+        if str(e) == 'UNAUTHORIZED_GRADING':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='You can only grade answers for exams you created.',
+            )
+        raise e
 
     if not updated_answer:
         raise HTTPException(
@@ -108,4 +116,10 @@ async def read_student_submission_details(
     )
     if not submission:
         raise HTTPException(status_code=404, detail='Submission not found')
+
+    if not current_user.is_superuser and submission.exam.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You do not have permission to view the details of this exam.',
+        )
     return submission
