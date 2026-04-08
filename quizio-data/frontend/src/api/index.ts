@@ -51,6 +51,13 @@ export interface ExamGradeHeader {
     id: number
     title: string
     target_date: string | null
+    max_attempts: number
+}
+
+export interface SubmissionScoreDetail {
+    submission_id: number
+    score: number
+    record_date: string | null
 }
 
 export interface StudentGradeEntry {
@@ -58,7 +65,7 @@ export interface StudentGradeEntry {
     student_id: string
     name: string
     class_name: string | null
-    scores: Record<string, number>
+    exam_submissions: Record<string, SubmissionScoreDetail[]>
 }
 
 export interface GradeReportResponse {
@@ -122,6 +129,27 @@ export const getStudents = (params?: {
     admission_year?: number
 }) => {
     return api.get<Student[]>('/students/', { params })
+}
+
+/**
+ * Fetch all exams (used for the multiple select filter)
+ */
+export const getExams = () => {
+    return api.get<any[]>('/exams/')
+}
+
+/**
+ * Fetch detailed submission including answers and questions for a specific student and exam
+ */
+export const getSubmissionDetails = (submissionId: number) => {
+    return api.get<any>(`/submissions/details/${submissionId}`)
+}
+
+/**
+ * Manually update a student's score for a specific answer
+ */
+export const gradeStudentAnswer = (answerId: number, score: number) => {
+    return api.put<any>(`/submissions/answers/${answerId}/grade`, { score })
 }
 
 export default api

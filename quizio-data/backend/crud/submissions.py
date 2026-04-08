@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date
 from typing import List, Optional
 
@@ -112,7 +113,10 @@ async def grade_student_answer(
     """
     result = await db.execute(
         select(models.StudentAnswer)
-        .options(selectinload(models.StudentAnswer.grading_histories))
+        .options(
+            selectinload(models.StudentAnswer.grading_histories),
+            selectinload(models.StudentAnswer.question),
+        )
         .where(models.StudentAnswer.id == answer_id)
     )
     db_answer = result.scalar_one_or_none()
@@ -146,7 +150,6 @@ async def get_grade_report(
     date_end: Optional[date] = None,
     exam_ids: Optional[List[int]] = None,
 ):
-    # 1. Filter target students assigned to the teacher
     student_query = select(models.Student).where(
         models.Student.teacher_id == teacher_id
     )
@@ -163,11 +166,13 @@ async def get_grade_report(
     if not student_db_ids:
         return {'exams': [], 'students': []}
 
-    # 2. Base query for aggregating scores filtered by StudentSubmission's record_date
+    # 1. 依據「每一次的 submission_id」進行分組與加總
     score_query = (
         select(
+            models.StudentSubmission.id.label('submission_id'),
             models.StudentSubmission.student_id,
             models.StudentSubmission.exam_id,
+            models.StudentSubmission.record_date,
             func.sum(models.StudentAnswer.score).label('total_score'),
         )
         .join(
@@ -189,14 +194,38 @@ async def get_grade_report(
         )
 
     score_query = score_query.group_by(
-        models.StudentSubmission.student_id, models.StudentSubmission.exam_id
-    )
+        models.StudentSubmission.id,
+        models.StudentSubmission.student_id,
+        models.StudentSubmission.exam_id,
+        models.StudentSubmission.record_date,
+        models.StudentSubmission.created_at,  # 必須加入 group_by 避免 SQL 報錯
+    ).order_by(
+        models.StudentSubmission.created_at.asc()
+    )  # 依時間遞增，確保 1, 2, 3 次順序正確
 
     score_result = await db.execute(score_query)
     raw_scores = score_result.all()
 
-    # 3. Extract the active exams that actually have submissions within the filtered range
-    active_exam_ids = list(set(row.exam_id for row in raw_scores))
+    # 2. 統計每張考卷的最大作答次數與學生作答紀錄
+    exam_attempts_count = defaultdict(int)
+    student_exam_subs = defaultdict(lambda: defaultdict(list))
+
+    for row in raw_scores:
+        sub_score = row.total_score if row.total_score is not None else 0
+        student_exam_subs[row.student_id][row.exam_id].append(
+            {
+                'submission_id': row.submission_id,
+                'score': sub_score,
+                'record_date': row.record_date,
+            }
+        )
+
+    for s_id, exams_dict in student_exam_subs.items():
+        for e_id, subs in exams_dict.items():
+            if len(subs) > exam_attempts_count[e_id]:
+                exam_attempts_count[e_id] = len(subs)
+
+    active_exam_ids = list(exam_attempts_count.keys())
     if not active_exam_ids:
         return {'exams': [], 'students': []}
 
@@ -205,15 +234,23 @@ async def get_grade_report(
     )
     exams = exam_result.scalars().all()
 
-    # 4. Construct the pivot matrix
-    score_map = {(row.student_id, row.exam_id): row.total_score for row in raw_scores}
+    # 3. 組合回傳資料
+    exams_data = []
+    for e in exams:
+        exams_data.append(
+            {
+                'id': e.id,
+                'title': e.title,
+                'target_date': e.target_date,
+                'max_attempts': exam_attempts_count[e.id],
+            }
+        )
 
     student_entries = []
     for s in students:
-        s_scores = {}
-        for e in exams:
-            # Insert score or 0 if no record exists
-            s_scores[str(e.id)] = score_map.get((s.id, e.id), 0)
+        s_submissions = {}
+        for e_id in active_exam_ids:
+            s_submissions[str(e_id)] = student_exam_subs[s.id][e_id]
 
         student_entries.append(
             {
@@ -221,8 +258,22 @@ async def get_grade_report(
                 'student_id': s.student_id,
                 'name': s.name,
                 'class_name': s.class_name,
-                'scores': s_scores,
+                'exam_submissions': s_submissions,
             }
         )
 
-    return {'exams': exams, 'students': student_entries}
+    return {'exams': exams_data, 'students': student_entries}
+
+
+async def get_student_submission_details(db: AsyncSession, submission_id: int):
+    query = (
+        select(models.StudentSubmission)
+        .options(
+            selectinload(models.StudentSubmission.answers).selectinload(
+                models.StudentAnswer.question
+            )
+        )
+        .where(models.StudentSubmission.id == submission_id)
+    )
+    result = await db.execute(query)
+    return result.scalar_one_or_none()

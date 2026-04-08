@@ -36,7 +36,24 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="Exam Date">
+                <el-form-item label="Exams">
+                    <el-select
+                        v-model="filters.exam_ids"
+                        multiple
+                        collapse-tags
+                        placeholder="Select Exams"
+                        clearable
+                    >
+                        <el-option
+                            v-for="exam in examOptions"
+                            :key="exam.id"
+                            :label="exam.title"
+                            :value="exam.id"
+                        />
+                    </el-select>
+                </el-form-item>
+
+                <el-form-item label="Record Date">
                     <el-date-picker
                         v-model="dateRange"
                         type="daterange"
@@ -53,8 +70,9 @@
                         @click="fetchReport"
                         :loading="loading"
                     >
-                        Search
+                        <el-icon><Search /></el-icon> Search
                     </el-button>
+                    <el-button @click="resetFilters">Reset</el-button>
                 </el-form-item>
             </el-form>
         </el-card>
@@ -85,23 +103,61 @@
                     fixed="left"
                 />
 
-                <el-table-column
-                    v-for="exam in reportData.exams"
-                    :key="exam.id"
-                    :label="`${exam.title} (${exam.target_date || 'No Date'})`"
-                    min-width="150"
-                    align="center"
-                >
-                    <template #default="scope">
-                        <span
-                            :class="{
-                                'no-score': scope.row.scores[exam.id] === 0
-                            }"
-                        >
-                            {{ scope.row.scores[exam.id] }}
-                        </span>
-                    </template>
-                </el-table-column>
+                <template v-for="exam in reportData.exams" :key="exam.id">
+                    <el-table-column
+                        v-for="attempt in exam.max_attempts"
+                        :key="`${exam.id}_${attempt}`"
+                        :label="`${exam.title} (第 ${attempt} 次)`"
+                        min-width="160"
+                        align="center"
+                    >
+                        <template #default="scope">
+                            <template
+                                v-if="
+                                    scope.row.exam_submissions[exam.id] &&
+                                    scope.row.exam_submissions[exam.id]
+                                        .length >= attempt
+                                "
+                            >
+                                <el-button
+                                    link
+                                    type="primary"
+                                    @click="
+                                        openGradingDialog(
+                                            scope.row.exam_submissions[exam.id][
+                                                attempt - 1
+                                            ].submission_id,
+                                            scope.row.name,
+                                            exam.title,
+                                            attempt
+                                        )
+                                    "
+                                    title="點擊查看明細或手動批改"
+                                >
+                                    <span
+                                        :class="{
+                                            'no-score':
+                                                scope.row.exam_submissions[
+                                                    exam.id
+                                                ][attempt - 1].score === 0
+                                        }"
+                                        style="
+                                            font-weight: bold;
+                                            font-size: 1.1em;
+                                        "
+                                    >
+                                        {{
+                                            scope.row.exam_submissions[exam.id][
+                                                attempt - 1
+                                            ].score
+                                        }}
+                                    </span>
+                                </el-button>
+                            </template>
+                            <span v-else class="no-score">-</span>
+                        </template>
+                    </el-table-column>
+                </template>
             </el-table>
 
             <el-empty
@@ -113,67 +169,188 @@
                 description="Please select criteria and click Search to view grades."
             />
         </el-card>
+
+        <el-dialog
+            v-model="gradingDialogVisible"
+            :title="`Grading: ${currentStudentName} - ${currentExamTitle}`"
+            width="800px"
+            destroy-on-close
+        >
+            <div v-loading="submissionLoading" class="grading-container">
+                <el-empty
+                    v-if="!currentSubmission"
+                    description="No submission found."
+                />
+
+                <div v-else>
+                    <el-card
+                        v-for="(ans, index) in currentSubmission.answers"
+                        :key="ans.id"
+                        class="grading-card"
+                        shadow="hover"
+                    >
+                        <div class="q-header">
+                            <el-tag
+                                :type="
+                                    ans.question?.needs_manual_grading
+                                        ? 'danger'
+                                        : 'info'
+                                "
+                                size="small"
+                            >
+                                Q{{ index + 1 }}
+                                {{
+                                    ans.question?.needs_manual_grading
+                                        ? '(Needs Manual Grading)'
+                                        : ''
+                                }}
+                            </el-tag>
+                        </div>
+
+                        <div
+                            class="q-content"
+                            v-html="renderMarkdown(ans.question?.content)"
+                        ></div>
+
+                        <div
+                            class="ref-answer-box"
+                            v-if="ans.question?.needs_manual_grading"
+                        >
+                            <span class="label">Reference:</span>
+                            <div
+                                v-html="
+                                    renderMarkdown(
+                                        ans.question?.reference_answer
+                                    )
+                                "
+                            ></div>
+                        </div>
+
+                        <div class="student-answer-box">
+                            <span class="label">Student's Answer:</span>
+                            <div
+                                v-html="
+                                    renderMarkdown(
+                                        ans.answer_content ||
+                                            '*(No Answer Provided)*'
+                                    )
+                                "
+                            ></div>
+                        </div>
+
+                        <div class="grading-controls">
+                            <span style="margin-right: 10px; font-weight: bold"
+                                >Score:</span
+                            >
+                            <el-input-number
+                                v-model="ans.score"
+                                :min="0"
+                                size="small"
+                                style="width: 130px; margin-right: 10px"
+                            />
+                            <el-button
+                                type="success"
+                                plain
+                                size="small"
+                                @click="submitGrade(ans)"
+                                :loading="savingAnswerId === ans.id"
+                            >
+                                <el-icon><Check /></el-icon> Save Score
+                            </el-button>
+                        </div>
+                    </el-card>
+                </div>
+            </div>
+            <template #footer>
+                <el-button @click="closeGradingDialog">Close</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search, Check } from '@element-plus/icons-vue'
+import { renderMarkdown } from '../utils/markdown'
 import {
     getTeacherClasses,
     getGradeReport,
     getStudents,
+    getExams,
+    getSubmissionDetails,
+    gradeStudentAnswer,
     type GradeReportResponse,
     type Student
 } from '../api'
 
-// State for filters
+// --- State: Filters ---
 const filters = ref({
     class_name: '',
-    student_id: ''
+    student_id: '',
+    exam_ids: [] as number[]
 })
 const dateRange = ref<[string, string] | null>(null)
 
-// State for dropdown options
+// --- State: Dropdown Options ---
 const classOptions = ref<string[]>([])
 const allStudents = ref<Student[]>([])
 const studentOptions = ref<Student[]>([])
+const examOptions = ref<any[]>([])
 
-// State for table data
+// --- State: Table Data ---
 const loading = ref(false)
 const hasSearched = ref(false)
 const reportData = ref<GradeReportResponse | null>(null)
 
-// Fetch initial dropdown data
+// --- State: Grading Dialog ---
+const gradingDialogVisible = ref(false)
+const submissionLoading = ref(false)
+const currentSubmission = ref<any>(null)
+const currentStudentName = ref('')
+const currentExamTitle = ref('')
+const savingAnswerId = ref<number | null>(null)
+
+// --- Initialization ---
 onMounted(async () => {
     try {
-        // Load available classes
-        const classRes = await getTeacherClasses()
+        const [classRes, studentRes, examRes] = await Promise.all([
+            getTeacherClasses(),
+            getStudents(),
+            getExams()
+        ])
         classOptions.value = classRes.data
-
-        // Load all students for the student dropdown
-        const studentRes = await getStudents()
         allStudents.value = studentRes.data
         studentOptions.value = studentRes.data
+        examOptions.value = examRes.data
     } catch (error) {
         ElMessage.error('Failed to load initial data')
         console.error(error)
     }
 })
 
-// Handle class selection change to filter student options
+// --- Handlers ---
 const handleClassChange = (selectedClass: string) => {
-    filters.value.student_id = '' // Reset student selection
+    filters.value.student_id = ''
     if (selectedClass) {
         studentOptions.value = allStudents.value.filter(
             (s) => s.class_name === selectedClass
         )
     } else {
-        studentOptions.value = allStudents.value // Show all if no class selected
+        studentOptions.value = allStudents.value
     }
 }
 
-// Fetch the pivot table report
+const resetFilters = () => {
+    filters.value.class_name = ''
+    filters.value.student_id = ''
+    filters.value.exam_ids = []
+    dateRange.value = null
+    hasSearched.value = false
+    reportData.value = null
+    studentOptions.value = allStudents.value
+}
+
 const fetchReport = async () => {
     loading.value = true
     hasSearched.value = true
@@ -189,6 +366,11 @@ const fetchReport = async () => {
             params.date_end = dateRange.value[1]
         }
 
+        // Handle multiple exam_ids for query parameters
+        if (filters.value.exam_ids && filters.value.exam_ids.length > 0) {
+            params.exam_ids = filters.value.exam_ids
+        }
+
         const res = await getGradeReport(params)
         reportData.value = res.data
     } catch (error) {
@@ -199,36 +381,119 @@ const fetchReport = async () => {
         loading.value = false
     }
 }
+
+// --- Manual Grading Handlers ---
+const openGradingDialog = async (
+    submissionId: number,
+    studentName: string,
+    examTitle: string,
+    attempt: number
+) => {
+    currentStudentName.value = studentName
+    currentExamTitle.value = `${examTitle} (第 ${attempt} 次測驗)`
+    gradingDialogVisible.value = true
+    submissionLoading.value = true
+    currentSubmission.value = null
+
+    try {
+        const response = await getSubmissionDetails(submissionId)
+        currentSubmission.value = response.data
+    } catch (error) {
+        ElMessage.error('Failed to fetch submission details')
+    } finally {
+        submissionLoading.value = false
+    }
+}
+
+const submitGrade = async (answer: any) => {
+    if (answer.score === null || answer.score === undefined) {
+        ElMessage.warning('Please enter a valid score')
+        return
+    }
+
+    savingAnswerId.value = answer.id
+    try {
+        await gradeStudentAnswer(answer.id, answer.score)
+        ElMessage.success('Score updated successfully')
+    } catch (error) {
+        ElMessage.error('Failed to update score')
+    } finally {
+        savingAnswerId.value = null
+    }
+}
+
+const closeGradingDialog = () => {
+    gradingDialogVisible.value = false
+    // Refresh the pivot table to reflect any changes made during manual grading
+    fetchReport()
+}
 </script>
 
 <style scoped>
 .grades-container {
     padding: 20px;
 }
-
 .filter-card {
     margin-bottom: 20px;
 }
-
 .table-card {
     min-height: 400px;
 }
-
 .no-score {
-    color: #909399; /* Light gray for zero scores or absences */
+    color: #909399;
 }
-
-/* Set specific widths for the filter form components */
 .filter-form .el-select {
     width: 200px;
 }
-
 .filter-form .el-date-editor {
     width: 260px;
 }
-
-/* Add a bit of bottom margin in case the screen is narrow and items wrap */
 .filter-form .el-form-item {
     margin-bottom: 15px;
+}
+
+/* --- Grading Dialog Styles --- */
+.grading-container {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+.grading-card {
+    margin-bottom: 15px;
+}
+.q-header {
+    margin-bottom: 10px;
+}
+.q-content :deep(p),
+.q-content :deep(img) {
+    margin: 0 0 10px 0;
+    max-width: 100%;
+}
+.ref-answer-box {
+    background-color: #f0f9eb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+.student-answer-box {
+    background-color: #fdf6ec;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border-left: 4px solid #e6a23c;
+}
+.label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    color: #606266;
+}
+.grading-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    border-top: 1px dashed #ebeef5;
+    padding-top: 15px;
 }
 </style>

@@ -92,3 +92,20 @@ async def read_submissions_report(
         date_end=date_end,
         exam_ids=exam_ids,
     )
+
+
+@router.get('/details/{submission_id}', response_model=schemas.StudentSubmission)
+async def read_student_submission_details(
+    submission_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Fetch a specific student's submission details for manual grading using its unique ID.
+    """
+    submission = await crud_submissions.get_student_submission_details(
+        db, submission_id
+    )
+    if not submission:
+        raise HTTPException(status_code=404, detail='Submission not found')
+    return submission

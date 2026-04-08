@@ -230,6 +230,7 @@ class StudentAnswer(StudentAnswerBase):
     submission_id: int
     exam_id: int
     created_at: datetime
+    question: Optional[Question] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -253,10 +254,17 @@ class StudentSubmission(StudentSubmissionBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SubmissionScoreDetail(BaseModel):
+    submission_id: int
+    score: int
+    record_date: Optional[date] = None
+
+
 class ExamGradeHeader(BaseModel):
     id: int
     title: str
     target_date: Optional[date]
+    max_attempts: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -266,7 +274,7 @@ class StudentGradeEntry(BaseModel):
     student_id: str
     name: str
     class_name: Optional[str]
-    scores: Dict[str, int]
+    exam_submissions: Dict[str, List[SubmissionScoreDetail]]
 
 
 class GradeReportResponse(BaseModel):
