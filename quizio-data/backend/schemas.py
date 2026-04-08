@@ -119,6 +119,7 @@ class QuestionBase(BaseModel):
     is_archived: bool = False
     owner_id: Optional[int] = None
     is_public: bool = False
+    needs_manual_grading: bool = False
 
     @field_validator('content')
     @classmethod
@@ -155,6 +156,11 @@ class Question(QuestionBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ExamQuestionSetup(BaseModel):
+    question_id: int
+    score: int = 10
+
+
 class ExamBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -162,14 +168,14 @@ class ExamBase(BaseModel):
 
 
 class ExamCreate(ExamBase):
-    question_ids: List[int] = []
+    questions: List[ExamQuestionSetup] = []
 
 
 class ExamUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     target_date: Optional[date] = None
-    question_ids: Optional[List[int]] = None
+    questions: Optional[List[ExamQuestionSetup]] = None
     is_locked: Optional[bool] = None
 
 
@@ -177,6 +183,7 @@ class ExamQuestionResponse(BaseModel):
     exam_id: int
     question_id: int
     sort_order: int
+    score: int
     question: Question
 
     model_config = ConfigDict(from_attributes=True)
@@ -230,6 +237,7 @@ class StudentSubmissionBase(BaseModel):
     exam_id: int
     student_id: Optional[int] = None
     guest_name: Optional[str] = None
+    record_date: Optional[date] = None
 
 
 class StudentSubmissionCreate(StudentSubmissionBase):
@@ -263,3 +271,14 @@ class StudentGradeEntry(BaseModel):
 class GradeReportResponse(BaseModel):
     exams: List[ExamGradeHeader]
     students: List[StudentGradeEntry]
+
+
+class AnswerGradingHistoryResponse(BaseModel):
+    id: int
+    answer_id: int
+    old_score: Optional[int] = None
+    new_score: Optional[int] = None
+    teacher_id: Optional[int] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

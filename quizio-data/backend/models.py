@@ -59,6 +59,9 @@ class Question(Base):
     difficulty = Column(Integer, nullable=True, index=True)
     lesson = Column(String(100), nullable=True, index=True)
     literacy_tags = Column(JSON, nullable=True)
+    needs_manual_grading = Column(
+        Boolean, default=False, server_default='false', nullable=False
+    )
     is_archived = Column(Boolean, default=False, nullable=False, index=True)
     is_public = Column(Boolean, default=False, server_default='false', nullable=False)
     owner_id = Column(
@@ -97,6 +100,7 @@ class ExamQuestion(Base):
     __tablename__ = 'exam_questions'
 
     sort_order = Column(Integer, default=0, nullable=False)
+    score = Column(Integer, default=10, server_default='10', nullable=False)
     exam_id = Column(
         Integer, ForeignKey('exams.id', ondelete='CASCADE'), primary_key=True
     )
@@ -131,6 +135,7 @@ class StudentSubmission(Base):
     )
     guest_name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    record_date = Column(Date, server_default=func.current_date(), nullable=False)
 
     exam = relationship('Exam')
     student = relationship('Student')
@@ -162,3 +167,24 @@ class StudentAnswer(Base):
     submission = relationship('StudentSubmission', back_populates='answers')
     exam = relationship('Exam')
     question = relationship('Question')
+    grading_histories = relationship(
+        'AnswerGradingHistory', back_populates='answer', cascade='all, delete-orphan'
+    )
+
+
+class AnswerGradingHistory(Base):
+    __tablename__ = 'answer_grading_histories'
+
+    id = Column(Integer, primary_key=True, index=True)
+    answer_id = Column(
+        Integer, ForeignKey('student_answers.id', ondelete='CASCADE'), nullable=False
+    )
+    old_score = Column(Integer, nullable=True)
+    new_score = Column(Integer, nullable=True)
+    teacher_id = Column(
+        Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    answer = relationship('StudentAnswer', back_populates='grading_histories')
+    teacher = relationship('User')
