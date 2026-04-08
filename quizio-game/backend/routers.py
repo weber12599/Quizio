@@ -1,7 +1,17 @@
 import os
+from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from utils import check_student_credentials
@@ -56,12 +66,21 @@ async def proxy_auth_student(params: StudentLoginParams):
 
 
 @router.get('/api/exams/')
-async def proxy_get_my_exams(token: str = Depends(oauth2_scheme)):
+async def proxy_get_my_exams(
+    is_locked: Optional[bool] = Query(None, description='Filter exams by lock status'),
+    token: str = Depends(oauth2_scheme),
+):
     auth_header = f'Bearer {token}'
+
+    params = {}
+    if is_locked is not None:
+        params['is_locked'] = str(is_locked).lower()
+
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f'{DATA_SERVICE_BASE_URL}/api/exams/',
             headers={'Authorization': auth_header},
+            params=params,
             timeout=5.0,
         )
         if response.status_code != 200:

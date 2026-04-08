@@ -336,7 +336,7 @@ const filteredExams = computed(() => {
 // --- API Calls ---
 const fetchMyExams = async () => {
     try {
-        exams.value = await api.get('/exams/')
+        exams.value = await api.get('/exams/?is_locked=true')
     } catch (error) {
         console.error('Error fetching exams:', error)
         errorMessage.value = 'Could not load exams.'

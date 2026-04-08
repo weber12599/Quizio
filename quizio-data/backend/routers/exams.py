@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Optional
 
 import models
 import schemas
 from core.deps import get_current_user
 from crud import exams as crud_exams
 from database import get_db
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix='/api/exams', tags=['exams'])
@@ -13,10 +13,11 @@ router = APIRouter(prefix='/api/exams', tags=['exams'])
 
 @router.get('/', response_model=List[schemas.ExamResponse])
 async def read_exams(
+    is_locked: Optional[bool] = Query(None, description='Filter exams by lock status'),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_exams.get_exams(db, current_user)
+    return await crud_exams.get_exams(db, current_user, is_locked=is_locked)
 
 
 @router.get('/{exam_id}', response_model=schemas.ExamResponse)

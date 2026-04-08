@@ -4,6 +4,7 @@ from typing import List, Optional
 import models
 import schemas
 from core.deps import get_current_user
+from crud import exams as crud_exams
 from crud import submissions as crud_submissions
 from database import get_db
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -20,13 +21,22 @@ router = APIRouter(prefix='/api/submissions', tags=['submissions'])
 async def create_submission(
     submission: schemas.StudentSubmissionCreate,
     db: AsyncSession = Depends(get_db),
-    # Require authentication to ensure only authorized backend calls can submit data
     current_user: models.User = Depends(get_current_user),
 ):
     """
     Receive student submissions and answers from the game-backend
     when a quiz room is closed.
     """
+    # Verify the exam exists and is strictly locked before accepting submissions
+    db_exam = await crud_exams.get_exam(db, submission.exam_id, current_user)
+    if not db_exam:
+        raise HTTPException(status_code=404, detail='Exam not found.')
+    if not db_exam.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Cannot submit grades for an unlocked (draft) exam.',
+        )
+
     return await crud_submissions.create_student_submission(db, submission)
 
 
@@ -43,6 +53,23 @@ async def create_submission_batch(
     Receive a batch of student submissions and answers from the game-backend
     when a quiz room is closed.
     """
+    if not submissions:
+        return await crud_submissions.create_submissions_batch(db, submissions)
+
+    # Gather all unique exam IDs in the batch
+    exam_ids = {sub.exam_id for sub in submissions}
+
+    # Verify all involved exams are locked
+    for e_id in exam_ids:
+        db_exam = await crud_exams.get_exam(db, e_id, current_user)
+        if not db_exam:
+            raise HTTPException(status_code=404, detail=f'Exam {e_id} not found.')
+        if not db_exam.is_locked:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f'Cannot submit grades for an unlocked exam (ID: {e_id}).',
+            )
+
     return await crud_submissions.create_submissions_batch(db, submissions)
 
 

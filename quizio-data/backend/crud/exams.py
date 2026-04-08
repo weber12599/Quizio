@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import models
 import schemas
@@ -56,7 +56,9 @@ async def get_exam(db: AsyncSession, exam_id: int, current_user: models.User):
 
 
 # Get all exams for the current user
-async def get_exams(db: AsyncSession, current_user: models.User):
+async def get_exams(
+    db: AsyncSession, current_user: models.User, is_locked: Optional[bool] = None
+):
     query = select(models.Exam).options(
         selectinload(models.Exam.exam_questions).selectinload(
             models.ExamQuestion.question
@@ -65,6 +67,9 @@ async def get_exams(db: AsyncSession, current_user: models.User):
 
     if not current_user.is_superuser:
         query = query.where(models.Exam.owner_id == current_user.id)
+
+    if is_locked is not None:
+        query = query.where(models.Exam.is_locked == is_locked)
 
     query = query.order_by(models.Exam.id.desc())
     result = await db.execute(query)
