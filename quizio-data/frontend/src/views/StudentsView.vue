@@ -267,7 +267,15 @@ const submitForm = async () => {
         dialogVisible.value = false
         fetchStudents()
     } catch (error: any) {
-        ElMessage.error(error.response?.data?.detail || 'Operation failed')
+        // Check for specific duplicate student ID error from backend
+        if (
+            error.response?.status === 409 ||
+            error.response?.data?.detail === 'STUDENT_ID_EXISTS'
+        ) {
+            ElMessage.warning('此學號已存在，請重新確認！')
+        } else {
+            ElMessage.error(error.response?.data?.detail || 'Operation failed')
+        }
     } finally {
         submitLoading.value = false
     }

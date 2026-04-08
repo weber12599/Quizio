@@ -279,6 +279,27 @@
                 </el-form-item>
 
                 <el-divider>Metadata</el-divider>
+
+                <el-form-item label="Manual Grading">
+                    <el-switch
+                        v-model="formData.needs_manual_grading"
+                        active-text="Yes (Teacher reviews)"
+                        inactive-text="No (Auto-graded)"
+                    />
+                    <div
+                        style="
+                            font-size: 12px;
+                            color: #909399;
+                            line-height: 1.2;
+                            margin-top: 4px;
+                        "
+                    >
+                        * If enabled, the system will not auto-score this
+                        question. You must grade it manually in the Grades
+                        section.
+                    </div>
+                </el-form-item>
+
                 <el-form-item label="Difficulty">
                     <el-rate
                         v-model="formData.difficulty"
@@ -371,6 +392,7 @@ interface Question {
     difficulty: number | null
     lesson: string | null
     literacy_tags: string[] | null
+    needs_manual_grading: boolean
     is_archived: boolean
     is_public: boolean
     owner_id: number
@@ -400,6 +422,7 @@ const formData = ref<any>({
     difficulty: 1,
     lesson: '',
     literacy_tags: [],
+    needs_manual_grading: false,
     is_public: false
 })
 
@@ -460,6 +483,7 @@ const openAddDialog = () => {
         difficulty: 1,
         lesson: '',
         literacy_tags: [],
+        needs_manual_grading: false,
         is_public: false
     }
     dialogVisible.value = true
@@ -481,6 +505,7 @@ const openEditDialog = (row: Question) => {
         difficulty: row.difficulty || 1,
         lesson: row.lesson || '',
         literacy_tags: row.literacy_tags ? [...row.literacy_tags] : [],
+        needs_manual_grading: row.needs_manual_grading || false,
         is_public: row.is_public
     }
 
@@ -498,15 +523,19 @@ const handleTypeChange = (newType: string) => {
     if (newType === 'single') {
         formData.value.options = ['', '', '', '']
         formData.value.reference_answer = 0
+        formData.value.needs_manual_grading = false
     } else if (newType === 'multiple') {
         formData.value.options = ['', '', '', '', '']
         formData.value.reference_answer = []
+        formData.value.needs_manual_grading = false
     } else if (newType === 'boolean') {
         formData.value.options = []
         formData.value.reference_answer = true
+        formData.value.needs_manual_grading = false
     } else {
         formData.value.options = []
         formData.value.reference_answer = ''
+        formData.value.needs_manual_grading = true
     }
 }
 
