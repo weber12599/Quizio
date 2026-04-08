@@ -116,8 +116,12 @@ export const getGradeReport = (params: {
     student_id?: string
     date_start?: string
     date_end?: string
+    exam_ids?: number[]
 }) => {
-    return api.get<GradeReportResponse>('/submissions/', { params })
+    return api.get<GradeReportResponse>('/submissions/', {
+        params,
+        paramsSerializer: { indexes: null }
+    })
 }
 
 /**
