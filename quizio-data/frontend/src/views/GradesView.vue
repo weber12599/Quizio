@@ -1,9 +1,17 @@
 <template>
     <div class="grades-container">
-        <h2>Grades Management</h2>
+        <el-card>
+            <template #header>
+                <div class="card-header">
+                    <h2>Grades Management</h2>
+                </div>
+            </template>
 
-        <el-card class="filter-card">
-            <el-form :inline="true" :model="filters" class="filter-form">
+            <el-form
+                :inline="true"
+                :model="filters"
+                class="filter-bar filter-form"
+            >
                 <el-form-item label="Class">
                     <el-select
                         v-model="filters.class_name"
@@ -75,105 +83,118 @@
                     <el-button @click="resetFilters">Reset</el-button>
                 </el-form-item>
             </el-form>
-        </el-card>
 
-        <el-card v-loading="loading" class="table-card">
-            <el-table
-                v-if="reportData && reportData.students.length > 0"
-                :data="reportData.students"
-                border
-                style="width: 100%"
-            >
-                <el-table-column
-                    prop="class_name"
-                    label="Class"
-                    width="120"
-                    fixed="left"
-                />
-                <el-table-column
-                    prop="student_id"
-                    label="Student ID"
-                    width="150"
-                    fixed="left"
-                />
-                <el-table-column
-                    prop="name"
-                    label="Name"
-                    width="120"
-                    fixed="left"
-                />
-
-                <template v-for="exam in reportData.exams" :key="exam.id">
+            <div v-loading="loading" class="table-container">
+                <el-table
+                    v-if="reportData && reportData.students.length > 0"
+                    :data="reportData.students"
+                    border
+                    style="width: 100%"
+                >
                     <el-table-column
-                        v-for="attempt in exam.max_attempts"
-                        :key="`${exam.id}_${attempt}`"
-                        :label="`${exam.title} (第 ${attempt} 次)`"
-                        min-width="160"
-                        align="center"
-                    >
-                        <template #default="scope">
-                            <template
-                                v-if="
-                                    scope.row.exam_submissions[exam.id] &&
-                                    scope.row.exam_submissions[exam.id]
-                                        .length >= attempt
-                                "
-                            >
+                        prop="class_name"
+                        label="Class"
+                        width="120"
+                        fixed="left"
+                    />
+                    <el-table-column
+                        prop="student_id"
+                        label="Student ID"
+                        width="150"
+                        fixed="left"
+                    />
+                    <el-table-column
+                        prop="name"
+                        label="Name"
+                        width="120"
+                        fixed="left"
+                    />
+
+                    <template v-for="exam in reportData.exams" :key="exam.id">
+                        <el-table-column
+                            v-for="attempt in exam.max_attempts"
+                            :key="`${exam.id}_${attempt}`"
+                            min-width="160"
+                            align="center"
+                        >
+                            <template #header>
                                 <el-tooltip
-                                    :content="`測驗時間: ${formatRecordAt(scope.row.exam_submissions[exam.id][attempt - 1].record_at)}`"
+                                    :content="`預定考試日期: ${exam.target_date || '未設定'}`"
                                     placement="top"
                                     effect="dark"
                                 >
-                                    <el-button
-                                        link
-                                        type="primary"
-                                        @click="
-                                            openGradingDialog(
-                                                scope.row.exam_submissions[
-                                                    exam.id
-                                                ][attempt - 1].submission_id,
-                                                scope.row.name,
-                                                exam.title,
-                                                attempt
-                                            )
-                                        "
-                                        title="點擊查看明細或手動批改"
-                                    >
-                                        <span
-                                            :class="{
-                                                'no-score':
-                                                    scope.row.exam_submissions[
-                                                        exam.id
-                                                    ][attempt - 1].score === 0
-                                            }"
-                                            style="
-                                                font-weight: bold;
-                                                font-size: 1.1em;
-                                            "
-                                        >
-                                            {{
-                                                scope.row.exam_submissions[
-                                                    exam.id
-                                                ][attempt - 1].score
-                                            }}
-                                        </span>
-                                    </el-button>
+                                    <span style="cursor: help">
+                                        {{ exam.title }} (第 {{ attempt }} 次)
+                                    </span>
                                 </el-tooltip>
                             </template>
-                            <span v-else class="no-score">-</span>
-                        </template>
-                    </el-table-column>
-                </template>
-            </el-table>
 
-            <el-empty
-                v-else-if="hasSearched && !loading"
-                description="No grade records found for the selected criteria."
-            />
-            <el-empty
-                v-else-if="!hasSearched"
-                description="Please select criteria and click Search to view grades."
-            />
+                            <template #default="scope">
+                                <template
+                                    v-if="
+                                        scope.row.exam_submissions[exam.id] &&
+                                        scope.row.exam_submissions[exam.id]
+                                            .length >= attempt
+                                    "
+                                >
+                                    <el-tooltip
+                                        :content="`測驗時間: ${formatRecordAt(scope.row.exam_submissions[exam.id][attempt - 1].record_at)}`"
+                                        placement="top"
+                                        effect="dark"
+                                    >
+                                        <el-button
+                                            link
+                                            type="primary"
+                                            @click="
+                                                openGradingDialog(
+                                                    scope.row.exam_submissions[
+                                                        exam.id
+                                                    ][attempt - 1]
+                                                        .submission_id,
+                                                    scope.row.name,
+                                                    exam.title,
+                                                    attempt
+                                                )
+                                            "
+                                        >
+                                            <span
+                                                :class="{
+                                                    'no-score':
+                                                        scope.row
+                                                            .exam_submissions[
+                                                            exam.id
+                                                        ][attempt - 1].score ===
+                                                        0
+                                                }"
+                                                style="
+                                                    font-weight: bold;
+                                                    font-size: 1.1em;
+                                                "
+                                            >
+                                                {{
+                                                    scope.row.exam_submissions[
+                                                        exam.id
+                                                    ][attempt - 1].score
+                                                }}
+                                            </span>
+                                        </el-button>
+                                    </el-tooltip>
+                                </template>
+                                <span v-else class="no-score">-</span>
+                            </template>
+                        </el-table-column>
+                    </template>
+                </el-table>
+
+                <el-empty
+                    v-else-if="hasSearched && !loading"
+                    description="No grade records found for the selected criteria."
+                />
+                <el-empty
+                    v-else-if="!hasSearched"
+                    description="Please select criteria and click Search to view grades."
+                />
+            </div>
         </el-card>
 
         <el-dialog
@@ -251,6 +272,7 @@
                             <el-input-number
                                 v-model="ans.score"
                                 :min="0"
+                                :max="100"
                                 size="small"
                                 style="width: 130px; margin-right: 10px"
                             />
@@ -451,15 +473,28 @@ const closeGradingDialog = () => {
 </script>
 
 <style scoped>
-.grades-container {
-    padding: 20px;
+/* --- Card Header & Filter Bar Styles --- */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.filter-card {
+.card-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #303133;
+}
+.filter-bar {
     margin-bottom: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
 }
-.table-card {
+
+.table-container {
     min-height: 400px;
 }
+
 .no-score {
     color: #909399;
 }

@@ -48,7 +48,7 @@
                 <div class="header-left">
                     <el-breadcrumb separator="/">
                         <el-breadcrumb-item :to="{ path: '/admin' }"
-                            >Admin</el-breadcrumb-item
+                            >admin</el-breadcrumb-item
                         >
                         <el-breadcrumb-item>{{
                             currentRouteName
@@ -100,10 +100,7 @@ const authStore = useAuthStore()
 
 // Dynamically compute the current page name for the breadcrumb
 const currentRouteName = computed(() => {
-    if (route.path.includes('students')) return 'Students'
-    if (route.path.includes('questions')) return 'Questions'
-    if (route.path.includes('exams')) return 'Exams'
-    return 'Dashboard'
+    return route.path.split('/').slice(-1)[0]
 })
 
 const handleLogout = () => {
