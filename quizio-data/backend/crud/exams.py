@@ -75,27 +75,31 @@ async def get_exams(db: AsyncSession, current_user: models.User):
 async def create_exam(
     db: AsyncSession, exam: schemas.ExamCreate, current_user: models.User
 ):
+    # Extract question IDs from the setup objects for permission verification
+    question_ids = [q.question_id for q in exam.questions] if exam.questions else []
+
     # Verify if the user has access to the provided question_ids
-    if exam.question_ids:
-        has_access = await verify_questions_access(db, exam.question_ids, current_user)
+    if question_ids:
+        has_access = await verify_questions_access(db, question_ids, current_user)
         if not has_access:
             # Raise an appropriate error to be caught by the exception handler
             raise ValueError('Unauthorized access to one or more questions.')
 
-    # Extract basic exam data, exclude question_ids for now
-    exam_data = exam.model_dump(exclude={'question_ids'})
+    # Extract basic exam data, exclude questions for now
+    exam_data = exam.model_dump(exclude={'questions'})
     exam_data['owner_id'] = current_user.id
 
     db_exam = models.Exam(**exam_data)
     db.add(db_exam)
     await db.flush()  # Flush to get the generated exam ID
 
-    # Create associations for questions if any were provided
-    if exam.question_ids:
-        for index, q_id in enumerate(exam.question_ids):
+    # Create associations for questions along with their scores
+    if exam.questions:
+        for index, q_setup in enumerate(exam.questions):
             db_exam_question = models.ExamQuestion(
                 exam_id=db_exam.id,
-                question_id=q_id,
+                question_id=q_setup.question_id,
+                score=q_setup.score,
                 sort_order=index,  # Use array index as the sequence order
             )
             db.add(db_exam_question)
@@ -112,33 +116,33 @@ async def update_exam(
     exam_update: schemas.ExamUpdate,
     current_user: models.User,
 ):
-    # Verify if the user has access to the provided question_ids
-    if exam_update.question_ids:
-        has_access = await verify_questions_access(
-            db, exam_update.question_ids, current_user
-        )
-        if not has_access:
-            # Raise an appropriate error to be caught by the exception handler
-            raise ValueError('Unauthorized access to one or more questions.')
+    # Verify if the user has access to the newly provided questions
+    if exam_update.questions is not None:
+        question_ids = [q.question_id for q in exam_update.questions]
+        if question_ids:
+            has_access = await verify_questions_access(db, question_ids, current_user)
+            if not has_access:
+                raise ValueError('Unauthorized access to one or more questions.')
 
-    update_data = exam_update.model_dump(exclude_unset=True, exclude={'question_ids'})
+    update_data = exam_update.model_dump(exclude_unset=True, exclude={'questions'})
 
     # Update basic fields (title, description, is_locked)
     for key, value in update_data.items():
         setattr(db_exam, key, value)
 
-    # If question_ids are provided, replace the entire question list
-    if exam_update.question_ids is not None:
+    # If questions are provided, replace the entire question list
+    if exam_update.questions is not None:
         # Step 1: Remove existing questions for this exam
         await db.execute(
             delete(models.ExamQuestion).where(models.ExamQuestion.exam_id == db_exam.id)
         )
 
-        # Step 2: Insert the new questions
-        for index, q_id in enumerate(exam_update.question_ids):
+        # Step 2: Insert the new questions with their assigned scores
+        for index, q_setup in enumerate(exam_update.questions):
             db_exam_question = models.ExamQuestion(
                 exam_id=db_exam.id,
-                question_id=q_id,
+                question_id=q_setup.question_id,
+                score=q_setup.score,
                 sort_order=index,
             )
             db.add(db_exam_question)

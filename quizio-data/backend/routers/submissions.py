@@ -6,7 +6,7 @@ import schemas
 from core.deps import get_current_user
 from crud import submissions as crud_submissions
 from database import get_db
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix='/api/submissions', tags=['submissions'])
@@ -46,18 +46,42 @@ async def create_submission_batch(
     return await crud_submissions.create_submissions_batch(db, submissions)
 
 
+@router.put('/answers/{answer_id}/grade', response_model=schemas.StudentAnswer)
+async def grade_student_answer(
+    answer_id: int,
+    score: int = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Manually grade or override a student's answer score.
+    Automatically creates an entry in the grading history ledger.
+    """
+    updated_answer = await crud_submissions.grade_student_answer(
+        db=db, answer_id=answer_id, new_score=score, teacher_id=current_user.id
+    )
+
+    if not updated_answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Student answer not found'
+        )
+
+    return updated_answer
+
+
 @router.get('/', response_model=schemas.GradeReportResponse)
 async def read_submissions_report(
     class_name: Optional[str] = Query(None),
     student_id: Optional[str] = Query(None),
     date_start: Optional[date] = Query(None),
     date_end: Optional[date] = Query(None),
+    exam_ids: Optional[List[int]] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     """
-    獲取成績報表，支援班級、學號及日期區間篩選。
-    回傳適合樞紐分析表的交叉數據結構。
+    Retrieve the pivot-table formatted grade report.
+    Supports filtering by class, student, exam IDs, and record dates.
     """
     return await crud_submissions.get_grade_report(
         db=db,
@@ -66,4 +90,5 @@ async def read_submissions_report(
         student_id_str=student_id,
         date_start=date_start,
         date_end=date_end,
+        exam_ids=exam_ids,
     )

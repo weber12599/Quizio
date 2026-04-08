@@ -3,83 +3,138 @@ from typing import List, Optional
 
 import models
 import schemas
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+
+async def get_manual_grading_question_ids(db: AsyncSession, question_ids: set) -> set:
+    """
+    Helper function to fetch IDs of questions that require manual grading.
+    """
+    if not question_ids:
+        return set()
+
+    result = await db.execute(
+        select(models.Question.id)
+        .where(models.Question.id.in_(question_ids))
+        .where(models.Question.needs_manual_grading == True)
+    )
+    return set(result.scalars().all())
 
 
 async def create_student_submission(
     db: AsyncSession, submission_in: schemas.StudentSubmissionCreate
 ) -> models.StudentSubmission:
-    # Create the main submission record
-    db_submission = models.StudentSubmission(
-        exam_id=submission_in.exam_id,
-        student_id=submission_in.student_id,
-        guest_name=submission_in.guest_name,
-    )
-    db.add(db_submission)
+    # Prepare submission data dynamically to handle optional record_date
+    sub_data = {
+        'exam_id': submission_in.exam_id,
+        'student_id': submission_in.student_id,
+        'guest_name': submission_in.guest_name,
+    }
+    if submission_in.record_date:
+        sub_data['record_date'] = submission_in.record_date
 
-    # Flush to get the generated db_submission.id without committing the transaction
+    db_submission = models.StudentSubmission(**sub_data)
+    db.add(db_submission)
     await db.flush()
 
+    # Identify which questions require manual grading to override their scores
+    all_q_ids = {ans.question_id for ans in submission_in.answers}
+    manual_q_ids = await get_manual_grading_question_ids(db, all_q_ids)
+
     # Create associated student answers
-    for answer_in in submission_in.answers:
+    for ans_in in submission_in.answers:
+        is_manual = ans_in.question_id in manual_q_ids
         db_answer = models.StudentAnswer(
             submission_id=db_submission.id,
             exam_id=submission_in.exam_id,
-            question_id=answer_in.question_id,
-            answer_content=answer_in.answer_content,
-            is_correct=answer_in.is_correct,
-            score=answer_in.score,
+            question_id=ans_in.question_id,
+            answer_content=ans_in.answer_content,
+            is_correct=None if is_manual else ans_in.is_correct,
+            score=None if is_manual else ans_in.score,
         )
         db.add(db_answer)
 
-    # Commit all changes as a single transaction
     await db.commit()
-
-    # Refresh to load the relationships (answers) for the response model
     await db.refresh(db_submission, ['answers'])
-
     return db_submission
 
 
 async def create_submissions_batch(
     db: AsyncSession, submissions_in: List[schemas.StudentSubmissionCreate]
 ) -> dict:
-    """
-    Process multiple student submissions in a single database transaction.
-    """
     new_submissions = []
 
     # 1. Add all submission records to the session
     for sub_in in submissions_in:
-        db_sub = models.StudentSubmission(
-            exam_id=sub_in.exam_id,
-            student_id=sub_in.student_id,
-            guest_name=sub_in.guest_name,
-        )
+        sub_data = {
+            'exam_id': sub_in.exam_id,
+            'student_id': sub_in.student_id,
+            'guest_name': sub_in.guest_name,
+        }
+        if sub_in.record_date:
+            sub_data['record_date'] = sub_in.record_date
+
+        db_sub = models.StudentSubmission(**sub_data)
         db.add(db_sub)
         new_submissions.append((db_sub, sub_in.answers))
 
-    # 2. Flush to generate IDs for all db_sub instances without committing
     await db.flush()
 
-    # 3. Add all related answers using the newly generated submission IDs
+    # 2. Identify questions requiring manual grading across the whole batch
+    all_q_ids = {ans.question_id for sub in submissions_in for ans in sub.answers}
+    manual_q_ids = await get_manual_grading_question_ids(db, all_q_ids)
+
+    # 3. Add all related answers applying manual grading rules
     for db_sub, answers_in in new_submissions:
         for ans_in in answers_in:
+            is_manual = ans_in.question_id in manual_q_ids
             db_ans = models.StudentAnswer(
                 submission_id=db_sub.id,
                 exam_id=db_sub.exam_id,
                 question_id=ans_in.question_id,
                 answer_content=ans_in.answer_content,
-                is_correct=ans_in.is_correct,
-                score=ans_in.score,
+                is_correct=None if is_manual else ans_in.is_correct,
+                score=None if is_manual else ans_in.score,
             )
             db.add(db_ans)
 
-    # 4. Commit everything as a single transaction
     await db.commit()
-
     return {'status': 'success', 'processed_count': len(submissions_in)}
+
+
+async def grade_student_answer(
+    db: AsyncSession, answer_id: int, new_score: int, teacher_id: int
+) -> Optional[models.StudentAnswer]:
+    """
+    Manually update a student's answer score and record the grading history.
+    """
+    result = await db.execute(
+        select(models.StudentAnswer)
+        .options(selectinload(models.StudentAnswer.grading_histories))
+        .where(models.StudentAnswer.id == answer_id)
+    )
+    db_answer = result.scalar_one_or_none()
+
+    if not db_answer:
+        return None
+
+    # Record the history before changing the score
+    history = models.AnswerGradingHistory(
+        answer_id=db_answer.id,
+        old_score=db_answer.score,
+        new_score=new_score,
+        teacher_id=teacher_id,
+    )
+    db.add(history)
+
+    # Apply the new score
+    db_answer.score = new_score
+
+    await db.commit()
+    await db.refresh(db_answer)
+    return db_answer
 
 
 async def get_grade_report(
@@ -89,25 +144,13 @@ async def get_grade_report(
     student_id_str: Optional[str] = None,
     date_start: Optional[date] = None,
     date_end: Optional[date] = None,
+    exam_ids: Optional[List[int]] = None,
 ):
-    # 1. 篩選該老師的考試 (依日期區間)
-    exam_query = select(models.Exam).where(models.Exam.owner_id == teacher_id)
-    if date_start:
-        exam_query = exam_query.where(models.Exam.target_date >= date_start)
-    if date_end:
-        exam_query = exam_query.where(models.Exam.target_date <= date_end)
-
-    exam_result = await db.execute(exam_query)
-    exams = exam_result.scalars().all()
-    exam_ids = [e.id for e in exams]
-
-    if not exam_ids:
-        return {'exams': [], 'students': []}
-
-    # 2. 篩選該老師的學生 (依班級或學號)
+    # 1. Filter target students assigned to the teacher
     student_query = select(models.Student).where(
         models.Student.teacher_id == teacher_id
     )
+
     if class_name:
         student_query = student_query.where(models.Student.class_name == class_name)
     if student_id_str:
@@ -118,10 +161,9 @@ async def get_grade_report(
     student_db_ids = [s.id for s in students]
 
     if not student_db_ids:
-        return {'exams': exams, 'students': []}
+        return {'exams': [], 'students': []}
 
-    # 3. 聚合查詢：計算每個學生在每場考試的總分
-    # Join Submission 與 Answer，並依據 student_id 與 exam_id 分組
+    # 2. Base query for aggregating scores filtered by StudentSubmission's record_date
     score_query = (
         select(
             models.StudentSubmission.student_id,
@@ -132,28 +174,46 @@ async def get_grade_report(
             models.StudentAnswer,
             models.StudentSubmission.id == models.StudentAnswer.submission_id,
         )
-        .where(
-            and_(
-                models.StudentSubmission.exam_id.in_(exam_ids),
-                models.StudentSubmission.student_id.in_(student_db_ids),
-            )
+        .where(models.StudentSubmission.student_id.in_(student_db_ids))
+    )
+
+    if exam_ids:
+        score_query = score_query.where(models.StudentSubmission.exam_id.in_(exam_ids))
+    if date_start:
+        score_query = score_query.where(
+            models.StudentSubmission.record_date >= date_start
         )
-        .group_by(models.StudentSubmission.student_id, models.StudentSubmission.exam_id)
+    if date_end:
+        score_query = score_query.where(
+            models.StudentSubmission.record_date <= date_end
+        )
+
+    score_query = score_query.group_by(
+        models.StudentSubmission.student_id, models.StudentSubmission.exam_id
     )
 
     score_result = await db.execute(score_query)
     raw_scores = score_result.all()
 
-    # 4. 整理成樞紐分析需要的結構
-    # 建立一個 score_map: {(student_id, exam_id): score}
+    # 3. Extract the active exams that actually have submissions within the filtered range
+    active_exam_ids = list(set(row.exam_id for row in raw_scores))
+    if not active_exam_ids:
+        return {'exams': [], 'students': []}
+
+    exam_result = await db.execute(
+        select(models.Exam).where(models.Exam.id.in_(active_exam_ids))
+    )
+    exams = exam_result.scalars().all()
+
+    # 4. Construct the pivot matrix
     score_map = {(row.student_id, row.exam_id): row.total_score for row in raw_scores}
 
     student_entries = []
     for s in students:
         s_scores = {}
-        for e_id in exam_ids:
-            # 如果沒參加該場考試，預設給 0 或 null，這裡採預設 0
-            s_scores[str(e_id)] = score_map.get((s.id, e_id), 0)
+        for e in exams:
+            # Insert score or 0 if no record exists
+            s_scores[str(e.id)] = score_map.get((s.id, e.id), 0)
 
         student_entries.append(
             {

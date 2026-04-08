@@ -40,9 +40,10 @@ async def create_new_exam(
     current_user: models.User = Depends(get_current_user),
 ):
     # Verify question access before creating the exam
-    if exam.question_ids:
+    if exam.questions:
+        question_ids = [q.question_id for q in exam.questions]
         has_access = await crud_exams.verify_questions_access(
-            db, exam.question_ids, current_user
+            db, question_ids, current_user
         )
         if not has_access:
             raise HTTPException(
@@ -72,15 +73,17 @@ async def update_existing_exam(
         )
 
     # Verify question access before updating the exam
-    if exam_in.question_ids is not None:
-        has_access = await crud_exams.verify_questions_access(
-            db, exam_in.question_ids, current_user
-        )
-        if not has_access:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='One or more questions are not found or you do not have permission to use them.',
+    if exam_in.questions is not None:
+        question_ids = [q.question_id for q in exam_in.questions]
+        if question_ids:
+            has_access = await crud_exams.verify_questions_access(
+                db, question_ids, current_user
             )
+            if not has_access:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail='One or more questions are not found or you do not have permission to use them.',
+                )
 
     updated_exam = await crud_exams.update_exam(db, db_exam, exam_in, current_user)
     return updated_exam
