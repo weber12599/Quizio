@@ -239,7 +239,7 @@ class StudentSubmissionBase(BaseModel):
     exam_id: int
     student_id: Optional[int] = None
     guest_name: Optional[str] = None
-    record_date: Optional[date] = None
+    record_at: Optional[datetime] = None
 
 
 class StudentSubmissionCreate(StudentSubmissionBase):
@@ -257,7 +257,7 @@ class StudentSubmission(StudentSubmissionBase):
 class SubmissionScoreDetail(BaseModel):
     submission_id: int
     score: int
-    record_date: Optional[date] = None
+    record_at: Optional[datetime] = None
 
 
 class ExamGradeHeader(BaseModel):

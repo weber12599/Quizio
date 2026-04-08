@@ -27,14 +27,12 @@ async def get_manual_grading_question_ids(db: AsyncSession, question_ids: set) -
 async def create_student_submission(
     db: AsyncSession, submission_in: schemas.StudentSubmissionCreate
 ) -> models.StudentSubmission:
-    # Prepare submission data dynamically to handle optional record_date
     sub_data = {
         'exam_id': submission_in.exam_id,
         'student_id': submission_in.student_id,
         'guest_name': submission_in.guest_name,
+        'record_at': submission_in.record_at,
     }
-    if submission_in.record_date:
-        sub_data['record_date'] = submission_in.record_date
 
     db_submission = models.StudentSubmission(**sub_data)
     db.add(db_submission)
@@ -73,9 +71,8 @@ async def create_submissions_batch(
             'exam_id': sub_in.exam_id,
             'student_id': sub_in.student_id,
             'guest_name': sub_in.guest_name,
+            'record_at': sub_in.record_at,
         }
-        if sub_in.record_date:
-            sub_data['record_date'] = sub_in.record_date
 
         db_sub = models.StudentSubmission(**sub_data)
         db.add(db_sub)
@@ -176,7 +173,7 @@ async def get_grade_report(
             models.StudentSubmission.id.label('submission_id'),
             models.StudentSubmission.student_id,
             models.StudentSubmission.exam_id,
-            models.StudentSubmission.record_date,
+            models.StudentSubmission.record_at,
             func.sum(models.StudentAnswer.score).label('total_score'),
         )
         .join(
@@ -190,18 +187,18 @@ async def get_grade_report(
         score_query = score_query.where(models.StudentSubmission.exam_id.in_(exam_ids))
     if date_start:
         score_query = score_query.where(
-            models.StudentSubmission.record_date >= date_start
+            func.date(models.StudentSubmission.record_at) >= date_start
         )
     if date_end:
         score_query = score_query.where(
-            models.StudentSubmission.record_date <= date_end
+            func.date(models.StudentSubmission.record_at) <= date_end
         )
 
     score_query = score_query.group_by(
         models.StudentSubmission.id,
         models.StudentSubmission.student_id,
         models.StudentSubmission.exam_id,
-        models.StudentSubmission.record_date,
+        models.StudentSubmission.record_at,
         models.StudentSubmission.created_at,  # 必須加入 group_by 避免 SQL 報錯
     ).order_by(
         models.StudentSubmission.created_at.asc()
@@ -220,7 +217,7 @@ async def get_grade_report(
             {
                 'submission_id': row.submission_id,
                 'score': sub_score,
-                'record_date': row.record_date,
+                'record_at': row.record_at,
             }
         )
 

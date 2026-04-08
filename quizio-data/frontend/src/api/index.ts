@@ -57,7 +57,7 @@ export interface ExamGradeHeader {
 export interface SubmissionScoreDetail {
     submission_id: number
     score: number
-    record_date: string | null
+    record_at: string | null
 }
 
 export interface StudentGradeEntry {

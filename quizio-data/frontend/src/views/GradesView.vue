@@ -119,40 +119,46 @@
                                         .length >= attempt
                                 "
                             >
-                                <el-button
-                                    link
-                                    type="primary"
-                                    @click="
-                                        openGradingDialog(
-                                            scope.row.exam_submissions[exam.id][
-                                                attempt - 1
-                                            ].submission_id,
-                                            scope.row.name,
-                                            exam.title,
-                                            attempt
-                                        )
-                                    "
-                                    title="點擊查看明細或手動批改"
+                                <el-tooltip
+                                    :content="`測驗時間: ${formatRecordAt(scope.row.exam_submissions[exam.id][attempt - 1].record_at)}`"
+                                    placement="top"
+                                    effect="dark"
                                 >
-                                    <span
-                                        :class="{
-                                            'no-score':
+                                    <el-button
+                                        link
+                                        type="primary"
+                                        @click="
+                                            openGradingDialog(
                                                 scope.row.exam_submissions[
                                                     exam.id
-                                                ][attempt - 1].score === 0
-                                        }"
-                                        style="
-                                            font-weight: bold;
-                                            font-size: 1.1em;
+                                                ][attempt - 1].submission_id,
+                                                scope.row.name,
+                                                exam.title,
+                                                attempt
+                                            )
                                         "
+                                        title="點擊查看明細或手動批改"
                                     >
-                                        {{
-                                            scope.row.exam_submissions[exam.id][
-                                                attempt - 1
-                                            ].score
-                                        }}
-                                    </span>
-                                </el-button>
+                                        <span
+                                            :class="{
+                                                'no-score':
+                                                    scope.row.exam_submissions[
+                                                        exam.id
+                                                    ][attempt - 1].score === 0
+                                            }"
+                                            style="
+                                                font-weight: bold;
+                                                font-size: 1.1em;
+                                            "
+                                        >
+                                            {{
+                                                scope.row.exam_submissions[
+                                                    exam.id
+                                                ][attempt - 1].score
+                                            }}
+                                        </span>
+                                    </el-button>
+                                </el-tooltip>
                             </template>
                             <span v-else class="no-score">-</span>
                         </template>
@@ -380,6 +386,21 @@ const fetchReport = async () => {
     } finally {
         loading.value = false
     }
+}
+
+// --- Utility ---
+const formatRecordAt = (dateStr?: string | null) => {
+    if (!dateStr) return '無紀錄'
+    const date = new Date(dateStr)
+    return date.toLocaleString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    })
 }
 
 // --- Manual Grading Handlers ---

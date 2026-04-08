@@ -135,7 +135,9 @@ class StudentSubmission(Base):
     )
     guest_name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    record_date = Column(Date, server_default=func.current_date(), nullable=False)
+    record_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     exam = relationship('Exam')
     student = relationship('Student')
