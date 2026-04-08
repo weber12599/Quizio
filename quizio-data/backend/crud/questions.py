@@ -101,6 +101,7 @@ async def update_question(
         'literacy_tags': db_question.literacy_tags,
         'owner_id': db_question.owner_id,
         'is_public': db_question.is_public,
+        'needs_manual_grading': db_question.needs_manual_grading,
         'is_archived': False,
     }
 

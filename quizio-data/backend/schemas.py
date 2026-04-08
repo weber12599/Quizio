@@ -141,6 +141,7 @@ class QuestionUpdate(BaseModel):
     literacy_tags: Optional[List[str]] = None
     is_archived: Optional[bool] = None
     is_public: Optional[bool] = None
+    needs_manual_grading: Optional[bool] = None
 
     @field_validator('content')
     @classmethod
