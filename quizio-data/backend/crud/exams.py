@@ -2,7 +2,7 @@ from typing import List
 
 import models
 import schemas
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -147,6 +147,7 @@ async def update_exam(
             )
             db.add(db_exam_question)
 
+    db_exam.updated_at = func.now()
     await db.commit()
     return await get_exam(db, db_exam.id, current_user)
 
