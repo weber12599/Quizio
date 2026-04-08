@@ -6,6 +6,7 @@ from core.deps import get_current_user
 from crud import students as crud_students
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix='/api/students', tags=['students'])
@@ -57,7 +58,15 @@ async def create_new_student(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_students.create_student(db, student, current_user)
+    try:
+        return await crud_students.create_student(db, student, current_user)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f'Student ID {student.student_id} exists',
+        )
+    return
 
 
 @router.put('/{student_id}', response_model=schemas.Student)
