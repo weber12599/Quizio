@@ -99,3 +99,18 @@ async def delete_student(
     await db.delete(db_student)
     await db.commit()
     return True
+
+
+async def get_teacher_classes(
+    db: AsyncSession,
+    current_user: models.User,
+):
+    query = select(models.Student.class_name)
+
+    if not current_user.is_superuser:
+        query = query.where(models.Student.teacher_id == current_user.id)
+
+    query = query.where(models.Student.class_name.is_not(None)).distinct()
+
+    result = await db.execute(query)
+    return [row[0] for row in result.all() if row[0]]

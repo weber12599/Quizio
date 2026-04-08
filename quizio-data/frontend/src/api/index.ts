@@ -47,6 +47,35 @@ export interface MediaUploadResponse {
     url: string
 }
 
+export interface ExamGradeHeader {
+    id: number
+    title: string
+    target_date: string | null
+}
+
+export interface StudentGradeEntry {
+    student_db_id: number | null
+    student_id: string
+    name: string
+    class_name: string | null
+    scores: Record<string, number>
+}
+
+export interface GradeReportResponse {
+    exams: ExamGradeHeader[]
+    students: StudentGradeEntry[]
+}
+
+export interface Student {
+    id: number
+    student_id: string
+    name: string
+    email?: string | null
+    admission_year?: number | null
+    class_name?: string | null
+    teacher_id?: number | null
+}
+
 /**
  * Upload a media file to the backend, which proxies it to SeaweedFS
  * @param file The file object to upload (preferably compressed WebP)
@@ -63,6 +92,36 @@ export const uploadMedia = async (file: File): Promise<MediaUploadResponse> => {
     })
 
     return response.data
+}
+
+/**
+ * Fetch all distinct classes for the current teacher
+ */
+export const getTeacherClasses = () => {
+    return api.get<string[]>('/students/classes')
+}
+
+/**
+ * Fetch the pivot table grade report
+ */
+export const getGradeReport = (params: {
+    class_name?: string
+    student_id?: string
+    date_start?: string
+    date_end?: string
+}) => {
+    return api.get<GradeReportResponse>('/submissions/', { params })
+}
+
+/**
+ * Fetch all students for the current teacher.
+ * Can be optionally filtered by class_name or admission_year.
+ */
+export const getStudents = (params?: {
+    class_name?: string
+    admission_year?: number
+}) => {
+    return api.get<Student[]>('/students/', { params })
 }
 
 export default api

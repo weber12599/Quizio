@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import nh3
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
@@ -242,3 +242,24 @@ class StudentSubmission(StudentSubmissionBase):
     answers: List[StudentAnswer] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ExamGradeHeader(BaseModel):
+    id: int
+    title: str
+    target_date: Optional[date]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StudentGradeEntry(BaseModel):
+    student_db_id: Optional[int]
+    student_id: str
+    name: str
+    class_name: Optional[str]
+    scores: Dict[str, int]
+
+
+class GradeReportResponse(BaseModel):
+    exams: List[ExamGradeHeader]
+    students: List[StudentGradeEntry]

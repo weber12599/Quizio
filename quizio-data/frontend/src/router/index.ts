@@ -8,6 +8,7 @@ import StudentsView from '../views/StudentsView.vue'
 import QuestionsView from '../views/QuestionsView.vue'
 import TeachersView from '../views/TeachersView.vue'
 import ExamsView from '../views/ExamsView.vue'
+import GradesView from '../views/GradesView.vue'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -50,6 +51,11 @@ const router = createRouter({
                     path: 'exams',
                     name: 'exams',
                     component: ExamsView
+                },
+                {
+                    path: 'grades',
+                    name: 'Grades',
+                    component: GradesView
                 }
             ]
         }

@@ -35,6 +35,11 @@
                     <el-icon><Document /></el-icon>
                     <span>Exam Management</span>
                 </el-menu-item>
+
+                <el-menu-item index="/admin/grades">
+                    <el-icon><Document /></el-icon>
+                    <span>Grade Management</span>
+                </el-menu-item>
             </el-menu>
         </el-aside>
 

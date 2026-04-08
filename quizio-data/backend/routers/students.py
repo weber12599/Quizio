@@ -11,6 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter(prefix='/api/students', tags=['students'])
 
 
+@router.get('/classes', response_model=List[str])
+async def get_unique_classes(
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_classes = await crud_students.get_teacher_classes(db, current_user)
+    if not db_classes:
+        raise HTTPException(status_code=404, detail='Class not found')
+    return db_classes
+
+
 @router.get('/', response_model=List[schemas.Student])
 async def read_students(
     admission_year: Optional[int] = None,
