@@ -141,7 +141,7 @@
                     <el-input
                         v-model="searchKeyword"
                         placeholder="Search questions..."
-                        prefix-icon="Search"
+                        :prefix-icon="Search"
                         clearable
                         style="margin-bottom: 15px"
                     />
@@ -315,6 +315,16 @@
                                     <span class="q-number"
                                         >{{ index + 1 }}.</span
                                     >
+                                    <span
+                                        style="
+                                            margin-right: 10px;
+                                            color: #909399;
+                                            font-size: 0.9em;
+                                            white-space: nowrap;
+                                        "
+                                    >
+                                        ({{ q.score }} pts)
+                                    </span>
                                     <div
                                         class="q-content"
                                         v-html="renderMarkdown(q.content)"
@@ -425,11 +435,12 @@
                             </el-form-item>
                         </el-form>
 
-                        <el-divider
-                            >Selected Questions ({{
-                                selectedQuestions.length
-                            }})</el-divider
-                        >
+                        <el-divider>
+                            Selected Questions ({{ selectedQuestions.length }})
+                            <span style="margin-left: 10px; color: #409eff"
+                                >| Total Score: {{ totalScore }}</span
+                            >
+                        </el-divider>
 
                         <div class="selected-list">
                             <el-card
@@ -439,7 +450,41 @@
                                 shadow="never"
                             >
                                 <div class="s-card-header">
-                                    <strong>Q{{ index + 1 }}</strong>
+                                    <div
+                                        style="
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 15px;
+                                        "
+                                    >
+                                        <strong>Q{{ index + 1 }}</strong>
+                                        <div
+                                            style="
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 5px;
+                                                background-color: #f4f4f5;
+                                                padding: 2px 8px;
+                                                border-radius: 4px;
+                                            "
+                                        >
+                                            <span
+                                                style="
+                                                    font-size: 12px;
+                                                    color: #909399;
+                                                "
+                                                >Score:</span
+                                            >
+                                            <el-input-number
+                                                v-model="q.score"
+                                                :min="0"
+                                                :max="100"
+                                                size="small"
+                                                style="width: 100px"
+                                            />
+                                        </div>
+                                    </div>
+
                                     <div class="s-card-actions">
                                         <el-button
                                             size="small"
@@ -683,10 +728,15 @@ interface Question {
     owner_id: number
 }
 
+interface SelectedQuestion extends Question {
+    score: number
+}
+
 interface ExamQuestionResponse {
     exam_id: number
     question_id: number
     sort_order: number
+    score: number
     question: Question
 }
 
@@ -727,7 +777,7 @@ const formData = ref({
 const bankQuestions = ref<Question[]>([])
 const questionsLoading = ref(false)
 const searchKeyword = ref('')
-const selectedQuestions = ref<Question[]>([])
+const selectedQuestions = ref<SelectedQuestion[]>([])
 
 // Computed property for filtering question bank
 const filteredQuestions = computed(() => {
@@ -738,6 +788,10 @@ const filteredQuestions = computed(() => {
             q.content.toLowerCase().includes(lowerKeyword) ||
             (q.lesson && q.lesson.toLowerCase().includes(lowerKeyword))
     )
+})
+
+const totalScore = computed(() => {
+    return selectedQuestions.value.reduce((sum, q) => sum + (q.score || 0), 0)
 })
 
 // Expand Handlers
@@ -834,7 +888,10 @@ const openEditDialog = async (row: Exam) => {
     const sortedExamQs = [...row.exam_questions].sort(
         (a, b) => a.sort_order - b.sort_order
     )
-    selectedQuestions.value = sortedExamQs.map((eq) => eq.question)
+    selectedQuestions.value = sortedExamQs.map((eq) => ({
+        ...eq.question,
+        score: eq.score
+    }))
 
     searchKeyword.value = ''
     dialogVisible.value = true
@@ -846,7 +903,7 @@ const openEditDialog = async (row: Exam) => {
 
 // Editor actions
 const addQuestionToExam = (question: Question) => {
-    selectedQuestions.value.push(question)
+    selectedQuestions.value.push({ ...question, score: 10 })
 }
 
 const removeQuestionFromExam = (index: number) => {
@@ -889,7 +946,10 @@ const submitForm = async () => {
             title: formData.value.title,
             description: formData.value.description || null,
             target_date: formData.value.target_date || null,
-            question_ids: selectedQuestions.value.map((q) => q.id)
+            questions: selectedQuestions.value.map((q) => ({
+                question_id: q.id,
+                score: q.score || 10
+            }))
         }
 
         if (dialogType.value === 'add') {
