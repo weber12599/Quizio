@@ -27,17 +27,17 @@
                 </el-menu-item>
 
                 <el-menu-item index="/admin/questions">
-                    <el-icon><Document /></el-icon>
+                    <el-icon><Collection /></el-icon>
                     <span>Question Management</span>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/exams">
-                    <el-icon><Document /></el-icon>
+                    <el-icon><MessageBox /></el-icon>
                     <span>Exam Management</span>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/grades">
-                    <el-icon><Document /></el-icon>
+                    <el-icon><EditPen /></el-icon>
                     <span>Grade Management</span>
                 </el-menu-item>
             </el-menu>
@@ -94,6 +94,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { MessageBox } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
