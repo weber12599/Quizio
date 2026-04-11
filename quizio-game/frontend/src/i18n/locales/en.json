@@ -17,7 +17,8 @@
         "reference_answer": "Reference Answer",
         "error_fill_fields": "Please fill in all fields.",
         "graded": "Graded",
-        "submitted": "Submitted"
+        "submitted": "Submitted",
+        "none": "None"
     },
     "question_type": {
         "single": "Single Choice",
@@ -63,7 +64,16 @@
         "sent": "Sent",
         "stop_displaying": "Stop Displaying",
         "display_on_screen": "Display on Screen",
-        "no_students_joined": "No students have joined yet."
+        "no_students_joined": "No students have joined yet.",
+        "progress": "Progress",
+        "no_questions_broadcasted": "No questions have been broadcasted yet.",
+        "not_answered": "Not Answered",
+        "attendance_details": "Attendance",
+        "missing_students": "Missing",
+        "joined_students": "Joined",
+        "submission_details": "Submission",
+        "unsubmitted_list": "Unsubmitted",
+        "submitted_list": "Submitted"
     },
     "screen": {
         "title": "Screen / Projector Setup",

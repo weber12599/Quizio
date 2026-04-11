@@ -283,6 +283,12 @@ async def broadcast_room_state(room_pin: str):
 
             # 2. Private Host Data
             if client_data['role'] == 'host':
+                clients_info = {
+                    p['player_id']: {'name': p['name'], 'is_guest': p['is_guest']}
+                    for p in players_dict.values()
+                    if p['role'] == 'client' and p.get('player_id')
+                }
+
                 await sio.emit(
                     'host_room_stats',
                     {
@@ -291,6 +297,7 @@ async def broadcast_room_state(room_pin: str):
                         'expected_students': room.get('expected_students', []),
                         'answers': room.get('answers', {}),
                         'gradings': room.get('gradings', {}),
+                        'clients_info': clients_info,
                     },
                     to=target_sid,
                 )

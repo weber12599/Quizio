@@ -17,7 +17,8 @@
         "reference_answer": "參考解答",
         "error_fill_fields": "請填寫所有欄位。",
         "graded": "已批改",
-        "submitted": "已送出"
+        "submitted": "已送出",
+        "none": "無"
     },
     "question_type": {
         "single": "單選題",
@@ -63,7 +64,16 @@
         "sent": "已派發",
         "stop_displaying": "停止投放",
         "display_on_screen": "大螢幕投放",
-        "no_students_joined": "尚未有學生加入。"
+        "no_students_joined": "尚未有學生加入。",
+        "progress": "作答進度",
+        "no_questions_broadcasted": "尚未派發任何題目",
+        "not_answered": "尚未作答",
+        "attendance_details": "出席名單明細",
+        "missing_students": "尚未加入",
+        "joined_students": "已加入",
+        "submission_details": "繳交狀況明細",
+        "unsubmitted_list": "尚未繳交",
+        "submitted_list": "已繳交"
     },
     "screen": {
         "title": "大螢幕投放設定",

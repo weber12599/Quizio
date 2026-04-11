@@ -11,9 +11,9 @@
                 <template #header>
                     <h2 class="text-center m-0">{{ $t('host.step_login') }}</h2>
                 </template>
-
                 <el-form
                     label-position="top"
+                    @submit.prevent
                     @keyup.enter="verifyTeacher"
                     class="auth-form"
                 >
@@ -25,7 +25,6 @@
                             size="large"
                         />
                     </el-form-item>
-
                     <el-form-item :label="$t('common.password')">
                         <el-input
                             v-model="password"
@@ -35,7 +34,6 @@
                             size="large"
                         />
                     </el-form-item>
-
                     <el-button
                         type="primary"
                         class="w-full mt-4"
@@ -51,7 +49,6 @@
                         }}
                     </el-button>
                 </el-form>
-
                 <el-alert
                     v-if="errorMessage"
                     :title="errorMessage"
@@ -72,8 +69,11 @@
                 <template #header>
                     <h2 class="text-center m-0">{{ $t('host.step_setup') }}</h2>
                 </template>
-
-                <el-form label-position="top" class="setup-form">
+                <el-form
+                    label-position="top"
+                    @submit.prevent
+                    class="setup-form"
+                >
                     <el-form-item :label="$t('common.room_pin')">
                         <el-input
                             v-model="roomPin"
@@ -81,7 +81,6 @@
                             :placeholder="$t('placeholder.pin')"
                         />
                     </el-form-item>
-
                     <el-form-item :label="$t('host.select_class')">
                         <el-select
                             v-model="selectedClass"
@@ -104,12 +103,13 @@
                             class="text-muted mt-2 text-sm"
                         >
                             {{ $t('host.num_students') }}:
-                            <el-tag type="info" size="small" effect="plain">
-                                <strong>{{ expectedStudents.length }}</strong>
-                            </el-tag>
+                            <el-tag type="info" size="small" effect="plain"
+                                ><strong>{{
+                                    expectedStudents.length
+                                }}</strong></el-tag
+                            >
                         </div>
                     </el-form-item>
-
                     <el-form-item>
                         <el-checkbox
                             v-model="allowGuests"
@@ -120,7 +120,6 @@
                             {{ $t('host.allow_guests') }}
                         </el-checkbox>
                     </el-form-item>
-
                     <el-form-item :label="$t('host.select_exam')" required>
                         <el-select
                             v-model="selectedExam"
@@ -145,7 +144,6 @@
                             </el-option>
                         </el-select>
                     </el-form-item>
-
                     <el-button
                         type="primary"
                         class="w-full mt-4"
@@ -178,7 +176,7 @@
                             <span class="text-danger">{{ roomPin }}</span>
                         </h2>
                         <el-tag
-                            v-if="players.length === 0"
+                            v-if="playerStats.total_count === 0"
                             type="warning"
                             effect="plain"
                             round
@@ -193,11 +191,22 @@
 
                     <div class="dashboard-stats">
                         <template v-for="(stat, i) in stats" :key="stat.label">
-                            <div v-if="stat.condition" class="stat-item">
+                            <div
+                                v-if="stat.condition"
+                                class="stat-item"
+                                :class="{
+                                    'clickable-stat':
+                                        stat.label === $t('host.num_students')
+                                }"
+                                @click="
+                                    stat.label === $t('host.num_students')
+                                        ? openAttendanceDetails()
+                                        : null
+                                "
+                            >
                                 <span class="label">{{ stat.label }}</span>
                                 <span class="value">{{ stat.value }}</span>
                             </div>
-
                             <el-divider
                                 v-if="i < stats.length - 1"
                                 direction="vertical"
@@ -226,9 +235,8 @@
                             plain
                             size="large"
                             @click="leaveRoom"
+                            >{{ $t('common.end_game') }}</el-button
                         >
-                            {{ $t('common.end_game') }}
-                        </el-button>
                     </div>
                 </div>
             </el-card>
@@ -274,7 +282,7 @@
                                 class="flex-col-gap"
                             >
                                 <GameQuestionCard
-                                    v-for="(eq, index) in waitingPool"
+                                    v-for="eq in waitingPool"
                                     :key="eq.question_id"
                                     :question="eq.question"
                                     :index="eq.sort_order"
@@ -315,6 +323,7 @@
                                                     )
                                                 }}</el-tag
                                             >
+
                                             <el-tag
                                                 v-if="
                                                     broadcastedIds.includes(
@@ -325,6 +334,12 @@
                                                 effect="plain"
                                                 round
                                                 size="large"
+                                                class="cursor-pointer hover-scale"
+                                                @click.stop="
+                                                    openSubmissionDetails(
+                                                        eq.question_id
+                                                    )
+                                                "
                                             >
                                                 {{ $t('common.submitted') }}:
                                                 {{
@@ -332,11 +347,10 @@
                                                         eq.question_id
                                                     )
                                                 }}
-                                                / {{ players.length }}
+                                                / {{ playerStats.total_count }}
                                             </el-tag>
                                         </div>
                                     </template>
-
                                     <template #header-right>
                                         <el-tag
                                             v-if="
@@ -352,7 +366,6 @@
                                             {{ $t('host.sent') }}
                                         </el-tag>
                                     </template>
-
                                     <template #actions>
                                         <div class="text-right w-full">
                                             <el-button
@@ -400,33 +413,42 @@
                         >
                             <template #header>
                                 <div class="flex-between">
-                                    <strong style="font-size: 1.2rem">
-                                        {{ $t('host.participants') }}</strong
-                                    >
+                                    <strong style="font-size: 1.2rem">{{
+                                        $t('host.participants')
+                                    }}</strong>
                                     <el-tag
                                         type="info"
                                         round
                                         effect="plain"
                                         size="large"
-                                        >{{ players.length }}</el-tag
+                                        >{{ playerStats.total_count }}</el-tag
                                     >
                                 </div>
                             </template>
 
                             <el-empty
-                                v-if="players.length === 0"
+                                v-if="
+                                    Object.keys(roomStats.clients_info || {})
+                                        .length === 0
+                                "
                                 :description="$t('host.no_students_joined')"
                                 :image-size="80"
                             />
                             <div v-else class="flex-wrap gap-3">
                                 <el-tag
-                                    v-for="player in players"
-                                    :key="player"
+                                    v-for="(
+                                        info, playerId
+                                    ) in roomStats.clients_info"
+                                    :key="playerId"
                                     size="large"
                                     effect="plain"
-                                    class="player-tag"
+                                    class="player-tag cursor-pointer hover-scale"
+                                    :type="
+                                        info.is_guest ? 'warning' : 'primary'
+                                    "
+                                    @click="openStudentDrawer(playerId, info)"
                                 >
-                                    {{ player }}
+                                    {{ info.name }}
                                 </el-tag>
                             </div>
                         </el-card>
@@ -434,6 +456,191 @@
                 </el-col>
             </el-row>
         </div>
+
+        <el-drawer v-model="isDrawerVisible" size="600px" :with-header="false">
+            <div v-if="selectedStudent" class="drawer-header flex-between mb-4">
+                <div class="flex-align-center gap-3">
+                    <h2 class="m-0">{{ selectedStudent.name }}</h2>
+                    <el-tag
+                        :type="selectedStudent.is_guest ? 'warning' : 'success'"
+                        round
+                        effect="plain"
+                        size="large"
+                    >
+                        {{ selectedStudent.is_guest ? 'Guest' : 'Student' }}
+                    </el-tag>
+                </div>
+                <el-tag
+                    type="primary"
+                    round
+                    effect="plain"
+                    size="large"
+                    class="font-bold text-lg"
+                >
+                    {{ $t('host.progress') }}:
+                    {{ getStudentProgress(selectedStudent.player_id) }}
+                </el-tag>
+            </div>
+
+            <div v-if="selectedStudent" class="drawer-body flex-col gap-4 pb-4">
+                <el-empty
+                    v-if="broadcastedQuestionsList.length === 0"
+                    :description="$t('host.no_questions_broadcasted')"
+                />
+
+                <template
+                    v-for="eq in broadcastedQuestionsList"
+                    :key="eq.question_id"
+                >
+                    <el-card
+                        v-if="
+                            roomStats.answers[eq.question_id]?.[
+                                selectedStudent.player_id
+                            ] === undefined
+                        "
+                        shadow="never"
+                        class="unanswered-card border-dashed"
+                        :body-style="{ padding: '16px 24px' }"
+                    >
+                        <div class="flex-between">
+                            <span class="font-bold text-muted"
+                                >Q{{ eq.sort_order + 1 }} -
+                                {{ formatQuestionType(eq.question.type) }}</span
+                            >
+                            <el-tag type="info" effect="plain" size="large">{{
+                                $t('host.not_answered')
+                            }}</el-tag>
+                        </div>
+                    </el-card>
+
+                    <GameQuestionCard
+                        v-else
+                        :question="eq.question"
+                        :index="eq.sort_order"
+                        role="client"
+                        :submittedAnswer="
+                            roomStats.answers[eq.question_id][
+                                selectedStudent.player_id
+                            ]
+                        "
+                        :gradingResult="
+                            roomStats.gradings[eq.question_id]?.[
+                                selectedStudent.player_id
+                            ]
+                        "
+                    />
+                </template>
+            </div>
+        </el-drawer>
+
+        <el-dialog
+            v-model="attendanceDialogVisible"
+            :title="$t('host.attendance_details')"
+            width="550px"
+        >
+            <el-row :gutter="24">
+                <el-col :span="12">
+                    <h4 class="text-danger mb-3">
+                        {{ $t('host.missing_students') }}
+                        ({{ attendanceDetails.missing.length }})
+                    </h4>
+                    <div class="flex-wrap gap-2">
+                        <el-tag
+                            v-for="student in attendanceDetails.missing"
+                            :key="student.id"
+                            type="danger"
+                            effect="plain"
+                            class="mb-2"
+                            >{{ student.name }}</el-tag
+                        >
+                        <span
+                            v-if="attendanceDetails.missing.length === 0"
+                            class="text-muted"
+                            >{{ $t('common.none') }}</span
+                        >
+                    </div>
+                </el-col>
+                <el-col :span="12">
+                    <h4 class="text-success mb-3">
+                        {{ $t('host.joined_students') }} ({{
+                            attendanceDetails.joined.length
+                        }})
+                    </h4>
+                    <div class="flex-wrap gap-2">
+                        <el-tag
+                            v-for="student in attendanceDetails.joined"
+                            :key="student.id"
+                            type="success"
+                            effect="plain"
+                            class="mb-2"
+                            >{{ student.name }}</el-tag
+                        >
+                        <span
+                            v-if="attendanceDetails.joined.length === 0"
+                            class="text-muted"
+                            >{{ $t('common.none') }}</span
+                        >
+                    </div>
+                </el-col>
+            </el-row>
+        </el-dialog>
+
+        <el-dialog
+            v-model="submissionDialogVisible"
+            :title="$t('host.submission_details')"
+            width="550px"
+        >
+            <el-row :gutter="24">
+                <el-col :span="12">
+                    <h4 class="text-danger mb-3">
+                        {{ $t('host.unsubmitted_list') }} ({{
+                            submissionDetails.unsubmitted.length
+                        }})
+                    </h4>
+                    <div class="flex-wrap gap-2">
+                        <el-tag
+                            v-for="elem in submissionDetails.unsubmitted"
+                            :key="elem.player_id"
+                            :type="elem.info.is_guest ? 'warning' : 'danger'"
+                            effect="plain"
+                            class="mb-2 cursor-pointer hover-scale"
+                            @click="openStudentDrawer(elem.playerId, elem.info)"
+                        >
+                            {{ elem.info.name }}
+                        </el-tag>
+                        <span
+                            v-if="submissionDetails.unsubmitted.length === 0"
+                            class="text-muted"
+                            >{{ $t('common.none') }}</span
+                        >
+                    </div>
+                </el-col>
+                <el-col :span="12">
+                    <h4 class="text-success mb-3">
+                        {{ $t('host.submitted_list') }} ({{
+                            submissionDetails.submitted.length
+                        }})
+                    </h4>
+                    <div class="flex-wrap gap-2">
+                        <el-tag
+                            v-for="elem in submissionDetails.submitted"
+                            :key="elem.player_id"
+                            :type="elem.info.is_guest ? 'warning' : 'success'"
+                            effect="plain"
+                            class="mb-2 cursor-pointer hover-scale"
+                            @click="openStudentDrawer(elem.playerId, elem.info)"
+                        >
+                            {{ elem.info.name }}
+                        </el-tag>
+                        <span
+                            v-if="submissionDetails.submitted.length === 0"
+                            class="text-muted"
+                            >{{ $t('common.none') }}</span
+                        >
+                    </div>
+                </el-col>
+            </el-row>
+        </el-dialog>
     </div>
 </template>
 
@@ -483,15 +690,22 @@ const selectedClass = ref('')
 const allowGuests = ref(true)
 const selectedExam = ref<number | ''>('')
 const expectedStudents = ref<string[]>([])
+const expectedStudentInfo = ref<Record<string, string>>({})
 
-const players = ref<string[]>([])
+// Drawer
+const isDrawerVisible = ref(false)
+const selectedStudent = ref<{
+    player_id: string
+    name: string
+    is_guest: boolean
+} | null>(null)
 
-const playerStats = ref({
-    student_count: 0,
-    guest_count: 0,
-    total_count: 0
-})
+// Dialogs
+const attendanceDialogVisible = ref(false)
+const submissionDialogVisible = ref(false)
+const selectedQuestionIdForDetails = ref<number | null>(null)
 
+const playerStats = ref({ student_count: 0, guest_count: 0, total_count: 0 })
 const broadcastedIds = ref<number[]>([])
 const currentDisplayedEq = ref<ExamQuestion | null>(null)
 const selectedQuestionIds = ref<number[]>([])
@@ -501,7 +715,8 @@ const roomStats = ref<any>({
     allow_guests: true,
     expected_students: [],
     answers: {},
-    gradings: {}
+    gradings: {},
+    clients_info: {}
 })
 
 const errorMessage = ref('')
@@ -543,6 +758,71 @@ const waitingPool = computed<ExamQuestion[]>(() => {
     return activeExam.value ? activeExam.value.exam_questions : []
 })
 
+const broadcastedQuestionsList = computed(() => {
+    return waitingPool.value.filter((eq) =>
+        broadcastedIds.value.includes(eq.question_id)
+    )
+})
+
+// --- Attendance Logic ---
+const openAttendanceDetails = () => {
+    attendanceDialogVisible.value = true
+}
+
+const attendanceDetails = computed(() => {
+    const clients = roomStats.value.clients_info || {}
+
+    const joinedIds = Object.keys(clients)
+        .filter((id) => !clients[id].is_guest)
+        .map((id) => String(id))
+
+    const joined = joinedIds.map((id) => ({
+        id: String(id),
+        name: clients[String(id)].name
+    }))
+
+    const missing = expectedStudents.value
+        .filter((id) => !joinedIds.includes(String(id)))
+        .map((id) => ({
+            id: String(id),
+            name: expectedStudentInfo.value[String(id)] || String(id)
+        }))
+
+    return { joined, missing }
+})
+
+// --- Submission Logic  ---
+const openSubmissionDetails = (qId: number) => {
+    selectedQuestionIdForDetails.value = qId
+    submissionDialogVisible.value = true
+}
+
+const submissionDetails = computed(() => {
+    const qId = selectedQuestionIdForDetails.value
+    if (qId === null) return { submitted: [], unsubmitted: [] }
+
+    const answers = roomStats.value.answers?.[qId] || {}
+    const clients = roomStats.value.clients_info || {}
+
+    const submitted: any[] = []
+    const unsubmitted: any[] = []
+
+    for (const [playerId, info] of Object.entries(clients)) {
+        if (answers[playerId] !== undefined) {
+            submitted.push({
+                playerId: playerId,
+                info: info
+            })
+        } else {
+            unsubmitted.push({
+                playerId: playerId,
+                info: info
+            })
+        }
+    }
+    return { submitted, unsubmitted }
+})
+
 // --- Methods ---
 const verifyTeacher = async () => {
     if (!username.value || !password.value) {
@@ -581,13 +861,20 @@ const verifyTeacher = async () => {
 const fetchExpectedStudents = async () => {
     if (!selectedClass.value) {
         expectedStudents.value = []
+        expectedStudentInfo.value = {}
         return
     }
     try {
         const res: any = await api.get(
             `/students/?class_name=${selectedClass.value}`
         )
-        expectedStudents.value = res.map((s: any) => s.student_id)
+        expectedStudents.value = res.map((s: any) => String(s.student_id))
+
+        const infoMap: Record<string, string> = {}
+        res.forEach((s: any) => {
+            infoMap[String(s.student_id)] = s.name
+        })
+        expectedStudentInfo.value = infoMap
     } catch (e) {
         console.error('Failed to fetch expected students', e)
     }
@@ -595,7 +882,6 @@ const fetchExpectedStudents = async () => {
 
 const startRoom = () => {
     isLoading.value = true
-
     socket.off('connect')
     socket.on('connect', () => {
         socket.emit('join_room', {
@@ -614,7 +900,6 @@ const startRoom = () => {
         isLoading.value = false
         step.value = 'room'
         isReconnecting.value = false
-
         localStorage.setItem(
             'setup_data',
             JSON.stringify({
@@ -622,7 +907,8 @@ const startRoom = () => {
                 exam_id: selectedExam.value,
                 target_class: selectedClass.value,
                 allow_guests: allowGuests.value,
-                expected_students: expectedStudents.value
+                expected_students: expectedStudents.value,
+                expected_student_info: expectedStudentInfo.value
             })
         )
     })
@@ -639,34 +925,27 @@ const startRoom = () => {
             isReconnecting.value = true
         }
     })
-
     socket.connect()
 }
 
 const leaveRoom = () => {
-    if (isConnected.value) {
+    if (isConnected.value)
         socket.emit('end_game', {
             room_pin: roomPin.value,
             exam_id: selectedExam.value
         })
-    }
-
     localStorage.removeItem('setup_data')
     localStorage.removeItem('host_token')
-
     isConnected.value = false
     isReconnecting.value = false
-    players.value = []
     authToken.value = ''
     selectedClass.value = ''
     selectedExam.value = ''
-
     broadcastedIds.value = []
     selectedQuestionIds.value = []
     currentDisplayedEq.value = null
     isLeaderboardDisplayed.value = false
     step.value = 'login'
-
     setTimeout(() => socket.disconnect(), 100)
 }
 
@@ -720,15 +999,32 @@ const getSubmissionCount = (qId: number) => {
     return Object.keys(roomStats.value.answers[qId]).length
 }
 
+const openStudentDrawer = (playerId: string, info: any) => {
+    selectedStudent.value = { player_id: playerId, ...info }
+    isDrawerVisible.value = true
+}
+const getStudentProgress = (playerId: string) => {
+    if (broadcastedIds.value.length === 0) return '0 / 0'
+    let answered = 0
+    broadcastedIds.value.forEach((qId) => {
+        if (
+            roomStats.value.answers[qId] &&
+            roomStats.value.answers[qId][playerId] !== undefined
+        ) {
+            answered++
+        }
+    })
+    return `${answered} / ${broadcastedIds.value.length}`
+}
+
+// --- Lifecycle ---
 onMounted(() => {
     const savedToken = localStorage.getItem('host_token')
     let savedSetupData = undefined
     try {
         const jsonStr = localStorage.getItem('setup_data')
         if (jsonStr) savedSetupData = JSON.parse(jsonStr)
-    } catch {
-        savedSetupData = undefined
-    }
+    } catch {}
 
     if (savedToken && savedSetupData && !isConnected.value) {
         authToken.value = savedToken
@@ -737,6 +1033,7 @@ onMounted(() => {
         selectedClass.value = savedSetupData.target_class
         allowGuests.value = savedSetupData.allow_guests
         expectedStudents.value = savedSetupData.expected_students
+        expectedStudentInfo.value = savedSetupData.expected_student_info || {}
 
         Promise.all([
             api.get('/students/classes'),
@@ -749,8 +1046,7 @@ onMounted(() => {
     }
 
     socket.on('room_state', async (data) => {
-        players.value = data.players
-        playerStats.value = data.player_stats
+        if (data.player_stats) playerStats.value = data.player_stats
         await nextTick()
     })
 
@@ -786,7 +1082,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* --------------------------------------
-   Base Layout & Overrides (Theme Compatible)
+   Base Layout & Overrides
 --------------------------------------- */
 .host-view {
     padding: 32px 24px;
@@ -794,12 +1090,8 @@ onUnmounted(() => {
     margin: 0 auto;
     color: var(--el-text-color-primary);
 }
-
 .w-full {
     width: 100%;
-}
-.gap-2 {
-    gap: 8px;
 }
 .m-0 {
     margin: 0;
@@ -820,6 +1112,9 @@ onUnmounted(() => {
 .mr-1 {
     margin-right: 8px;
 }
+.pb-4 {
+    padding-bottom: 24px;
+}
 .text-center {
     text-align: center;
 }
@@ -839,6 +1134,12 @@ onUnmounted(() => {
 .text-sm {
     font-size: 0.95rem;
 }
+.text-lg {
+    font-size: 1.15rem;
+}
+.font-bold {
+    font-weight: bold;
+}
 
 .flex-between {
     display: flex;
@@ -852,6 +1153,13 @@ onUnmounted(() => {
 .flex-wrap {
     display: flex;
     flex-wrap: wrap;
+}
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+.gap-2 {
+    gap: 8px;
 }
 .gap-3 {
     gap: 16px;
@@ -872,7 +1180,7 @@ onUnmounted(() => {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100dvh - 120px);
+    min-height: calc(100vh - 120px);
 }
 .auth-card {
     width: 100%;
@@ -898,7 +1206,6 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 32px;
 }
-
 .dashboard-card {
     border-radius: 12px;
     background-color: var(--el-bg-color-overlay);
@@ -908,11 +1215,11 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 24px;
+    gap: 8px;
 }
 .dashboard-title h2 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 1.5rem;
     display: flex;
     align-items: center;
     gap: 20px;
@@ -920,7 +1227,7 @@ onUnmounted(() => {
 .dashboard-stats {
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 .stat-item {
@@ -929,14 +1236,14 @@ onUnmounted(() => {
     align-items: center;
 }
 .stat-item .label {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: var(--el-text-color-secondary);
     text-transform: uppercase;
     font-weight: bold;
     letter-spacing: 0.5px;
 }
 .stat-item .value {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: var(--el-text-color-primary);
     margin-top: 6px;
@@ -959,11 +1266,9 @@ onUnmounted(() => {
     background-color: var(--el-fill-color-light);
     border-radius: 0 0 12px 12px;
 }
-
 .question-list :deep(.game-question-card) {
     background-color: var(--el-bg-color-overlay);
 }
-
 .question-list :deep(.game-question-card.is-broadcasted) {
     border-left-color: var(--el-color-success);
 }
@@ -972,14 +1277,13 @@ onUnmounted(() => {
 }
 
 /* --------------------------------------
-   Right Column
+   Right Column (Participants)
 --------------------------------------- */
 .right-col-content {
     display: flex;
     flex-direction: column;
     gap: 32px;
 }
-
 .right-col-content .el-card {
     border-radius: 12px;
     background-color: var(--el-bg-color-overlay);
@@ -988,9 +1292,46 @@ onUnmounted(() => {
 .player-tag {
     font-size: 1.1rem;
     padding: 20px 18px;
+    border-radius: 8px;
+}
+.cursor-pointer {
+    cursor: pointer;
+}
+.hover-scale {
+    transition:
+        transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+        box-shadow 0.2s;
+}
+.hover-scale:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--el-box-shadow-light);
+}
+
+.clickable-stat {
+    cursor: pointer;
+    transition:
+        transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+        opacity 0.2s;
+}
+.clickable-stat:hover {
+    transform: translateY(-3px);
+    opacity: 0.8;
+}
+
+/* --------------------------------------
+   Drawer Styles
+--------------------------------------- */
+.drawer-header {
+    padding: 20px 24px 20px 0;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.border-dashed {
+    border-style: dashed;
+    border-color: var(--el-border-color);
     background-color: var(--el-fill-color-light);
-    border-color: var(--el-border-color-lighter);
-    color: var(--el-text-color-primary);
+}
+.unanswered-card {
+    border-radius: 12px;
 }
 
 .pulse-dot {

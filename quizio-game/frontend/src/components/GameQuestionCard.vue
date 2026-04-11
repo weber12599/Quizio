@@ -768,7 +768,7 @@ html.dark .box-header {
 .markdown-body :deep(ol) {
     margin-top: 0;
     margin-bottom: 1em;
-    padding-left: 2em;
+    /* padding-left: 2em; */
 }
 .markdown-body :deep(ul) {
     list-style-type: disc;
