@@ -1,264 +1,438 @@
 <template>
     <div class="host-view">
-        <ButtonLangToggle />
+        <ButtonFloatingAction />
 
-        <div v-if="!isConnected && !isReconnecting" class="login-panel card">
-            <h2>{{ $t('host.step_login') }}</h2>
-            <div class="form-group">
-                <label>{{ $t('host.teacher_username') }}</label>
-                <input
-                    v-model="username"
-                    :placeholder="$t('host.placeholder_username')"
-                />
-            </div>
-            <div class="form-group">
-                <label>{{ $t('common.password') }}</label>
-                <input
-                    v-model="password"
-                    type="password"
-                    :placeholder="$t('host.placeholder_password')"
-                    @keyup.enter="loginAndCreateRoom"
-                />
-            </div>
-            <div class="form-group">
-                <label>{{ $t('common.room_pin') }}</label>
-                <input
-                    v-model="roomPin"
-                    :placeholder="$t('host.placeholder_pin')"
-                    @keyup.enter="loginAndCreateRoom"
-                />
-            </div>
-
-            <button
-                @click="loginAndCreateRoom"
-                class="btn-primary"
-                :disabled="isLoading"
+        <div v-if="step === 'login'" class="auth-container">
+            <el-card
+                class="auth-card"
+                shadow="hover"
+                :body-style="{ padding: '32px' }"
             >
-                {{
-                    isLoading
-                        ? $t('common.connecting')
-                        : $t('host.btn_login_create')
-                }}
-            </button>
-            <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
+                <template #header>
+                    <h2 class="text-center m-0">{{ $t('host.step_login') }}</h2>
+                </template>
+
+                <el-form
+                    label-position="top"
+                    @keyup.enter="verifyTeacher"
+                    class="auth-form"
+                >
+                    <el-form-item :label="$t('common.username')">
+                        <el-input
+                            v-model="username"
+                            :placeholder="$t('placeholder.username')"
+                            clearable
+                            size="large"
+                        />
+                    </el-form-item>
+
+                    <el-form-item :label="$t('common.password')">
+                        <el-input
+                            v-model="password"
+                            type="password"
+                            show-password
+                            :placeholder="$t('placeholder.password')"
+                            size="large"
+                        />
+                    </el-form-item>
+
+                    <el-button
+                        type="primary"
+                        class="w-full mt-4"
+                        size="large"
+                        plain
+                        @click="verifyTeacher"
+                        :loading="isLoading"
+                    >
+                        {{
+                            isLoading
+                                ? $t('common.connecting')
+                                : $t('host.btn_login')
+                        }}
+                    </el-button>
+                </el-form>
+
+                <el-alert
+                    v-if="errorMessage"
+                    :title="errorMessage"
+                    type="error"
+                    show-icon
+                    class="mt-4"
+                    :closable="false"
+                />
+            </el-card>
         </div>
 
-        <div v-else class="game-panel">
-            <div class="room-header card">
-                <h2>{{ $t('common.room_pin') }} {{ roomPin }}</h2>
-                <p v-if="players.length === 0" class="status-indicator">
-                    {{ $t('host.waiting_players') }}
-                </p>
-                <div class="header-actions" style="display: flex; gap: 12px">
-                    <button
-                        @click="toggleLeaderboard"
-                        class="btn-secondary small-btn"
-                        :class="{ 'is-displaying': isLeaderboardDisplayed }"
-                    >
-                        🏆
-                        {{
-                            isLeaderboardDisplayed
-                                ? $t('host.hide_leaderboard')
-                                : $t('host.show_leaderboard')
-                        }}
-                    </button>
-                    <button @click="leaveRoom" class="btn-danger small-btn">
-                        {{ $t('common.end_game') }}
-                    </button>
-                </div>
-            </div>
+        <div v-else-if="step === 'setup'" class="auth-container">
+            <el-card
+                class="auth-card setup-card"
+                shadow="hover"
+                :body-style="{ padding: '32px' }"
+            >
+                <template #header>
+                    <h2 class="text-center m-0">{{ $t('host.step_setup') }}</h2>
+                </template>
 
-            <div v-if="isReconnecting" class="reconnect-banner">
-                {{ $t('common.network_disconnected') }}
-            </div>
+                <el-form label-position="top" class="setup-form">
+                    <el-form-item :label="$t('common.room_pin')">
+                        <el-input
+                            v-model="roomPin"
+                            size="large"
+                            :placeholder="$t('placeholder.pin')"
+                        />
+                    </el-form-item>
 
-            <div class="layout-grid">
-                <div class="left-col">
-                    <div class="exam-selection card">
-                        <h3>{{ $t('host.select_exam') }}</h3>
-
-                        <div
-                            v-if="!selectedExam"
-                            class="custom-select-container"
+                    <el-form-item :label="$t('host.select_class')">
+                        <el-select
+                            v-model="selectedClass"
+                            filterable
+                            clearable
+                            size="large"
+                            :placeholder="$t('placeholder.class')"
+                            class="w-full"
+                            @change="fetchExpectedStudents"
                         >
-                            <input
-                                v-model="examSearchQuery"
-                                :placeholder="$t('host.search_exam_title')"
-                                class="search-input"
-                                @focus="isDropdownOpen = true"
+                            <el-option
+                                v-for="cls in classes"
+                                :key="cls"
+                                :label="cls"
+                                :value="cls"
                             />
-
-                            <div v-if="isDropdownOpen" class="dropdown-list">
-                                <div
-                                    v-for="exam in filteredExams"
-                                    :key="exam.id"
-                                    class="dropdown-item"
-                                    @click="selectExam(exam)"
-                                >
-                                    <div class="exam-title">
-                                        {{ exam.title }}
-                                    </div>
-                                    <div class="exam-meta">
-                                        {{ $t('host.exam_id') }}{{ exam.id }}
-                                    </div>
-                                </div>
-                                <div
-                                    v-if="filteredExams.length === 0"
-                                    class="dropdown-item empty"
-                                >
-                                    {{ $t('host.no_exams_found') }}
-                                </div>
-                            </div>
+                        </el-select>
+                        <div
+                            v-if="selectedClass"
+                            class="text-muted mt-2 text-sm"
+                        >
+                            {{ $t('host.num_students') }}:
+                            <el-tag type="info" size="small" effect="plain">
+                                <strong>{{ expectedStudents.length }}</strong>
+                            </el-tag>
                         </div>
+                    </el-form-item>
 
-                        <div v-else class="selected-exam-card">
-                            <div class="exam-header-actions">
-                                <h4>{{ selectedExam.title }}</h4>
-                                <button
-                                    v-if="!isQuestionsLoaded"
-                                    @click="selectedExam = null"
-                                    class="btn-secondary small-btn"
+                    <el-form-item>
+                        <el-checkbox
+                            v-model="allowGuests"
+                            border
+                            size="large"
+                            class="w-full"
+                        >
+                            {{ $t('host.allow_guests') }}
+                        </el-checkbox>
+                    </el-form-item>
+
+                    <el-form-item :label="$t('host.select_exam')" required>
+                        <el-select
+                            v-model="selectedExam"
+                            filterable
+                            size="large"
+                            :placeholder="$t('placeholder.exam')"
+                            class="w-full"
+                            no-data-text="No exams found"
+                        >
+                            <el-option
+                                v-for="exam in exams"
+                                :key="exam.id"
+                                :label="exam.title"
+                                :value="exam.id"
+                            >
+                                <span style="float: left">{{
+                                    exam.title
+                                }}</span>
+                                <span class="exam-id-meta"
+                                    >ID: {{ exam.id }}</span
                                 >
-                                    {{ $t('common.change') }}
-                                </button>
-                            </div>
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
 
-                            <p
-                                v-if="selectedExam.description"
-                                class="exam-desc"
-                            >
-                                {{ selectedExam.description }}
-                            </p>
+                    <el-button
+                        type="primary"
+                        class="w-full mt-4"
+                        size="large"
+                        plain
+                        @click="startRoom"
+                        :disabled="!selectedExam"
+                        :loading="isLoading"
+                    >
+                        {{
+                            isLoading
+                                ? $t('common.connecting')
+                                : $t('host.btn_create')
+                        }}
+                    </el-button>
+                </el-form>
+            </el-card>
+        </div>
 
-                            <button
-                                v-if="!isQuestionsLoaded"
-                                @click="loadQuestions"
-                                class="btn-success"
-                                :disabled="isLoading"
-                            >
-                                {{
-                                    isLoading
-                                        ? $t('common.loading')
-                                        : $t('host.load_questions')
-                                }}
-                            </button>
-                        </div>
+        <div v-else-if="step === 'room'" class="room-container">
+            <el-card
+                class="dashboard-card"
+                shadow="never"
+                :body-style="{ padding: '24px 32px' }"
+            >
+                <div class="dashboard-flex">
+                    <div class="dashboard-title">
+                        <h2>
+                            {{ $t('common.room_pin') }}
+                            <span class="text-danger">{{ roomPin }}</span>
+                        </h2>
+                        <el-tag
+                            v-if="players.length === 0"
+                            type="warning"
+                            effect="plain"
+                            round
+                            size="large"
+                        >
+                            <span class="flex-align-center gap-2">
+                                <span class="pulse-dot mr-2"></span>
+                                {{ $t('host.waiting_players') }}
+                            </span>
+                        </el-tag>
                     </div>
 
-                    <div v-if="isQuestionsLoaded" class="waiting-pool card">
-                        <div class="pool-header">
-                            <h3>
-                                {{ $t('host.question_pool') }} ({{
-                                    waitingPool.length
-                                }})
-                            </h3>
-                            <button
-                                @click="broadcastSelected"
-                                class="btn-primary small-btn"
-                                :disabled="selectedQuestionIds.length === 0"
-                            >
-                                {{ $t('host.broadcast_selected') }} ({{
-                                    selectedQuestionIds.length
-                                }})
-                            </button>
-                        </div>
+                    <div class="dashboard-stats">
+                        <template v-for="(stat, i) in stats" :key="stat.label">
+                            <div v-if="stat.condition" class="stat-item">
+                                <span class="label">{{ stat.label }}</span>
+                                <span class="value">{{ stat.value }}</span>
+                            </div>
+
+                            <el-divider
+                                v-if="i < stats.length - 1"
+                                direction="vertical"
+                            />
+                        </template>
+                    </div>
+
+                    <div class="dashboard-actions gap-3">
+                        <el-button
+                            :type="
+                                isLeaderboardDisplayed ? 'warning' : 'primary'
+                            "
+                            plain
+                            @click="toggleLeaderboard"
+                            size="large"
+                        >
+                            🏆
+                            {{
+                                isLeaderboardDisplayed
+                                    ? $t('host.hide_leaderboard')
+                                    : $t('host.show_leaderboard')
+                            }}
+                        </el-button>
+                        <el-button
+                            type="danger"
+                            plain
+                            size="large"
+                            @click="leaveRoom"
+                        >
+                            {{ $t('common.end_game') }}
+                        </el-button>
+                    </div>
+                </div>
+            </el-card>
+
+            <el-alert
+                v-if="isReconnecting"
+                :title="$t('common.network_disconnected')"
+                type="warning"
+                show-icon
+                center
+                :closable="false"
+                class="mb-4"
+            />
+
+            <el-row :gutter="32" class="main-layout-grid">
+                <el-col :xs="24" :md="16">
+                    <el-card shadow="never" class="pool-card">
+                        <template #header>
+                            <div class="flex-between px-2">
+                                <h3 class="m-0">
+                                    {{ $t('host.question_pool') }} ({{
+                                        waitingPool.length
+                                    }})
+                                </h3>
+                                <el-button
+                                    type="primary"
+                                    size="large"
+                                    plain
+                                    :disabled="selectedQuestionIds.length === 0"
+                                    @click="broadcastSelected"
+                                >
+                                    <el-icon class="mr-1"><Position /></el-icon>
+                                    {{ $t('host.broadcast_selected') }} ({{
+                                        selectedQuestionIds.length
+                                    }})
+                                </el-button>
+                            </div>
+                        </template>
 
                         <div class="question-list">
-                            <div
-                                v-for="eq in waitingPool"
-                                :key="eq.question_id"
-                                class="question-card"
-                                :class="{
-                                    'is-broadcasted': broadcastedIds.includes(
-                                        eq.question_id
-                                    )
-                                }"
+                            <el-checkbox-group
+                                v-model="selectedQuestionIds"
+                                class="flex-col-gap"
                             >
-                                <div class="q-header">
-                                    <label class="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            :value="eq.question_id"
-                                            v-model="selectedQuestionIds"
-                                            :disabled="
+                                <GameQuestionCard
+                                    v-for="(eq, index) in waitingPool"
+                                    :key="eq.question_id"
+                                    :question="eq.question"
+                                    :index="eq.sort_order"
+                                    role="host"
+                                    :class="{
+                                        'is-broadcasted':
+                                            broadcastedIds.includes(
+                                                eq.question_id
+                                            )
+                                    }"
+                                >
+                                    <template #header-left>
+                                        <div class="flex-align-center gap-4">
+                                            <el-checkbox
+                                                :value="eq.question_id"
+                                                :disabled="
+                                                    broadcastedIds.includes(
+                                                        eq.question_id
+                                                    )
+                                                "
+                                                size="large"
+                                            />
+                                            <el-tag
+                                                type="info"
+                                                effect="plain"
+                                                size="large"
+                                                >Q{{
+                                                    eq.sort_order + 1
+                                                }}</el-tag
+                                            >
+                                            <el-tag
+                                                type="info"
+                                                plain
+                                                size="large"
+                                                >{{
+                                                    formatQuestionType(
+                                                        eq.question.type
+                                                    )
+                                                }}</el-tag
+                                            >
+                                            <el-tag
+                                                v-if="
+                                                    broadcastedIds.includes(
+                                                        eq.question_id
+                                                    )
+                                                "
+                                                type="primary"
+                                                effect="plain"
+                                                round
+                                                size="large"
+                                            >
+                                                {{ $t('common.submitted') }}:
+                                                {{
+                                                    getSubmissionCount(
+                                                        eq.question_id
+                                                    )
+                                                }}
+                                                / {{ players.length }}
+                                            </el-tag>
+                                        </div>
+                                    </template>
+
+                                    <template #header-right>
+                                        <el-tag
+                                            v-if="
                                                 broadcastedIds.includes(
                                                     eq.question_id
                                                 )
                                             "
-                                        />
-                                        <span class="q-number"
-                                            >Q{{ eq.sort_order + 1 }}</span
+                                            type="success"
+                                            effect="plain"
+                                            round
+                                            size="large"
                                         >
-                                    </label>
-                                    <span class="q-type">{{
-                                        formatQuestionType(eq.question.type)
-                                    }}</span>
-                                </div>
+                                            {{ $t('host.sent') }}
+                                        </el-tag>
+                                    </template>
 
-                                <div class="q-content">
-                                    <div
-                                        class="markdown-body"
-                                        v-html="
-                                            renderMarkdown(eq.question.content)
-                                        "
-                                    ></div>
-                                </div>
-
-                                <div class="q-actions">
-                                    <span
-                                        v-if="
-                                            broadcastedIds.includes(
-                                                eq.question_id
-                                            )
-                                        "
-                                        class="status-badge"
-                                        >{{ $t('host.sent') }}</span
-                                    >
-
-                                    <button
-                                        @click="displayOnScreen(eq)"
-                                        class="btn-secondary small-btn"
-                                        :class="{
-                                            'is-displaying':
-                                                currentDisplayedEq?.question_id ===
-                                                eq.question_id
-                                        }"
-                                    >
-                                        {{
-                                            currentDisplayedEq?.question_id ===
-                                            eq.question_id
-                                                ? $t('host.stop_displaying')
-                                                : $t('host.display_on_screen')
-                                        }}
-                                    </button>
-                                </div>
-                            </div>
+                                    <template #actions>
+                                        <div class="text-right w-full">
+                                            <el-button
+                                                v-if="
+                                                    currentDisplayedEq?.question_id ===
+                                                    eq.question_id
+                                                "
+                                                type="warning"
+                                                plain
+                                                @click="displayOnScreen(eq)"
+                                                size="large"
+                                            >
+                                                <el-icon class="mr-1"
+                                                    ><VideoPause
+                                                /></el-icon>
+                                                {{ $t('host.stop_displaying') }}
+                                            </el-button>
+                                            <el-button
+                                                v-else
+                                                type="primary"
+                                                plain
+                                                @click="displayOnScreen(eq)"
+                                                size="large"
+                                            >
+                                                <el-icon class="mr-1"
+                                                    ><Monitor
+                                                /></el-icon>
+                                                {{
+                                                    $t('host.display_on_screen')
+                                                }}
+                                            </el-button>
+                                        </div>
+                                    </template>
+                                </GameQuestionCard>
+                            </el-checkbox-group>
                         </div>
-                    </div>
-                </div>
+                    </el-card>
+                </el-col>
 
-                <div class="right-col">
-                    <div class="player-list card">
-                        <h3>
-                            {{ $t('host.joined_players') }} ({{
-                                players.length
-                            }})
-                        </h3>
-                        <ul v-if="players.length > 0">
-                            <li
-                                v-for="player in players"
-                                :key="player"
-                                class="player-chip"
-                            >
-                                {{ player }}
-                            </li>
-                        </ul>
-                        <p v-else class="empty-text">
-                            {{ $t('host.no_students_joined') }}
-                        </p>
+                <el-col :xs="24" :md="8">
+                    <div class="right-col-content">
+                        <el-card
+                            shadow="never"
+                            :body-style="{ padding: '24px' }"
+                        >
+                            <template #header>
+                                <div class="flex-between">
+                                    <strong style="font-size: 1.2rem">
+                                        {{ $t('host.participants') }}</strong
+                                    >
+                                    <el-tag
+                                        type="info"
+                                        round
+                                        effect="plain"
+                                        size="large"
+                                        >{{ players.length }}</el-tag
+                                    >
+                                </div>
+                            </template>
+
+                            <el-empty
+                                v-if="players.length === 0"
+                                :description="$t('host.no_students_joined')"
+                                :image-size="80"
+                            />
+                            <div v-else class="flex-wrap gap-3">
+                                <el-tag
+                                    v-for="player in players"
+                                    :key="player"
+                                    size="large"
+                                    effect="plain"
+                                    class="player-tag"
+                                >
+                                    {{ player }}
+                                </el-tag>
+                            </div>
+                        </el-card>
                     </div>
-                </div>
-            </div>
+                </el-col>
+            </el-row>
         </div>
     </div>
 </template>
@@ -268,18 +442,18 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import api from '../api'
-import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
+import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
+import GameQuestionCard from '../components/GameQuestionCard.vue'
 import { formatQuestionType } from '../utils/locales'
-import { renderMarkdown } from '../utils/markdown'
+import { Position, Monitor, VideoPause } from '@element-plus/icons-vue'
 
-// --- Types ---
 interface Exam {
     id: number
     title: string
     description?: string
     is_locked: boolean
+    exam_questions: ExamQuestion[]
 }
-
 interface Question {
     id: number
     type: string
@@ -287,7 +461,6 @@ interface Question {
     options?: any
     reference_answer: any
 }
-
 interface ExamQuestion {
     exam_id: number
     question_id: number
@@ -295,95 +468,210 @@ interface ExamQuestion {
     question: Question
 }
 
-// Initialize i18n
 const { t } = useI18n()
 
 // --- State ---
+const step = ref<'login' | 'setup' | 'room'>('login')
 const username = ref('')
 const password = ref('')
+const authToken = ref('')
+
 const roomPin = ref('1234')
+const classes = ref<string[]>([])
+const exams = ref<Exam[]>([])
+const selectedClass = ref('')
+const allowGuests = ref(true)
+const selectedExam = ref<number | ''>('')
+const expectedStudents = ref<string[]>([])
+
+const players = ref<string[]>([])
+
+const playerStats = ref({
+    student_count: 0,
+    guest_count: 0,
+    total_count: 0
+})
+
+const broadcastedIds = ref<number[]>([])
+const currentDisplayedEq = ref<ExamQuestion | null>(null)
+const selectedQuestionIds = ref<number[]>([])
+
+const roomStats = ref<any>({
+    target_class: '',
+    allow_guests: true,
+    expected_students: [],
+    answers: {},
+    gradings: {}
+})
+
 const errorMessage = ref('')
 const isConnected = ref(false)
 const isLoading = ref(false)
-const isReconnecting = ref(false) // 🚀 新增：斷線重連狀態
-const players = ref<string[]>([])
-const authToken = ref('')
+const isReconnecting = ref(false)
 const isLeaderboardDisplayed = ref(false)
 const recoveredDisplayedId = ref<number | null>(null)
 
-// Exam State
-const exams = ref<Exam[]>([])
-const examSearchQuery = ref('')
-const isDropdownOpen = ref(false)
-const selectedExam = ref<Exam | null>(null)
-
-// Question Pool State
-const waitingPool = ref<ExamQuestion[]>([])
-const isQuestionsLoaded = ref(false)
-const selectedQuestionIds = ref<number[]>([])
-const broadcastedIds = ref<number[]>([])
-const currentDisplayedEq = ref<ExamQuestion | null>(null)
-
-// --- Computed ---
-const filteredExams = computed(() => {
-    if (!examSearchQuery.value) return exams.value
-    const query = examSearchQuery.value.toLowerCase()
-    return exams.value.filter((exam) =>
-        exam.title.toLowerCase().includes(query)
-    )
+// --- Computeds ---
+const activeExam = computed(() => {
+    if (!selectedExam.value) return null
+    return exams.value.find((e) => e.id === selectedExam.value)
 })
 
-// --- API Calls ---
-const fetchMyExams = async () => {
-    try {
-        exams.value = await api.get('/exams/?is_locked=true')
-    } catch (error) {
-        console.error('Error fetching exams:', error)
-        errorMessage.value = 'Could not load exams.'
-    }
-}
-
-const loadQuestions = async () => {
-    if (!selectedExam.value) return
-
-    try {
-        isLoading.value = true
-        const examDetails: any = await api.get(
-            `/exams/${selectedExam.value.id}`
-        )
-
-        waitingPool.value = examDetails.exam_questions.sort(
-            (a: ExamQuestion, b: ExamQuestion) => a.sort_order - b.sort_order
-        )
-        isQuestionsLoaded.value = true
-
-        // 題目載入後，如果有之前未關閉的投放題目，把它高亮起來
-        if (recoveredDisplayedId.value) {
-            currentDisplayedEq.value =
-                waitingPool.value.find(
-                    (q) => q.question_id === recoveredDisplayedId.value
-                ) || null
+const stats = computed(() => {
+    return [
+        {
+            condition: !!roomStats.value.target_class,
+            label: t('host.target_class'),
+            value: roomStats.value.target_class
+        },
+        {
+            condition: true,
+            label: t('host.num_students'),
+            value: roomStats.value.target_class
+                ? `${playerStats.value.student_count} / ${roomStats.value.expected_students?.length || 0}`
+                : `${playerStats.value.student_count}`
+        },
+        {
+            condition: !!roomStats.value.allow_guests,
+            label: t('host.num_guests'),
+            value: playerStats.value.guest_count
         }
-    } catch (error) {
-        console.error('Error loading questions:', error)
-        alert('Failed to load questions.')
+    ].filter((stat) => stat.condition)
+})
+
+const waitingPool = computed<ExamQuestion[]>(() => {
+    return activeExam.value ? activeExam.value.exam_questions : []
+})
+
+// --- Methods ---
+const verifyTeacher = async () => {
+    if (!username.value || !password.value) {
+        errorMessage.value = 'Please fill in all fields'
+        return
+    }
+    isLoading.value = true
+    errorMessage.value = ''
+    try {
+        const formData = new URLSearchParams()
+        formData.append('username', username.value)
+        formData.append('password', password.value)
+
+        const data: any = await api.post('/auth/login', formData.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        })
+
+        authToken.value = data.access_token
+        localStorage.setItem('host_token', data.access_token)
+
+        const [classRes, examRes] = await Promise.all([
+            api.get('/students/classes'),
+            api.get('/exams/?is_locked=true')
+        ])
+
+        classes.value = classRes as unknown as string[]
+        exams.value = examRes as any
+        step.value = 'setup'
+    } catch (error: any) {
+        errorMessage.value = error.response?.data?.detail || 'Login failed.'
     } finally {
         isLoading.value = false
     }
 }
 
-// --- UI Actions ---
-const selectExam = (exam: Exam) => {
-    selectedExam.value = exam
-    examSearchQuery.value = ''
-    isDropdownOpen.value = false
-    isQuestionsLoaded.value = false
-    waitingPool.value = []
+const fetchExpectedStudents = async () => {
+    if (!selectedClass.value) {
+        expectedStudents.value = []
+        return
+    }
+    try {
+        const res: any = await api.get(
+            `/students/?class_name=${selectedClass.value}`
+        )
+        expectedStudents.value = res.map((s: any) => s.student_id)
+    } catch (e) {
+        console.error('Failed to fetch expected students', e)
+    }
+}
+
+const startRoom = () => {
+    isLoading.value = true
+
+    socket.off('connect')
+    socket.on('connect', () => {
+        socket.emit('join_room', {
+            room_pin: roomPin.value,
+            role: 'host',
+            student_id: 'Host_Teacher',
+            password: '',
+            token: authToken.value,
+            exam_id: selectedExam.value,
+            target_class: selectedClass.value,
+            allow_guests: allowGuests.value,
+            expected_students: expectedStudents.value
+        })
+
+        isConnected.value = true
+        isLoading.value = false
+        step.value = 'room'
+        isReconnecting.value = false
+
+        localStorage.setItem(
+            'setup_data',
+            JSON.stringify({
+                room_pin: roomPin.value,
+                exam_id: selectedExam.value,
+                target_class: selectedClass.value,
+                allow_guests: allowGuests.value,
+                expected_students: expectedStudents.value
+            })
+        )
+    })
+
+    socket.off('disconnect')
+    socket.on('disconnect', (reason) => {
+        if (
+            reason === 'io server disconnect' ||
+            reason === 'io client disconnect'
+        ) {
+            isConnected.value = false
+            isReconnecting.value = false
+        } else {
+            isReconnecting.value = true
+        }
+    })
+
+    socket.connect()
+}
+
+const leaveRoom = () => {
+    if (isConnected.value) {
+        socket.emit('end_game', {
+            room_pin: roomPin.value,
+            exam_id: selectedExam.value
+        })
+    }
+
+    localStorage.removeItem('setup_data')
+    localStorage.removeItem('host_token')
+
+    isConnected.value = false
+    isReconnecting.value = false
+    players.value = []
+    authToken.value = ''
+    selectedClass.value = ''
+    selectedExam.value = ''
+
+    broadcastedIds.value = []
+    selectedQuestionIds.value = []
+    currentDisplayedEq.value = null
+    isLeaderboardDisplayed.value = false
+    step.value = 'login'
+
+    setTimeout(() => socket.disconnect(), 100)
 }
 
 const broadcastSelected = () => {
     if (selectedQuestionIds.value.length === 0) return
-
     const questionsToBroadcast = waitingPool.value
         .filter((eq) => selectedQuestionIds.value.includes(eq.question_id))
         .map((eq) => eq.question)
@@ -392,7 +680,6 @@ const broadcastSelected = () => {
         room_pin: roomPin.value,
         questions: questionsToBroadcast
     })
-
     broadcastedIds.value.push(...selectedQuestionIds.value)
     selectedQuestionIds.value = []
 }
@@ -424,171 +711,73 @@ const toggleLeaderboard = () => {
     } else {
         isLeaderboardDisplayed.value = true
         currentDisplayedEq.value = null
-        socket.emit('host_show_leaderboard', {
-            room_pin: roomPin.value
-        })
+        socket.emit('host_show_leaderboard', { room_pin: roomPin.value })
     }
 }
 
-// Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement
-    if (!target.closest('.custom-select-container')) {
-        isDropdownOpen.value = false
-    }
-})
-
-// --- Core Auth & Socket ---
-
-// 🚀 新增：獨立處理 Socket 連線與監聽邏輯
-const initSocketConnection = () => {
-    socket.off('connect')
-    socket.on('connect', () => {
-        socket.emit('join_room', {
-            room_pin: roomPin.value,
-            role: 'host',
-            student_id: 'Host_Teacher',
-            password: '',
-            token: authToken.value
-        })
-        isConnected.value = true
-        isLoading.value = false
-        isReconnecting.value = false // 連線成功，解除重連狀態
-    })
-
-    // 🚀 監聽異常斷線，觸發重連 Banner，但不退回首頁
-    socket.off('disconnect')
-    socket.on('disconnect', (reason) => {
-        console.warn('Host disconnected:', reason)
-        if (
-            reason === 'io server disconnect' ||
-            reason === 'io client disconnect'
-        ) {
-            isConnected.value = false
-            isReconnecting.value = false
-        } else {
-            isReconnecting.value = true
-        }
-    })
-
-    socket.connect()
-}
-
-const loginAndCreateRoom = async () => {
-    errorMessage.value = ''
-    isLoading.value = true
-    if (!username.value || !password.value) {
-        errorMessage.value = 'Please enter both username and password.'
-        isLoading.value = false
-        return
-    }
-
-    try {
-        const formData = new URLSearchParams()
-        formData.append('username', username.value)
-        formData.append('password', password.value)
-
-        const data: any = await api.post('/auth/login', formData.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        })
-
-        authToken.value = data.access_token
-
-        // 🚀 儲存登入憑證與房號供 F5 恢復使用
-        localStorage.setItem('host_token', data.access_token)
-        localStorage.setItem('quizio_host_pin', roomPin.value)
-
-        await fetchMyExams()
-        initSocketConnection()
-    } catch (error: any) {
-        errorMessage.value = error.response?.data?.detail || 'Login failed.'
-        isLoading.value = false
-    }
-}
-
-const leaveRoom = () => {
-    if (isConnected.value) {
-        socket.emit('end_game', {
-            room_pin: roomPin.value,
-            exam_id: selectedExam.value?.id
-        })
-    }
-
-    // 🚀 徹底清除房號記憶
-    localStorage.removeItem('quizio_host_pin')
-    localStorage.removeItem('host_token')
-
-    isConnected.value = false
-    isReconnecting.value = false
-    players.value = []
-    authToken.value = ''
-    selectedExam.value = null
-    exams.value = []
-    waitingPool.value = []
-    isQuestionsLoaded.value = false
-
-    broadcastedIds.value = []
-    selectedQuestionIds.value = []
-    currentDisplayedEq.value = null
-    isLeaderboardDisplayed.value = false
-    examSearchQuery.value = ''
-
-    setTimeout(() => {
-        socket.disconnect() // 這裡會觸發 reason: 'io client disconnect'
-    }, 100)
+const getSubmissionCount = (qId: number) => {
+    if (!roomStats.value.answers || !roomStats.value.answers[qId]) return 0
+    return Object.keys(roomStats.value.answers[qId]).length
 }
 
 onMounted(() => {
-    // 🚀 F5 重新整理自動恢復機制
-    const savedPin = localStorage.getItem('quizio_host_pin')
     const savedToken = localStorage.getItem('host_token')
-
-    if (savedPin && savedToken && !isConnected.value) {
-        roomPin.value = savedPin
-        authToken.value = savedToken
-
-        // 背景載入考卷清單並自動發起 Socket 連線
-        fetchMyExams()
-        initSocketConnection()
+    let savedSetupData = undefined
+    try {
+        const jsonStr = localStorage.getItem('setup_data')
+        if (jsonStr) savedSetupData = JSON.parse(jsonStr)
+    } catch {
+        savedSetupData = undefined
     }
 
-    // --- Socket Events ---
-    socket.on(
-        'room_state',
-        async (data: { room_pin: string; players: string[] }) => {
-            if (String(data.room_pin) === String(roomPin.value)) {
-                players.value = [...data.players]
-                await nextTick()
-            }
-        }
-    )
+    if (savedToken && savedSetupData && !isConnected.value) {
+        authToken.value = savedToken
+        roomPin.value = savedSetupData.room_pin
+        selectedExam.value = savedSetupData.exam_id
+        selectedClass.value = savedSetupData.target_class
+        allowGuests.value = savedSetupData.allow_guests
+        expectedStudents.value = savedSetupData.expected_students
 
-    socket.on(
-        'host_recovered_state',
-        (data: {
-            broadcasted_ids: number[]
-            displayed_question_id: number | null
-            is_leaderboard_displayed: boolean
-        }) => {
-            broadcastedIds.value = data.broadcasted_ids
-            isLeaderboardDisplayed.value = data.is_leaderboard_displayed
-            recoveredDisplayedId.value = data.displayed_question_id
+        Promise.all([
+            api.get('/students/classes'),
+            api.get('/exams/?is_locked=true')
+        ]).then(([classRes, examRes]) => {
+            classes.value = classRes as unknown as string[]
+            exams.value = examRes as any
+            startRoom()
+        })
+    }
 
-            if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
-                currentDisplayedEq.value =
-                    waitingPool.value.find(
-                        (q) => q.question_id === recoveredDisplayedId.value
-                    ) || null
-            } else {
-                currentDisplayedEq.value = null
-            }
+    socket.on('room_state', async (data) => {
+        players.value = data.players
+        playerStats.value = data.player_stats
+        await nextTick()
+    })
+
+    socket.on('host_room_stats', (data) => {
+        roomStats.value = data
+    })
+
+    socket.on('host_recovered_state', (data: any) => {
+        broadcastedIds.value = data.broadcasted_ids
+        isLeaderboardDisplayed.value = data.is_leaderboard_displayed
+        recoveredDisplayedId.value = data.displayed_question_id
+
+        if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
+            currentDisplayedEq.value =
+                waitingPool.value.find(
+                    (q) => q.question_id === recoveredDisplayedId.value
+                ) || null
+        } else {
+            currentDisplayedEq.value = null
         }
-    )
+    })
 })
 
 onUnmounted(() => {
     socket.disconnect()
     socket.off('room_state')
+    socket.off('host_room_stats')
     socket.off('host_recovered_state')
     socket.off('connect')
     socket.off('disconnect')
@@ -597,546 +786,252 @@ onUnmounted(() => {
 
 <style scoped>
 /* --------------------------------------
-   Layout & Panel Structure
+   Base Layout & Overrides (Theme Compatible)
 --------------------------------------- */
 .host-view {
-    padding: 20px 15px;
-    max-width: 1000px;
+    padding: 32px 24px;
+    max-width: 1400px;
     margin: 0 auto;
+    color: var(--el-text-color-primary);
 }
 
-h1 {
-    font-size: 2rem;
-    color: var(--text-main);
-    margin-bottom: 24px;
-    text-align: center;
-    font-weight: 800;
-    letter-spacing: -0.025em;
-}
-
-h2,
-h3 {
-    margin-top: 0;
-    color: var(--text-main);
-    font-weight: 700;
-}
-
-h3 {
-    font-size: 1.25rem;
-    margin-bottom: 16px;
-}
-
-/* Login Panel */
-.login-panel {
-    max-width: 480px;
-    margin: 40px auto;
-}
-
-/* Game Panel Main Container */
-.game-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-/* Reconnect Banner Styles */
-.reconnect-banner {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 1.1rem;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    animation: alert-pulse 2s infinite;
-}
-
-@keyframes alert-pulse {
-    0% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.8;
-    }
-    100% {
-        opacity: 1;
-    }
-}
-
-/* Layout Grid */
-.layout-grid {
-    display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-    align-items: flex-start;
-}
-
-/* Left Column */
-.left-col {
-    flex: 2;
-    min-width: 320px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-/* Right Column */
-.right-col {
-    flex: 1;
-    min-width: 280px;
-}
-
-/* --------------------------------------
-   Room Header & Indicators (Height Locked)
---------------------------------------- */
-.room-header {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    background: var(--bg-card);
-    border-left: 4px solid var(--primary-light);
-    padding: 16px 24px;
-    gap: 16px;
-    min-height: 80px; /* Lock the minimum height of the entire header */
-    box-sizing: border-box;
-}
-
-.room-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: var(--text-main);
-    grid-column: 1;
-    justify-self: start;
-    line-height: 1.2; /* Lock line-height to ignore CJK/Latin differences */
-    white-space: nowrap;
-}
-
-.status-indicator {
-    color: var(--success-color);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    grid-column: 2;
-    justify-self: center;
-    margin: 0;
-    height: 36px; /* Lock the height of the badge */
-    line-height: 1;
-    white-space: nowrap; /* Prevent text from wrapping */
-}
-
-.header-actions {
-    grid-column: 3;
-    justify-self: end;
-    display: flex;
-    gap: 12px;
-}
-
-.header-actions button {
-    min-width: 180px;
-    height: 40px; /* Force buttons to be exactly the same height */
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    white-space: nowrap;
-}
-
-/* --------------------------------------
-   Custom Select Dropdown
---------------------------------------- */
-.custom-select-container {
-    position: relative;
+.w-full {
     width: 100%;
 }
+.gap-2 {
+    gap: 8px;
+}
+.m-0 {
+    margin: 0;
+}
+.mb-4 {
+    margin-bottom: 24px;
+}
+.mt-2 {
+    margin-top: 12px;
+}
+.mt-4 {
+    margin-top: 24px;
+}
+.px-2 {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.mr-1 {
+    margin-right: 8px;
+}
+.text-center {
+    text-align: center;
+}
+.text-right {
+    text-align: right;
+}
+.text-muted {
+    color: var(--el-text-color-secondary);
+}
+.text-danger {
+    color: var(--el-color-danger);
+}
+.text-success {
+    color: var(--el-color-success);
+    font-weight: bold;
+}
+.text-sm {
+    font-size: 0.95rem;
+}
 
-.dropdown-list {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    right: 0;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.flex-align-center {
+    display: flex;
+    align-items: center;
+}
+.flex-wrap {
+    display: flex;
+    flex-wrap: wrap;
+}
+.gap-3 {
+    gap: 16px;
+}
+.gap-4 {
+    gap: 24px;
+}
+.flex-col-gap {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* --------------------------------------
+   Auth & Setup Panels
+--------------------------------------- */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100dvh - 120px);
+}
+.auth-card {
+    width: 100%;
+    max-width: 520px;
     border-radius: 12px;
-    max-height: 280px;
-    overflow-y: auto;
-    z-index: 20;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    background-color: var(--el-bg-color-overlay);
+}
+.auth-form .el-form-item,
+.setup-form .el-form-item {
+    margin-bottom: 28px;
+}
+.exam-id-meta {
+    float: right;
+    color: var(--el-text-color-placeholder);
+    font-size: 0.9rem;
 }
 
-.dropdown-item {
-    padding: 16px;
-    border-bottom: 1px solid var(--border-color);
-    cursor: pointer;
-    transition: background-color 0.15s ease;
+/* --------------------------------------
+   Dashboard UI
+--------------------------------------- */
+.room-container {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
 }
 
-.dropdown-item:last-child {
-    border-bottom: none;
+.dashboard-card {
+    border-radius: 12px;
+    background-color: var(--el-bg-color-overlay);
 }
-
-.dropdown-item:active,
-.dropdown-item:hover {
-    background: var(--hover-bg);
+.dashboard-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24px;
 }
-
-.exam-title {
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--text-main);
+.dashboard-title h2 {
+    margin: 0;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
-
-.exam-meta {
-    font-size: 0.85rem;
-    color: var(--text-muted);
+.dashboard-stats {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.stat-item .label {
+    font-size: 0.9rem;
+    color: var(--el-text-color-secondary);
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+.stat-item .value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--el-text-color-primary);
     margin-top: 6px;
 }
 
-.empty {
-    text-align: center;
-    color: var(--text-muted);
-    padding: 24px;
-}
-
 /* --------------------------------------
-   Selected Exam Card
+   Question Pool
 --------------------------------------- */
-.selected-exam-card {
-    border: 2px solid var(--border-color);
+.pool-card {
     border-radius: 12px;
-    padding: 20px;
-    background: var(--highlight-bg);
-    position: relative;
-    overflow: hidden;
+    background-color: var(--el-bg-color-overlay);
 }
-
-.selected-exam-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary-light), #8b5cf6);
+.pool-card :deep(.el-card__body) {
+    padding: 0;
 }
-
-.exam-header-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.exam-header-actions h4 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: var(--text-main);
-}
-
-.exam-desc {
-    color: var(--text-muted);
-    font-size: 0.95rem;
-    margin-bottom: 20px;
-    line-height: 1.5;
-}
-
-/* --------------------------------------
-   Question Pool & Cards
---------------------------------------- */
-.pool-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
-}
-
 .question-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    max-height: 60vh;
+    max-height: 70vh;
     overflow-y: auto;
-    padding-right: 8px;
+    padding: 32px;
+    background-color: var(--el-fill-color-light);
+    border-radius: 0 0 12px 12px;
 }
 
-.question-list::-webkit-scrollbar {
-    width: 6px;
-}
-.question-list::-webkit-scrollbar-track {
-    background: var(--bg-color);
-    border-radius: 4px;
-}
-.question-list::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
+.question-list :deep(.game-question-card) {
+    background-color: var(--el-bg-color-overlay);
 }
 
-.question-card {
-    border: 1px solid var(--border-color);
-    padding: 20px;
-    border-radius: 12px;
-    background: var(--bg-card);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    transition: all 0.2s ease;
+.question-list :deep(.game-question-card.is-broadcasted) {
+    border-left-color: var(--el-color-success);
 }
-
-.question-card:hover {
-    border-color: var(--text-muted);
-}
-
-.q-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    user-select: none;
-}
-
-.checkbox-label input[type='checkbox'] {
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    accent-color: var(--primary-light);
-    border-radius: 4px;
-}
-
-.q-number {
-    background: var(--border-color);
-    color: var(--text-main);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 0.9rem;
-}
-
-.q-type {
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    letter-spacing: 0.05em;
-}
-
-.q-content {
-    font-size: 1.05rem;
-    color: var(--text-main);
-    line-height: 1.6;
-}
-
-.question-card.is-broadcasted {
-    border-left: 4px solid var(--success-color);
-    background-color: var(--highlight-bg);
+.question-list :deep(.el-checkbox__label) {
+    display: none;
 }
 
 /* --------------------------------------
-   Question Pool Actions (Double Height/Width Locked)
+   Right Column
 --------------------------------------- */
-.q-actions {
+.right-col-content {
     display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px dashed var(--border-color);
-    min-height: 56px; /* Lock outer container height */
-    gap: 12px;
-    box-sizing: border-box;
+    flex-direction: column;
+    gap: 32px;
 }
 
-.status-badge {
-    margin-right: auto;
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--success-color);
-    padding: 0 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 28px; /* Lock badge height */
-    line-height: 1;
-    box-sizing: border-box;
-    white-space: nowrap;
+.right-col-content .el-card {
+    border-radius: 12px;
+    background-color: var(--el-bg-color-overlay);
 }
 
-.status-badge::before {
-    content: '';
-    display: inline-block;
+.player-tag {
+    font-size: 1.1rem;
+    padding: 20px 18px;
+    background-color: var(--el-fill-color-light);
+    border-color: var(--el-border-color-lighter);
+    color: var(--el-text-color-primary);
+}
+
+.pulse-dot {
     width: 6px;
     height: 6px;
-    background-color: var(--success-color);
+    background-color: var(--el-color-warning);
     border-radius: 50%;
-    flex-shrink: 0; /* Ensure dot does not deform */
+    animation: pulse 1.5s infinite;
+    display: inline-block;
 }
-
-.q-actions button {
-    min-width: 200px; /* Expand to 200px to perfectly wrap "Display on Screen" */
-    height: 40px; /* Lock button height */
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    white-space: nowrap;
-    line-height: 1;
-}
-
-/* Displaying Animation */
-.btn-secondary.is-displaying {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    border-color: transparent !important; /* Keep border placeholder but make it invisible */
-    box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.2);
-    animation: pulse-orange 2s infinite;
-}
-
-@keyframes pulse-orange {
+@keyframes pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+        box-shadow: 0 0 0 0 rgba(230, 162, 60, 0.5);
     }
     70% {
-        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+        box-shadow: 0 0 0 6px rgba(230, 162, 60, 0);
     }
     100% {
-        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+        box-shadow: 0 0 0 0 rgba(230, 162, 60, 0);
     }
 }
 
-/* --------------------------------------
-   Player List
---------------------------------------- */
-.player-list ul {
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.player-chip {
-    background: var(--chip-bg);
-    color: var(--primary-light);
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border: 1px solid var(--chip-border);
-    display: flex;
-    align-items: center;
-}
-
-.empty-text {
-    color: var(--text-muted);
-    font-style: italic;
-    text-align: center;
-    padding: 20px 0;
-}
-
-/* --------------------------------------
-   Responsive Adjustments
---------------------------------------- */
-@media (max-width: 640px) {
-    .host-view {
-        padding: 10px;
+@media (max-width: 992px) {
+    .dashboard-flex {
+        flex-direction: column;
+        align-items: flex-start;
     }
-    .card {
-        padding: 16px;
+    .dashboard-stats {
+        width: 100%;
+        justify-content: space-around;
+        padding: 16px 0;
     }
-
-    /* Header Grid Reset */
-    .room-header {
+    .dashboard-actions {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+    }
+    .main-layout-grid {
         display: flex;
         flex-direction: column;
-        align-items: stretch;
-        min-height: auto; /* Release height lock on mobile */
+        gap: 32px;
     }
-    .room-header h2,
-    .status-indicator,
-    .header-actions {
-        grid-column: auto;
-        justify-self: stretch;
-        justify-content: center;
-        text-align: center;
-    }
-    .header-actions button {
-        width: 100%;
-    }
-
-    .pool-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-    }
-}
-</style>
-
-<style scoped>
-/* ==========================================
-   Markdown Content Styles for Game UI
-========================================== */
-.markdown-body {
-    width: 100%;
-    color: inherit; /* Inherit text color from your game theme */
-}
-
-/* Ensure paragraph spacing is comfortable */
-.markdown-body :deep(p) {
-    margin: 0 0 1rem 0;
-    line-height: 1.6;
-    font-size: 1.2rem; /* Larger font size for game readability */
-}
-.markdown-body :deep(p:last-child) {
-    margin-bottom: 0;
-}
-
-/* Make images responsive and rounded */
-.markdown-body :deep(img) {
-    max-width: 100%;
-    max-height: 40vh; /* Prevent extremely tall images from taking over the screen */
-    height: auto;
-    border-radius: 8px;
-    margin: 10px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Add a nice shadow for game aesthetics */
-    object-fit: contain;
-    display: block; /* Avoid inline spacing issues */
-}
-
-/* Style lists */
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-    padding-left: 2rem;
-    margin: 0 0 1rem 0;
-}
-.markdown-body :deep(li) {
-    margin-bottom: 0.5rem;
-}
-
-/* Code block styles (if teachers include code snippets) */
-.markdown-body :deep(pre) {
-    background-color: #282c34;
-    color: #abb2bf;
-    padding: 1rem;
-    border-radius: 8px;
-    overflow-x: auto;
-    font-family: monospace;
-    font-size: 1rem;
-}
-.markdown-body :deep(code) {
-    background-color: rgba(0, 0, 0, 0.1);
-    padding: 0.2rem 0.4rem;
-    border-radius: 4px;
-    font-family: monospace;
 }
 </style>

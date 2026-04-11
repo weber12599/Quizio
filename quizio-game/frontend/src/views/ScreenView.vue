@@ -1,183 +1,222 @@
 <template>
     <div class="screen-view">
-        <ButtonLangToggle v-if="!isConnected" />
+        <ButtonFloatingAction v-if="!isConnected" />
 
-        <div v-if="!isConnected" class="login-panel card">
-            <h2>{{ $t('screen.title') }}</h2>
-            <p class="subtitle">
-                {{ $t('screen.subtitle') }}
-            </p>
-
-            <div class="form-group">
-                <label>{{ $t('common.room_pin') }}</label>
-                <input
-                    v-model="roomPin"
-                    :placeholder="$t('screen.placeholder_pin')"
-                    @keyup.enter="joinAsScreen"
-                />
-            </div>
-
-            <button
-                @click="joinAsScreen"
-                class="btn-primary"
-                :disabled="isLoading"
+        <div v-if="!isConnected" class="login-container">
+            <el-card
+                class="login-card"
+                shadow="always"
+                :body-style="{ padding: '48px 40px' }"
             >
-                {{
-                    isLoading
-                        ? $t('common.connecting')
-                        : $t('screen.btn_connect')
-                }}
-            </button>
-            <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
+                <div class="text-center mb-5">
+                    <h1 class="login-title">{{ $t('screen.title') }}</h1>
+                    <p class="login-subtitle text-muted mt-2">
+                        {{ $t('screen.subtitle') }}
+                    </p>
+                </div>
+
+                <el-form
+                    label-position="top"
+                    @keyup.enter="joinAsScreen"
+                    size="large"
+                >
+                    <el-form-item :label="$t('common.room_pin')">
+                        <el-input
+                            v-model="roomPin"
+                            :placeholder="$t('placeholder.pin')"
+                            class="pin-input"
+                        />
+                    </el-form-item>
+
+                    <el-button
+                        type="primary"
+                        class="w-full mt-4"
+                        size="large"
+                        plain
+                        @click="joinAsScreen"
+                        :loading="isLoading"
+                    >
+                        {{
+                            isLoading
+                                ? $t('common.connecting')
+                                : $t('screen.btn_connect')
+                        }}
+                    </el-button>
+                </el-form>
+
+                <el-alert
+                    v-if="errorMessage"
+                    :title="errorMessage"
+                    type="error"
+                    show-icon
+                    center
+                    class="mt-4"
+                    :closable="false"
+                />
+            </el-card>
         </div>
 
         <div v-else class="display-wrapper">
-            <div class="screen-header-minimal">
-                <div class="header-left">
-                    <button @click="leaveRoom" class="btn-danger small-btn">
-                        {{ $t('common.leave') }}
-                    </button>
-                </div>
-
-                <div class="header-right">
-                    <span class="player-count">
-                        {{ $t('screen.students_joined') }}
-                        <strong>{{ players.length }}</strong>
-                    </span>
-                </div>
-            </div>
-
-            <div v-if="currentView === 'lobby'" class="lobby-state-split">
-                <div class="join-hero-card card">
-                    <div class="qr-col">
-                        <QrcodeVue
-                            :value="joinUrl"
-                            :size="220"
-                            level="H"
-                            class="hero-qr"
-                        />
-                    </div>
-                    <div class="text-col">
-                        <div class="step-text">
-                            {{ $t('screen.join_at')
-                            }}<strong>{{ joinUrl }}</strong>
-                        </div>
-                        <div class="step-subtext">
-                            {{ $t('common.room_pin') }}
-                        </div>
-                        <div class="hero-pin">{{ roomPin }}</div>
-                    </div>
-                </div>
-
-                <div class="waiting-hero-card card">
-                    <div class="waiting-header">
-                        <div class="pulse-ring"></div>
-                        <h2>{{ $t('screen.waiting_host') }}</h2>
-                    </div>
-
-                    <div class="players-container">
-                        <div v-if="players.length === 0" class="empty-players">
-                            {{ $t('screen.scan_to_join_desc') }}
-                        </div>
-                        <div v-else class="chips-grid">
-                            <div
-                                v-for="player in players"
-                                :key="player"
-                                class="player-chip massive-chip"
-                            >
-                                {{ player }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div v-else class="game-active-state">
-                <div
-                    v-if="currentView === 'question'"
-                    class="question-display-card card"
+            <div class="screen-header flex-between">
+                <el-button
+                    type="danger"
+                    plain
+                    size="large"
+                    @click="leaveRoom"
+                    class="leave-btn"
                 >
-                    <div class="q-meta">
-                        <span class="q-type">{{
-                            formatQuestionType(displayedQuestion?.type || '')
-                        }}</span>
-                    </div>
-                    <h1 class="q-content-huge">
-                        <div
-                            class="markdown-body"
-                            v-html="renderMarkdown(displayedQuestion?.content)"
-                        ></div>
-                    </h1>
+                    <el-icon class="mr-2"><Close /></el-icon>
+                    {{ $t('common.leave') }}
+                </el-button>
 
-                    <div class="stats-container">
-                        <div v-if="isChoiceQuestion(displayedQuestion?.type)">
-                            <div
-                                v-for="(opt, idx) in getOptions(
-                                    displayedQuestion
-                                )"
-                                :key="idx"
-                                class="stat-bar-wrapper"
-                            >
-                                <div class="stat-label">{{ opt }}</div>
-                                <div class="bar-bg">
-                                    <div
-                                        class="bar-fill"
-                                        :style="{
-                                            width: getBarPercentage(idx) + '%'
+                <div class="player-count-badge flex-align-center">
+                    <span class="pulse-dot mr-3"></span>
+                    <span class="count-label mr-2">{{
+                        $t('screen.students_joined')
+                    }}</span>
+                    <span class="count-number">{{
+                        playerStats.total_count
+                    }}</span>
+                </div>
+            </div>
+
+            <el-alert
+                v-if="isReconnecting"
+                :title="$t('common.network_disconnected')"
+                type="warning"
+                show-icon
+                center
+                class="my-4"
+                :closable="false"
+            />
+
+            <div
+                class="main-content-area"
+                :class="{ 'is-lobby': currentView === 'lobby' }"
+            >
+                <div
+                    v-if="currentView === 'lobby'"
+                    class="lobby-state text-center w-full max-w-5xl"
+                >
+                    <el-card
+                        class="lobby-card"
+                        shadow="always"
+                        :body-style="{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            padding: '40px 60px'
+                        }"
+                    >
+                        <div class="lobby-grid w-full">
+                            <div class="lobby-col border-b">
+                                <div class="pin-label text-muted mb-2">
+                                    {{ $t('common.room_pin') }}
+                                </div>
+                                <div class="pin-value text-primary">
+                                    {{ roomPin }}
+                                </div>
+                                <div class="url-display text-muted mt-3">
+                                    👉 {{ joinUrl }}
+                                </div>
+                            </div>
+
+                            <div class="lobby-col flex-center w-full gap-4">
+                                <div
+                                    class="qr-container bg-white rounded-xl shadow-sm"
+                                >
+                                    <vue-qrcode
+                                        :value="joinUrl"
+                                        :width="220"
+                                        :margin="1"
+                                        type="image/webp"
+                                        :color="{
+                                            dark: '#000000',
+                                            light: '#ffffff'
                                         }"
-                                    ></div>
-                                    <span
-                                        class="bar-count"
-                                        :class="{
-                                            'text-white':
-                                                getBarPercentage(idx) > 10
-                                        }"
-                                    >
-                                        {{ answerStats[idx] || 0 }} ({{
-                                            getBarPercentage(idx)
-                                        }}%)
-                                    </span>
+                                    />
+                                </div>
+
+                                <div
+                                    class="text-muted waiting-text flex-center"
+                                >
+                                    <el-icon class="is-loading mr-2" :size="28"
+                                        ><Loading
+                                    /></el-icon>
+                                    <span>{{ $t('screen.waiting_host') }}</span>
                                 </div>
                             </div>
                         </div>
+                    </el-card>
+                </div>
 
-                        <div v-else class="text-stats-container">
-                            <div class="big-number">{{ totalAnswers }}</div>
-                            <div class="stats-label">
-                                {{ $t('screen.responses_received') }}
-                            </div>
-                        </div>
-                    </div>
+                <div
+                    v-else-if="currentView === 'question' && displayedQuestion"
+                    class="w-full max-w-5xl"
+                >
+                    <GameQuestionCard
+                        :question="displayedQuestion"
+                        role="screen"
+                        :stats="{ counts: answerStats, total: totalAnswers }"
+                    />
                 </div>
 
                 <div
                     v-else-if="currentView === 'leaderboard'"
-                    class="leaderboard-state"
+                    class="w-full max-w-4xl"
                 >
-                    <div class="leaderboard-card card">
-                        <h1 class="lb-title">{{ $t('screen.top_scorers') }}</h1>
-                        <div class="podium">
+                    <el-card
+                        class="leaderboard-card"
+                        shadow="always"
+                        :body-style="{ padding: '40px' }"
+                    >
+                        <div class="text-center mb-5">
+                            <h1 class="lb-title">
+                                {{ $t('screen.top_scorers') }}
+                            </h1>
+                        </div>
+
+                        <el-empty
+                            v-if="leaderboard.length === 0"
+                            :description="$t('screen.no_data')"
+                            :image-size="120"
+                        />
+
+                        <div v-else class="lb-list flex-col gap-4">
                             <div
-                                v-for="(player, idx) in leaderboard.slice(0, 5)"
-                                :key="idx"
-                                class="lb-row"
-                                :class="'rank-' + (idx + 1)"
+                                v-for="(student, index) in leaderboard"
+                                :key="index"
+                                class="lb-row flex-between"
+                                :class="{
+                                    'top-1': index === 0,
+                                    'top-2': index === 1,
+                                    'top-3': index === 2
+                                }"
                             >
-                                <span class="lb-rank">#{{ idx + 1 }}</span>
-                                <span class="lb-name">{{ player.name }}</span>
-                                <span class="lb-score"
-                                    >{{ player.score }}
-                                    {{ $t('common.pts') }}</span
+                                <div
+                                    class="lb-rank-name flex-align-center gap-4"
                                 >
-                            </div>
-                            <div
-                                v-if="leaderboard.length === 0"
-                                class="empty-stats"
-                            >
-                                {{ $t('screen.no_scores') }}
+                                    <div class="lb-rank flex-center">
+                                        <span v-if="index === 0">🥇</span>
+                                        <span v-else-if="index === 1">🥈</span>
+                                        <span v-else-if="index === 2">🥉</span>
+                                        <span v-else>{{ index + 1 }}</span>
+                                    </div>
+                                    <div class="lb-name">
+                                        {{ student.name }}
+                                    </div>
+                                </div>
+                                <div class="lb-score font-bold">
+                                    {{ student.score }}
+                                    <span class="text-muted text-sm">{{
+                                        $t('common.pts')
+                                    }}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </el-card>
                 </div>
             </div>
         </div>
@@ -185,199 +224,146 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
-import QrcodeVue from 'qrcode.vue'
-import { formatQuestionType } from '../utils/locales'
-import ButtonLangToggle from '../components/ButtonFloatingAction.vue'
-import { renderMarkdown } from '../utils/markdown'
+import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
+import GameQuestionCard from '../components/GameQuestionCard.vue'
+import VueQrcode from 'vue-qrcode'
+import { Close, Loading } from '@element-plus/icons-vue'
 
-// Initialize i18n
 const { t } = useI18n()
-
-// --- Types ---
-interface Question {
-    id: number
-    type: string
-    content: string
-    options?: any
-}
-
-interface PlayerScore {
-    name: string
-    score: number
-}
 
 // --- State ---
 const roomPin = ref('')
 const isConnected = ref(false)
 const isLoading = ref(false)
+const isReconnecting = ref(false)
 const errorMessage = ref('')
-const players = ref<string[]>([])
 
-// View Management
 const currentView = ref<'lobby' | 'question' | 'leaderboard'>('lobby')
-
-// Question Data
-const displayedQuestion = ref<Question | null>(null)
-
-// Stats Data
+const displayedQuestion = ref<any>(null)
 const answerStats = ref<Record<string, number>>({})
 const totalAnswers = ref(0)
+const leaderboard = ref<any[]>([])
 
-// Leaderboard Data
-const leaderboard = ref<PlayerScore[]>([])
-
-// --- Computed ---
-
-// Raw URL string for the QR Code component
-const joinUrl = computed(() => {
-    if (!roomPin.value) return ''
-    const baseUrl = window.location.origin
-    return `${baseUrl}/join?pin=${roomPin.value}`
+const playerStats = ref({
+    student_count: 0,
+    guest_count: 0,
+    total_count: 0
 })
 
-// --- Helpers ---
-const isChoiceQuestion = (type?: string) => {
-    return type === 'single' || type === 'multiple' || type === 'boolean'
-}
-
-const getOptions = (q: Question | null): string[] => {
-    if (!q) return []
-    let optsRaw = q.options
-    let parsedOpts: string[] = []
-
-    if (Array.isArray(optsRaw)) {
-        parsedOpts = optsRaw
-    } else if (typeof optsRaw === 'string') {
-        try {
-            const parsed = JSON.parse(optsRaw)
-            if (Array.isArray(parsed)) parsedOpts = parsed
-            else
-                parsedOpts = Object.entries(parsed).map(
-                    ([k, v]) => `${k}: ${v}`
-                )
-        } catch {
-            parsedOpts = []
-        }
-    }
-
-    if (q.type === 'boolean' && parsedOpts.length === 0) {
-        // localized fallback for boolean options
-        return [t('common.true_option'), t('common.false_option')]
-    }
-    return parsedOpts
-}
-
-const getBarPercentage = (idx: number | string): number => {
-    if (totalAnswers.value === 0) return 0
-    const count = answerStats.value[idx] || 0
-    return Math.round((count / totalAnswers.value) * 100)
-}
+// --- URL & QR Code Computed ---
+const joinUrl = computed(() => {
+    const baseUrl = window.location.origin
+    return `${baseUrl}/client?pin=${roomPin.value}`
+})
 
 // --- Methods ---
-
-// Reusable join logic for both manual and auto-reconnect
-const performJoin = (pin: string) => {
-    isLoading.value = true
-    socket.connect()
-
-    socket.once('connect', () => {
-        socket.emit('join_room', {
-            room_pin: pin,
-            role: 'screen'
-        })
-
-        // Save the PIN to local storage for auto-reconnect on refresh
-        localStorage.setItem('quizio_screen_pin', pin)
-    })
-}
-
 const joinAsScreen = () => {
-    errorMessage.value = ''
-    if (!roomPin.value.trim()) {
-        errorMessage.value = t('screen.error_invalid_pin')
+    if (!roomPin.value) {
+        errorMessage.value = t('student.error_fill_fields')
         return
     }
-    performJoin(roomPin.value)
+
+    isLoading.value = true
+    errorMessage.value = ''
+
+    const joinPayload = {
+        room_pin: roomPin.value,
+        role: 'screen',
+        student_id: 'screen',
+        password: ''
+    }
+
+    if (socket.connected) {
+        socket.emit('join_room', joinPayload)
+        localStorage.setItem('quizio_screen_pin', roomPin.value)
+    } else {
+        socket.once('connect', () => {
+            socket.emit('join_room', joinPayload)
+            localStorage.setItem('quizio_screen_pin', roomPin.value)
+        })
+        socket.connect()
+    }
 }
 
 const leaveRoom = () => {
-    // Disconnect socket and clear storage
     socket.disconnect()
     localStorage.removeItem('quizio_screen_pin')
 
-    // Reset all states to default
     isConnected.value = false
-    roomPin.value = '' // Clear so they can input a new pin
-    players.value = []
-    displayedQuestion.value = null
+    isReconnecting.value = false
     currentView.value = 'lobby'
+    displayedQuestion.value = null
+    leaderboard.value = []
     answerStats.value = {}
     totalAnswers.value = 0
-    leaderboard.value = []
-    errorMessage.value = ''
-    isLoading.value = false
+    playerStats.value = { student_count: 0, guest_count: 0, total_count: 0 }
+    roomPin.value = ''
 }
 
-// --- Lifecycle & Socket Events ---
+// --- Lifecycle ---
 onMounted(() => {
-    // Check local storage for auto-reconnect
     const savedPin = localStorage.getItem('quizio_screen_pin')
     if (savedPin && !isConnected.value) {
         roomPin.value = savedPin
-        performJoin(savedPin)
+        joinAsScreen()
     }
 
-    // 1. Room state updates
-    socket.on('room_state', (data: { room_pin: string; players: string[] }) => {
+    socket.on('room_state', async (data: any) => {
         if (String(data.room_pin) === String(roomPin.value)) {
-            players.value = [...data.players]
             isConnected.value = true
             isLoading.value = false
+            isReconnecting.value = false
+            errorMessage.value = ''
+
+            if (data.player_stats) {
+                playerStats.value = data.player_stats
+            }
+            await nextTick()
         }
     })
 
-    // 2. Display a question
-    socket.on('display_question', (data: { question: Question | null }) => {
+    socket.on('display_question', (data: any) => {
         if (data.question) {
             displayedQuestion.value = data.question
             currentView.value = 'question'
-            answerStats.value = {}
-            totalAnswers.value = 0
         } else {
             displayedQuestion.value = null
             currentView.value = 'lobby'
         }
     })
 
-    // 3. Update real-time statistics
-    socket.on(
-        'update_stats',
-        (data: { stats: Record<string, number>; total: number }) => {
-            answerStats.value = data.stats
-            totalAnswers.value = data.total
-        }
-    )
+    socket.on('update_stats', (data: any) => {
+        answerStats.value = data.stats
+        totalAnswers.value = data.total
+    })
 
-    // 4. Show Leaderboard
-    socket.on('show_leaderboard', (data: { leaderboard: PlayerScore[] }) => {
+    socket.on('show_leaderboard', (data: any) => {
         leaderboard.value = data.leaderboard
         currentView.value = 'leaderboard'
     })
 
-    // 5. Handle errors
-    socket.on('error', (data: { message: string }) => {
-        // If the error message from backend has dynamic translation needs,
-        // you may handle it here, otherwise we display as is.
+    socket.on('error', (data: any) => {
         errorMessage.value = data.message
         isLoading.value = false
+
+        localStorage.removeItem('quizio_screen_pin')
         socket.disconnect()
         isConnected.value = false
+    })
 
-        // Clear local storage if the room doesn't exist or host ended the game
-        localStorage.removeItem('quizio_screen_pin')
+    socket.on('disconnect', (reason) => {
+        if (
+            reason === 'io server disconnect' ||
+            reason === 'io client disconnect'
+        ) {
+            isConnected.value = false
+            isReconnecting.value = false
+        } else {
+            isReconnecting.value = true
+        }
     })
 })
 
@@ -388,571 +374,357 @@ onUnmounted(() => {
     socket.off('update_stats')
     socket.off('show_leaderboard')
     socket.off('error')
+    socket.off('disconnect')
 })
 </script>
 
 <style scoped>
-/* --------------------------------------
-   Layout Structure (Optimized for 100% Viewport)
---------------------------------------- */
-.screen-view {
-    /* Force full viewport size & fixed position to bypass App.vue wrappers */
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    max-width: none;
-    margin: 0;
-    padding: 3vh 3vw; /* Use viewport units for safe area margins */
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    overflow: hidden; /* Absolutely no scrollbars on the projector */
-    background-color: var(--bg-color, #f3f4f6);
-    z-index: 50; /* Ensure it sits on top */
-}
-
-/* Center login panel perfectly in 100vh */
-.login-panel {
-    max-width: 480px;
-    width: 100%;
-    margin: auto;
-}
-
-.subtitle {
-    color: var(--text-muted);
-    margin-bottom: 24px;
-}
-
-.display-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    flex: 1;
-    height: 100%;
-    width: 100%;
-    min-height: 0; /* Crucial flex trick to allow children to compute 100% height */
-}
-
-/* --------------------------------------
-   Minimal Header
---------------------------------------- */
-.screen-header-minimal {
+/* ==========================================
+   Global Utilities
+========================================== */
+.flex-between {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-shrink: 0; /* Prevent header from squishing */
 }
-
-.player-count {
-    font-size: 1.5rem;
-    color: var(--text-main);
-    background: var(--chip-bg);
-    padding: 10px 24px;
-    border-radius: 12px;
-    border: 2px solid var(--chip-border);
-}
-.player-count strong {
-    color: var(--primary-color);
-    font-size: 1.8rem;
-    margin-left: 8px;
-}
-
-/* --------------------------------------
-   Split Lobby State (Optimized for 16:9 Landscape)
---------------------------------------- */
-.lobby-state-split {
-    flex: 1;
+.flex-align-center {
     display: flex;
-    flex-direction: row; /* Stack side-by-side for 16:9 screens */
-    gap: 32px;
-    min-height: 0;
-}
-
-/* Left Card: Join Info */
-.join-hero-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column; /* Stack QR and text vertically */
     align-items: center;
+}
+.flex-center {
+    display: flex;
     justify-content: center;
-    gap: 40px;
-    padding: 40px;
-    border: 4px solid var(--primary-light);
-    background: var(--bg-card);
-    border-radius: 24px;
+    align-items: center;
 }
-
-.hero-qr {
-    border-radius: 16px;
-    padding: 16px;
-    background: white;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.text-col {
+.flex-col {
     display: flex;
     flex-direction: column;
-    align-items: center;
+}
+.text-center {
     text-align: center;
 }
-
-.step-text {
-    font-size: 2.2rem;
-    color: var(--text-main);
+.text-muted {
+    color: var(--el-text-color-secondary);
 }
-.step-text strong {
-    color: var(--primary-color);
-    font-weight: 900;
+.text-primary {
+    color: var(--el-color-primary);
+    font-weight: bold;
 }
-
-.step-subtext {
-    font-size: 1.8rem;
-    color: var(--text-muted);
-    margin-top: 15px;
-    font-weight: 700;
+.text-danger {
+    color: var(--el-color-danger);
 }
-
-.hero-pin {
-    font-size: 6.5rem;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    color: var(--text-main);
-    line-height: 1;
-    margin-top: 5px;
-    text-shadow: 2px 2px 0px rgba(99, 102, 241, 0.2);
+.text-success {
+    color: var(--el-color-success);
+}
+.font-bold {
+    font-weight: bold;
 }
 
-/* Right Card: Waiting State */
-.waiting-hero-card {
-    flex: 1.5; /* Give player list slightly more room */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px;
-    background: rgba(99, 102, 241, 0.03);
-    border: 2px dashed var(--border-color);
-    border-radius: 24px;
-    overflow-y: auto; /* Only scroll this card if many players join */
-}
-
-.waiting-hero-card::-webkit-scrollbar {
-    width: 8px;
-}
-.waiting-hero-card::-webkit-scrollbar-track {
-    background: transparent;
-}
-.waiting-hero-card::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-}
-
-.waiting-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 40px;
-    flex-shrink: 0;
-}
-
-.waiting-header h2 {
-    font-size: 2.2rem;
-    color: var(--text-muted);
-    font-weight: 700;
+.m-0 {
     margin: 0;
 }
-
-/* Pulse Ring Animation */
-.pulse-ring {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    animation: pulse-ring-anim 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.my-4 {
+    margin-top: 24px;
+    margin-bottom: 24px;
 }
-
-@keyframes pulse-ring-anim {
-    0% {
-        transform: scale(0.8);
-        opacity: 0.8;
-    }
-    50% {
-        transform: scale(1.5);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(0.8);
-        opacity: 0;
-    }
+.mt-2 {
+    margin-top: 8px;
 }
-
-/* Players Grid */
-.players-container {
+.mt-3 {
+    margin-top: 12px;
+}
+.mt-4 {
+    margin-top: 24px;
+}
+.mt-5 {
+    margin-top: 40px;
+}
+.pt-4 {
+    padding-top: 24px;
+}
+.mb-2 {
+    margin-bottom: 8px;
+}
+.mb-5 {
+    margin-bottom: 40px;
+}
+.mr-2 {
+    margin-right: 8px;
+}
+.mr-3 {
+    margin-right: 12px;
+}
+.p-3 {
+    padding: 12px;
+}
+.w-full {
     width: 100%;
 }
-
-.empty-players {
-    text-align: center;
-    font-size: 1.8rem;
-    color: var(--text-muted);
-    font-style: italic;
-    opacity: 0.7;
+.max-w-4xl {
+    max-width: 800px;
 }
-
-.chips-grid {
-    display: flex;
-    flex-wrap: wrap;
+.max-w-5xl {
+    max-width: calc(100dvw - 40px);
+    margin: 10px;
+}
+.gap-2 {
+    gap: 8px;
+}
+.gap-3 {
+    gap: 12px;
+}
+.gap-4 {
     gap: 16px;
-    justify-content: center;
+}
+.bg-white {
+    background-color: #ffffff;
+}
+.rounded-xl {
+    border-radius: 16px;
+}
+.shadow-sm {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.border-b {
+    border-bottom: 2px dashed var(--el-border-color-lighter);
 }
 
-.massive-chip {
-    font-size: 1.8rem;
-    padding: 12px 30px;
-    border-radius: 20px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    background: var(--bg-card);
-    border: 2px solid var(--border-color);
-    color: var(--text-main);
-    font-weight: 700;
-    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes popIn {
-    0% {
-        transform: scale(0.5);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-/* --------------------------------------
-   Active Game State Layout
---------------------------------------- */
-.game-active-state {
+/* ==========================================
+   Base Layout
+========================================== */
+.screen-view {
+    height: 100dvh;
+    overflow: hidden; /* 確保不會有滾動條 */
+    background-color: var(--el-bg-color-page);
+    color: var(--el-text-color-primary);
     display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.display-wrapper {
     flex: 1;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 32px 48px;
+    box-sizing: border-box;
     min-height: 0;
 }
 
-/* --------------------------------------
-   Question Display & Bar Charts
---------------------------------------- */
-.question-display-card {
+/* ==========================================
+   Login Panel
+========================================== */
+.login-container {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    padding: 4vh 4vw;
-    border: 4px solid var(--primary-light);
-    border-radius: 24px;
-    background: var(--bg-card);
-    box-sizing: border-box;
-    overflow: hidden;
-    max-height: 100%;
-}
-
-.q-meta {
-    margin-bottom: 2vh;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.q-type {
-    background: var(--chip-bg);
-    color: var(--primary-color);
-    padding: 8px 20px;
-    border-radius: 20px;
-    font-size: 1.2rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    border: 2px solid var(--chip-border);
-}
-
-.q-content-huge {
-    flex: 1;
-    overflow-y: auto;
-    width: 100%;
-    margin: 0 auto 3vh;
-    padding-right: 10px;
-    color: var(--text-main);
-    scrollbar-width: thin;
-    scrollbar-color: var(--primary-light) transparent;
-}
-
-.q-content-huge::-webkit-scrollbar {
-    width: 8px;
-}
-.q-content-huge::-webkit-scrollbar-thumb {
-    background: var(--primary-light);
-    border-radius: 4px;
-}
-
-.stats-container {
-    width: 100%;
-    margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    flex-shrink: 0;
-}
-
-.stat-bar-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 2vh;
-}
-
-.stat-label {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-
-.bar-bg {
-    background: var(--border-color);
-    height: 6vh; /* Responsive height */
-    min-height: 40px;
-    border-radius: 12px;
-    position: relative;
-    overflow: hidden;
-}
-
-.bar-fill {
-    background: linear-gradient(
-        90deg,
-        var(--primary-color) 0%,
-        var(--primary-light) 100%
-    );
-    height: 100%;
-    width: 0%;
-    border-radius: 12px;
-    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.bar-count {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--text-main);
-    z-index: 2;
-    transition: color 0.3s ease;
-}
-
-.text-white {
-    color: white !important;
-}
-
-.text-stats-container {
-    text-align: center;
-    background: var(--highlight-bg);
-    padding: 40px;
-    border-radius: 20px;
-    border: 2px dashed var(--primary-light);
-    margin-top: auto;
-}
-
-.big-number {
-    font-size: 6rem;
-    font-weight: 900;
-    color: var(--primary-color);
-    line-height: 1;
-}
-
-.stats-label {
-    font-size: 2rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    margin-top: 10px;
-}
-
-/* --------------------------------------
-   Leaderboard State
---------------------------------------- */
-.leaderboard-state {
-    display: flex;
-    flex: 1;
     justify-content: center;
     align-items: center;
+    padding: 24px;
 }
-
-.leaderboard-card {
+.login-card {
     width: 100%;
-    max-width: 1200px;
-    padding: 60px 80px;
-    text-align: center;
-    border: 4px solid var(--primary-color);
-    background: var(--bg-card);
-    border-radius: 24px;
+    max-width: 500px;
+    border-radius: 16px;
+    background-color: var(--el-bg-color-overlay);
+}
+.login-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+.login-subtitle {
+    font-size: 1.2rem;
 }
 
-.lb-title {
-    font-size: 4rem;
-    color: var(--text-main);
-    margin-bottom: 40px;
+/* ==========================================
+   Header
+========================================== */
+.screen-header {
+    margin-bottom: 24px;
+}
+.leave-btn {
+    font-size: 1.1rem;
+    padding: 12px 24px;
+    border-radius: 8px;
+}
+
+.player-count-badge {
+    background-color: var(--el-fill-color-light);
+    padding: 12px 24px;
+    border-radius: 50px;
+    border: 1px solid var(--el-border-color-lighter);
+}
+.count-label {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--el-text-color-secondary);
+}
+.count-number {
+    font-size: 1.8rem;
     font-weight: 900;
+    color: var(--el-color-primary);
 }
 
-.podium {
+.pulse-dot {
+    width: 12px;
+    height: 12px;
+    background-color: var(--el-color-success);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+    display: inline-block;
+}
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(103, 194, 58, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(103, 194, 58, 0);
+    }
+}
+
+/* --- Main Content Area --- */
+.main-content-area {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    min-height: 0;
+    align-items: stretch;
+    overflow: hidden;
+}
+
+.main-content-area > div {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    height: 100%;
 }
 
-.lb-row {
+/* --- Lobby State --- */
+.lobby-state {
     display: flex;
-    align-items: center;
-    padding: 24px 40px;
-    background: var(--highlight-bg);
-    border-radius: 16px;
+    flex-direction: column;
+}
+.lobby-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 24px;
+    background-color: var(--el-bg-color-overlay);
+}
+.join-prompt {
     font-size: 2.2rem;
     font-weight: 800;
-    color: var(--text-main);
-    border: 2px solid var(--border-color);
-    transition: transform 0.3s ease;
+    letter-spacing: 1px;
 }
-
-.lb-row.rank-1 {
-    background: linear-gradient(135deg, #ffd700 0%, #d4af37 100%);
-    color: #000;
-    transform: scale(1.05);
-    border: none;
-    box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4);
-    z-index: 3;
-}
-
-.lb-row.rank-2 {
-    background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
-    color: #000;
-    transform: scale(1.02);
-    border: none;
-    box-shadow: 0 8px 15px rgba(189, 189, 189, 0.4);
-    z-index: 2;
-}
-
-.lb-row.rank-3 {
-    background: linear-gradient(135deg, #cd7f32 0%, #a0522d 100%);
-    color: #fff;
-    border: none;
-    box-shadow: 0 6px 12px rgba(160, 82, 45, 0.4);
-    z-index: 1;
-}
-
-.lb-rank {
-    width: 100px;
-    text-align: left;
-}
-.lb-name {
-    flex: 1;
-    text-align: left;
-}
-.lb-score {
-    font-weight: 900;
-}
-
-.empty-stats {
-    font-size: 1.8rem;
-    color: var(--text-muted);
-    font-style: italic;
-    padding: 40px;
-}
-
-/* Fallback for smaller screens if forced to display */
-@media (max-width: 1024px) {
-    .lobby-state-split {
-        flex-direction: column;
-    }
-    .hero-pin {
-        font-size: 5rem;
-    }
-    .q-content-huge {
-        font-size: 2.5rem;
-    }
-    .lb-row {
-        font-size: 1.5rem;
-        padding: 16px 24px;
-    }
-    .lb-title {
-        font-size: 2.5rem;
-    }
-}
-</style>
-
-<style scoped>
-/* ==========================================
-   Markdown Content Styles for Game UI
-========================================== */
-.markdown-body {
-    width: 100%;
-    color: inherit;
+.lobby-grid {
     display: flex;
     flex-direction: column;
+    gap: 40px;
+    justify-content: space-evenly;
     align-items: center;
-    justify-content: center;
-    min-height: 100%;
-}
-
-.markdown-body :deep(p) {
-    margin: 0 0 1.5vh 0;
-    line-height: 1.4;
-    font-size: clamp(2rem, 4.5vh, 3.5rem);
-    font-weight: 800;
-    text-align: center;
-}
-.markdown-body :deep(p:last-child) {
-    margin-bottom: 0;
-}
-
-.markdown-body :deep(img) {
-    max-width: 100%;
-    max-height: 35vh;
-    height: auto;
-    border-radius: 12px;
-    margin: 2vh auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    object-fit: contain;
-    display: block;
-}
-
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-    padding-left: 2rem;
-    margin: 0 auto 2vh auto;
-    display: inline-block;
-    text-align: left;
-    font-size: clamp(1.8rem, 4vh, 3rem);
-    font-weight: 700;
-}
-.markdown-body :deep(li) {
-    margin-bottom: 1vh;
-}
-
-.markdown-body :deep(pre) {
-    background-color: #282c34;
-    color: #abb2bf;
-    padding: 1.5vh 1.5vw;
-    border-radius: 12px;
-    overflow-x: auto;
-    font-family: monospace;
-    font-size: clamp(1.2rem, 2.5vh, 2rem);
-    text-align: left;
+    background-color: var(--el-fill-color-darker);
+    border-radius: 20px;
+    padding: 40px;
     width: 100%;
-    max-width: 90%;
 }
-.markdown-body :deep(code) {
-    background-color: rgba(0, 0, 0, 0.08);
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
+.lobby-col {
+    flex: 1;
+}
+.pin-label {
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+.pin-value {
+    font-size: 7rem;
+    font-weight: 900;
+    letter-spacing: 8px;
+    line-height: 1;
+}
+.url-display {
+    font-size: 1.5rem;
     font-family: monospace;
+    font-weight: bold;
+}
+.qr-container {
+    border: 4px solid #fff;
+}
+.waiting-text {
+    font-size: 1.8rem;
+    font-weight: normal;
+}
+
+/* --- Leaderboard State --- */
+.leaderboard-card {
+    border-radius: 20px;
+    background-color: var(--el-bg-color-overlay);
+}
+.lb-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: var(--el-color-warning);
+}
+.lb-row {
+    padding: 20px 24px;
+    background-color: var(--el-fill-color-light);
+    border-radius: 12px;
+    font-size: 1.5rem;
+    transition: transform 0.2s;
+}
+.lb-row:hover {
+    transform: scale(1.02);
+}
+.lb-rank {
+    width: 48px;
+    height: 48px;
+    background-color: var(--el-fill-color-darker);
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+/* Top 3 Highlighting */
+.top-1 {
+    background-color: var(--el-color-warning-light-9);
+    border: 2px solid var(--el-color-warning-light-5);
+}
+.top-1 .lb-rank {
+    background-color: transparent;
+    font-size: 2.2rem;
+}
+.top-1 .lb-name,
+.top-1 .lb-score {
+    color: var(--el-color-warning);
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.top-2 {
+    background-color: var(--el-color-info-light-9);
+}
+.top-2 .lb-rank {
+    background-color: transparent;
+    font-size: 2rem;
+}
+.top-2 .lb-name {
+    font-weight: bold;
+    font-size: 1.6rem;
+}
+
+.top-3 {
+    background-color: var(--el-color-danger-light-9);
+}
+.top-3 .lb-rank {
+    background-color: transparent;
+    font-size: 1.8rem;
+}
+.top-3 .lb-name {
+    color: var(--el-color-danger);
+    font-weight: bold;
+    font-size: 1.5rem;
 }
 </style>

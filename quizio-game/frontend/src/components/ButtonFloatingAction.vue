@@ -1,69 +1,67 @@
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-
-const { locale } = useI18n()
-
-// State to track if the FAB menu is expanded
-const isOpen = ref(false)
-
-// Toggle the entire FAB menu
-const toggleMenu = () => {
-    isOpen.value = !isOpen.value
-}
-
-// Language toggle action
-const toggleLanguage = () => {
-    const newLang = locale.value === 'zh' ? 'en' : 'zh'
-    locale.value = newLang
-    localStorage.setItem('app_lang', newLang)
-
-    // Auto close the menu after clicking
-    isOpen.value = false
-}
-</script>
-
 <template>
     <div v-if="isOpen" class="fab-overlay" @click="isOpen = false"></div>
 
     <div class="fab-container">
-        <transition name="fab-slide">
-            <div v-if="isOpen" class="fab-menu">
-                <button @click="toggleLanguage" class="fab-item">
-                    <span class="icon">🌐</span>
-                    <span class="label">{{
-                        locale === 'zh' ? 'English' : '中文'
-                    }}</span>
-                </button>
+        <transition name="el-zoom-in-bottom">
+            <div v-show="isOpen" class="fab-menu">
+                <el-button
+                    round
+                    size="large"
+                    @click="toggleLanguage"
+                    class="fab-item shadow-hover"
+                >
+                    <span style="font-size: 1.1rem; margin-right: 8px">🌐</span>
+                    <span style="font-weight: bold">
+                        {{ locale === 'zh' ? 'English' : '中文' }}
+                    </span>
+                </el-button>
             </div>
         </transition>
 
-        <button
+        <el-button
+            :type="isOpen ? 'danger' : 'primary'"
+            circle
+            class="fab-main shadow-hover"
+            plain
             @click="toggleMenu"
-            class="fab-main"
-            :class="{ 'is-open': isOpen }"
         >
-            <div class="fab-icon-hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </button>
+            <el-icon :size="24" class="icon-spin">
+                <Close v-if="isOpen" />
+                <ArrowDown v-else />
+            </el-icon>
+        </el-button>
     </div>
 </template>
 
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ArrowDown, Close } from '@element-plus/icons-vue'
+
+const { locale } = useI18n()
+const isOpen = ref(false)
+
+const toggleMenu = () => {
+    isOpen.value = !isOpen.value
+}
+
+const toggleLanguage = () => {
+    const newLang = locale.value === 'zh' ? 'en' : 'zh'
+    locale.value = newLang
+    localStorage.setItem('app_lang', newLang)
+    isOpen.value = false
+}
+</script>
+
 <style scoped>
-/* Full screen invisible overlay to capture outside clicks */
+/* 遮罩：保留最簡單的 fixed 定位 */
 .fab-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0; /* 等同於 top:0; left:0; right:0; bottom:0; */
     z-index: 999;
 }
 
-/* FAB Container fixed to the bottom right */
+/* 容器定位 */
 .fab-container {
     position: fixed;
     bottom: 30px;
@@ -75,7 +73,7 @@ const toggleLanguage = () => {
     gap: 16px;
 }
 
-/* Menu list styles */
+/* 選單排列 */
 .fab-menu {
     display: flex;
     flex-direction: column;
@@ -84,115 +82,27 @@ const toggleLanguage = () => {
     margin-bottom: 8px;
 }
 
-/* Individual tool button (Pill shaped) */
-.fab-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 18px;
-    border-radius: 24px;
-    background-color: var(--bg-card, #ffffff);
-    color: var(--text-main, #333333);
-    border: 2px solid var(--border-color, #e5e7eb);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    white-space: nowrap;
+/* 覆寫 Element Plus 按鈕樣式，加入浮空陰影與 Hover 放大效果 */
+.shadow-hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    transition:
+        transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        background-color 0.3s !important;
 }
 
-.fab-item:hover {
-    border-color: var(--primary-color, #4f46e5);
-    color: var(--primary-color, #4f46e5);
-    transform: scale(1.05);
+.shadow-hover:hover {
+    transform: scale(1.08);
 }
 
-/* Main floating button */
 .fab-main {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: var(--primary-color, #4f46e5);
-    border: none;
-    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    width: 48px !important;
+    height: 48px !important;
 }
 
-.fab-main:hover {
-    transform: scale(1.1);
-    background-color: var(--primary-hover, #4338ca);
+.icon-spin {
+    transition: transform 0.3s ease;
 }
-
-/* State when menu is open: Turns red */
-.fab-main.is-open {
-    background-color: var(--danger-color, #ef4444);
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-}
-
-/* Animated Hamburger Icon */
-.fab-icon-hamburger {
-    width: 24px;
-    height: 18px;
-    position: relative;
-    transform: rotate(0deg);
-    transition: 0.5s ease-in-out;
-}
-
-.fab-icon-hamburger span {
-    display: block;
-    position: absolute;
-    height: 3px;
-    width: 100%;
-    background: white;
-    border-radius: 3px;
-    opacity: 1;
-    left: 0;
-    transform: rotate(0deg);
-    transition: 0.25s ease-in-out;
-}
-
-/* Initial state (Hamburger '≡') */
-.fab-icon-hamburger span:nth-child(1) {
-    top: 0px;
-}
-.fab-icon-hamburger span:nth-child(2) {
-    top: 7.5px;
-}
-.fab-icon-hamburger span:nth-child(3) {
-    top: 15px;
-}
-
-/* Open state (Transforms to 'X') */
-.fab-main.is-open .fab-icon-hamburger span:nth-child(1) {
-    top: 7.5px;
-    transform: rotate(135deg);
-}
-
-.fab-main.is-open .fab-icon-hamburger span:nth-child(2) {
-    opacity: 0;
-    left: -10px; /* Slides out slightly while fading */
-}
-
-.fab-main.is-open .fab-icon-hamburger span:nth-child(3) {
-    top: 7.5px;
-    transform: rotate(-135deg);
-}
-
-/* Vue Transition Animations */
-.fab-slide-enter-active,
-.fab-slide-leave-active {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-origin: bottom right;
-}
-
-.fab-slide-enter-from,
-.fab-slide-leave-to {
-    opacity: 0;
-    transform: translateY(20px) scale(0.9);
+.fab-main:hover .icon-spin {
+    transform: rotate(180deg);
 }
 </style>
