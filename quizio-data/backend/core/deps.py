@@ -31,7 +31,7 @@ async def get_current_user(
         scope: str = payload.get('scope')
 
         # Prevent student upload tokens from being used for general API access (e.g., deleting exams)
-        if user_id is None or scope == 'student_upload':
+        if user_id is None or (scope and scope.endswith('_upload')):
             raise credentials_exception
     except InvalidTokenError:
         raise credentials_exception
@@ -69,7 +69,7 @@ async def get_uploader_id(
             raise credentials_exception
 
         # If it's a student upload token, trust the signature and return the teacher's ID directly
-        if scope == 'student_upload':
+        if scope and scope.endswith('_upload'):
             return int(user_id)
 
     except InvalidTokenError:

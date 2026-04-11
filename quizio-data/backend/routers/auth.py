@@ -1,8 +1,11 @@
+import uuid
+
 import models
 import schemas
 from core.deps import get_current_user
 from core.security import (
     create_access_token,
+    create_guest_upload_token,
     create_student_upload_token,
     verify_password,
 )
@@ -66,5 +69,25 @@ async def verify_student(
         'name': student.name,
         'student_id': student.student_id,
         'class_name': student.class_name,
+        'upload_token': upload_token,
+    }
+
+
+@router.post('/guest')
+async def verify_guest(
+    guest_data: schemas.GuestLogin,
+    current_user: models.User = Depends(get_current_user),
+):
+    # Generate random guest id
+    guest_id = str(uuid.uuid4())
+
+    # Retrieve upload token
+    upload_token = create_guest_upload_token(
+        teacher_id=current_user.id, guest_id=guest_id, guest_name=guest_data.guest_name
+    )
+
+    return {
+        'guest_name': guest_data.guest_name,
+        'guest_id': guest_id,
         'upload_token': upload_token,
     }

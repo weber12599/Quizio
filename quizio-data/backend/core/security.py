@@ -61,3 +61,23 @@ def create_student_upload_token(teacher_id: int, student_id: str) -> str:
     # Create the encoded JWT string
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_guest_upload_token(teacher_id: int, guest_id: str, guest_name: str) -> str:
+    """
+    Generate a temporary JWT token for guests to upload media via Tiptap.
+    The storage quota is attributed to the teacher, but the action is traced to the guest.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode = {
+        'sub': str(teacher_id),
+        'scope': 'guest_upload',
+        'guest_id': guest_id,
+        'guest_name': guest_name,
+        'exp': expire,
+    }
+
+    # Create the encoded JWT string
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt

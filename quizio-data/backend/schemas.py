@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 import nh3
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 def sanitize_rich_text(html_content: str) -> str:
@@ -73,6 +73,10 @@ class UserResponse(UserBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GuestLogin(BaseModel):
+    guest_name: str = Field(..., min_length=1, max_length=50)
 
 
 class StudentLogin(BaseModel):
