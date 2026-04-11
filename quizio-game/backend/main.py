@@ -5,6 +5,7 @@ import socketio
 from fastapi import FastAPI
 from routers import router as api_router
 from utils import (
+    check_guest_credentials,
     check_student_credentials,
     compute_stats,
     generate_leaderboard,
@@ -40,7 +41,19 @@ async def disconnect(sid):
     for room_pin, room_data in list(room_states.items()):
         players = room_data['players']
         if sid in players:
-            del players[sid]
+            player_info = players.pop(sid)
+
+            if player_info.get('role') == 'client':
+                room_data['client_names'].pop(sid, None)
+                if player_info.get('is_guest'):
+                    room_data['guest_count'] = max(
+                        0, room_data.get('guest_count', 0) - 1
+                    )
+                else:
+                    room_data['student_count'] = max(
+                        0, room_data.get('student_count', 0) - 1
+                    )
+
             if not players:
                 del room_states[room_pin]
             else:
@@ -52,13 +65,15 @@ async def disconnect(sid):
 async def join_room(sid, data):
     room_pin = str(data.get('room_pin'))
     role = data.get('role')
-    student_id = data.get('student_id')
-    password = data.get('password')
-    token = data.get('token')
+    is_guest = data.get('is_guest', False)
+    guest_name = data.get('guest_name', '')
+    student_id = data.get('student_id', '')
+    password = data.get('password', '')
+    token = data.get('token', '')
 
     player_name = 'Unknown'
-    upload_token = 'Unknown'
-    student_db_id = 'Unknown'
+    student_db_id = None
+    player_id = None
 
     if role == 'host':
         player_name = 'Host_Teacher'
@@ -66,11 +81,17 @@ async def join_room(sid, data):
             room_states[room_pin] = {
                 'token': token,
                 'players': {},
+                'client_names': {},
+                'student_count': 0,
+                'guest_count': 0,
                 'broadcasted_questions': {},
                 'displayed_question': None,
                 'answers': {},
                 'gradings': {},
                 'current_screen': 'lobby',
+                'target_class': data.get('target_class'),
+                'allow_guests': data.get('allow_guests', True),
+                'expected_students': data.get('expected_students', []),
             }
         else:
             room_states[room_pin]['token'] = token
@@ -88,34 +109,75 @@ async def join_room(sid, data):
             await sio.disconnect(sid)
             return
 
-        token = room_states[room_pin].get('token')
-        student_info = await check_student_credentials(student_id, password, token)
+        room = room_states[room_pin]
 
-        if not student_info:
+        if not is_guest:
+            token = room.get('token')
+            student_info = await check_student_credentials(student_id, password, token)
+
+            if not student_info:
+                await sio.emit(
+                    'error',
+                    {'message': 'Invalid credentials.'},
+                    to=sid,
+                )
+                await sio.disconnect(sid)
+                return
+
+            player_id = student_id
+            player_name = student_info['name']
+            upload_token = student_info.get('upload_token')
+            student_db_id = student_info.get('id')
+
+            await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
+        elif not room.get('allow_guests', False):
             await sio.emit(
                 'error',
-                {'message': 'Verification failed or student not in your class'},
+                {'message': 'Guest access is disabled.'},
                 to=sid,
             )
             await sio.disconnect(sid)
             return
+        else:
+            token = room.get('token')
+            guest_info = await check_guest_credentials(guest_name, token)
 
-        player_name = student_info['name']
-        upload_token = student_info.get('upload_token')
-        student_db_id = student_info.get('id')
-        await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
+            if not guest_info:
+                await sio.emit(
+                    'error',
+                    {'message': 'Invalid credentials.'},
+                    to=sid,
+                )
+                await sio.disconnect(sid)
+                return
+
+            player_id = guest_info.get('guest_id')
+            player_name = guest_name
+            upload_token = guest_info.get('upload_token')
+            student_db_id = None
+
+            await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
     else:
         await sio.disconnect(sid)
         return
 
+    # append to player dict
     room_states[room_pin]['players'][sid] = {
         'role': role,
         'name': player_name,
-        'student_id': student_id,
+        'player_id': player_id,
         'student_db_id': student_db_id,
+        'is_guest': is_guest,
     }
 
-    print(f'✅ {player_name} ({role}) joined room {room_pin}')
+    if role == 'client':
+        room_states[room_pin]['client_names'][sid] = player_name
+        if is_guest:
+            room_states[room_pin]['guest_count'] += 1
+        else:
+            room_states[room_pin]['student_count'] += 1
+
+    print(f'✅ {player_name} ({role}, Guest: {is_guest}) joined room {room_pin}')
 
     if role == 'host':
         room = room_states[room_pin]
@@ -152,13 +214,13 @@ async def join_room(sid, data):
 
         answers_dict = room.get('answers', {})
         for q_id, student_answers in answers_dict.items():
-            if student_id in student_answers:
-                recovered_answers[q_id] = student_answers[student_id]
+            if player_id in student_answers:
+                recovered_answers[q_id] = student_answers[player_id]
 
         gradings_dict = room.get('gradings', {})
         for q_id, student_gradings in gradings_dict.items():
-            if student_id in student_gradings:
-                recovered_gradings[q_id] = student_gradings[student_id]
+            if player_id in student_gradings:
+                recovered_gradings[q_id] = student_gradings[player_id]
 
         if recovered_answers:
             await sio.emit(
@@ -190,24 +252,48 @@ async def join_room(sid, data):
 
 async def broadcast_room_state(room_pin: str):
     if room_pin in room_states:
-        players_dict = room_states[room_pin]['players']
-        players_list = [
-            client_data['name']
-            for client_data in players_dict.values()
-            if client_data['role'] == 'client'
-        ]
+        room = room_states[room_pin]
+        players_dict = room['players']
+
+        players_list = list(room.get('client_names', {}).values())
+        student_count = room.get('student_count', 0)
+        guest_count = room.get('guest_count', 0)
+
+        player_stats = {
+            'student_count': student_count,
+            'guest_count': guest_count,
+            'total_count': student_count + guest_count,
+        }
 
         print(
-            f'📡 Ready for broadcasting room state to room {room_pin} ({len(players_dict)} connections): {players_list}'
+            f'📡 Broadcasting room {room_pin} | Clients: {len(players_list)} | Stats: {player_stats}'
         )
 
-        for target_sid in players_dict.keys():
+        for target_sid, client_data in players_dict.items():
+            # 1. Public Data
             await sio.emit(
                 'room_state',
-                {'room_pin': room_pin, 'players': players_list},
+                {
+                    'room_pin': room_pin,
+                    'players': players_list,
+                    'player_stats': player_stats,
+                },
                 to=target_sid,
             )
-        print('✅ Done')
+
+            # 2. Private Host Data
+            if client_data['role'] == 'host':
+                await sio.emit(
+                    'host_room_stats',
+                    {
+                        'target_class': room.get('target_class'),
+                        'allow_guests': room.get('allow_guests', True),
+                        'expected_students': room.get('expected_students', []),
+                        'answers': room.get('answers', {}),
+                        'gradings': room.get('gradings', {}),
+                    },
+                    to=target_sid,
+                )
 
 
 @sio.event
@@ -302,7 +388,7 @@ async def submit_answer(sid, data):
     if not player_info or player_info['role'] != 'client':
         return {'error': 'Unauthorized'}
 
-    student_id = player_info['student_id']
+    player_id = player_info['player_id']
 
     if 'gradings' not in room:
         room['gradings'] = {}
@@ -311,7 +397,7 @@ async def submit_answer(sid, data):
 
     if q_id not in room['answers']:
         room['answers'][q_id] = {}
-    room['answers'][q_id][student_id] = answer
+    room['answers'][q_id][player_id] = answer
 
     question = room['broadcasted_questions'].get(q_id)
     if not question:
@@ -322,7 +408,7 @@ async def submit_answer(sid, data):
 
     is_correct = grade_answer(q_type, answer, correct_answer)
     grading_result = {'is_correct': is_correct, 'correct_answer': correct_answer}
-    room['gradings'][q_id][student_id] = grading_result
+    room['gradings'][q_id][player_id] = grading_result
 
     displayed_q = room.get('displayed_question')
     if displayed_q and str(displayed_q['id']) == q_id:
@@ -334,6 +420,8 @@ async def submit_answer(sid, data):
                 await sio.emit(
                     'update_stats', {'stats': stats, 'total': total}, to=target_sid
                 )
+
+    await broadcast_room_state(room_pin)
 
     return grading_result
 
@@ -382,13 +470,13 @@ async def end_game(sid, data):
 
         for p_sid, p_data in room['players'].items():
             if p_data['role'] == 'client':
-                student_string_id = p_data.get('student_id')
+                player_id = p_data.get('player_id')
                 student_db_id = p_data.get('student_db_id')
 
                 answers_payload = []
                 for q_id_str, student_answers in room.get('answers', {}).items():
-                    if student_string_id in student_answers:
-                        ans_content = student_answers[student_string_id]
+                    if player_id in student_answers:
+                        ans_content = student_answers[player_id]
 
                         if isinstance(ans_content, list):
                             ans_content_str = json.dumps(ans_content)
@@ -400,7 +488,7 @@ async def end_game(sid, data):
                         grading = (
                             room.get('gradings', {})
                             .get(q_id_str, {})
-                            .get(student_string_id, {})
+                            .get(player_id, {})
                         )
 
                         answers_payload.append(

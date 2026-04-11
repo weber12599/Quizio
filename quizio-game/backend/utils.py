@@ -5,6 +5,7 @@ import nh3
 
 DATA_SERVICE_BASE_URL = os.getenv('DATA_SERVICE_BASE_URL')
 DATA_SERVICE_STUDENT_AUTH_URL = f'{DATA_SERVICE_BASE_URL}/api/auth/student'
+DATA_SERVICE_GUEST_AUTH_URL = f'{DATA_SERVICE_BASE_URL}/api/auth/guest'
 
 
 def sanitize_rich_text(html_content: str) -> str:
@@ -64,6 +65,32 @@ async def check_student_credentials(student_id: str, password: str, token: str):
             return None
 
 
+async def check_guest_credentials(guest_name: str, token: str):
+    if not token:
+        print('Error: No valid host token provided for this room.')
+        return None
+
+    auth_header = f'Bearer {token}'
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                DATA_SERVICE_GUEST_AUTH_URL,
+                json={'guest_name': guest_name},
+                headers={'Authorization': auth_header},
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(
+                    f'Guest verification failed: {response.status_code} - {response.text}'
+                )
+                return None
+        except Exception as e:
+            print(f'Network error (cannot connect to quizio-data): {e}')
+            return None
+
+
 async def submit_student_submission(token: str, payload: dict):
     """
     Send a single student's submission (answers + gradings) to the Data Backend.
@@ -103,7 +130,7 @@ async def submit_batch_submissions(token: str, payload: list):
 
 def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
     """Evaluate student's answer based on the question type."""
-    if not correct_answer:
+    if correct_answer is None or correct_answer == '':
         return False
 
     if q_type == 'essay':
@@ -112,9 +139,23 @@ def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
     if q_type == 'multiple':
         if not isinstance(student_answer, list) or not isinstance(correct_answer, list):
             return False
-        return set(student_answer) == set(correct_answer)
 
-    if q_type in ['single', 'boolean']:
+        stu_set = set(str(x).strip() for x in student_answer)
+        ref_set = set(str(x).strip() for x in correct_answer)
+        return stu_set == ref_set
+
+    if q_type == 'boolean':
+        if str(student_answer).strip() == '0':
+            stu_bool = True
+        elif str(student_answer).strip() == '1':
+            stu_bool = False
+        else:
+            stu_bool = str(student_answer).strip().lower() in ['true', '1', 'yes']
+
+        ref_bool = str(correct_answer).strip().lower() in ['true', '1', 'yes']
+        return stu_bool == ref_bool
+
+    if q_type == 'single':
         return str(student_answer).strip() == str(correct_answer).strip()
 
     if q_type == 'short':
