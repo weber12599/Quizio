@@ -110,80 +110,74 @@
                         fixed="left"
                     />
 
-                    <template v-for="exam in reportData.exams" :key="exam.id">
-                        <el-table-column
-                            v-for="attempt in exam.max_attempts"
-                            :key="`${exam.id}_${attempt}`"
-                            min-width="160"
-                            align="center"
-                        >
-                            <template #header>
-                                <el-tooltip
-                                    :content="`預定考試日期: ${exam.target_date || '未設定'}`"
-                                    placement="top"
-                                    effect="dark"
-                                >
-                                    <span style="cursor: help">
-                                        {{ exam.title }} (第 {{ attempt }} 次)
-                                    </span>
-                                </el-tooltip>
-                            </template>
+                    <el-table-column
+                        v-for="exam in reportData.exams"
+                        :key="exam.id"
+                        :label="exam.title"
+                        min-width="180"
+                        align="center"
+                    >
+                        <template #header>
+                            <el-tooltip
+                                :content="`預定考試日期: ${exam.target_date || '未設定'}`"
+                                placement="top"
+                                effect="dark"
+                            >
+                                <span style="cursor: help">
+                                    {{ exam.title }}
+                                </span>
+                            </el-tooltip>
+                        </template>
 
-                            <template #default="scope">
+                        <template #default="{ row }">
+                            <div
+                                v-if="row.exam_submissions[exam.id]"
+                                class="score-container"
+                            >
                                 <template
-                                    v-if="
-                                        scope.row.exam_submissions[exam.id] &&
-                                        scope.row.exam_submissions[exam.id]
-                                            .length >= attempt
-                                    "
+                                    v-for="(sub, idx) in row.exam_submissions[
+                                        exam.id
+                                    ]"
+                                    :key="sub.submission_id"
                                 >
                                     <el-tooltip
-                                        :content="`測驗時間: ${formatRecordAt(scope.row.exam_submissions[exam.id][attempt - 1].record_at)}`"
+                                        :content="`測驗時間: ${formatRecordAt(sub.record_at)}`"
                                         placement="top"
                                         effect="dark"
                                     >
-                                        <el-button
-                                            link
-                                            type="primary"
+                                        <span
+                                            class="score-val"
+                                            :class="{
+                                                'no-score-val': sub.score === 0
+                                            }"
                                             @click="
                                                 openGradingDialog(
-                                                    scope.row.exam_submissions[
-                                                        exam.id
-                                                    ][attempt - 1]
-                                                        .submission_id,
-                                                    scope.row.name,
+                                                    sub.submission_id,
+                                                    row.name,
                                                     exam.title,
-                                                    attempt
+                                                    idx + 1
                                                 )
                                             "
                                         >
-                                            <span
-                                                :class="{
-                                                    'no-score':
-                                                        scope.row
-                                                            .exam_submissions[
-                                                            exam.id
-                                                        ][attempt - 1].score ===
-                                                        0
-                                                }"
-                                                style="
-                                                    font-weight: bold;
-                                                    font-size: 1.1em;
-                                                "
-                                            >
-                                                {{
-                                                    scope.row.exam_submissions[
-                                                        exam.id
-                                                    ][attempt - 1].score
-                                                }}
-                                            </span>
-                                        </el-button>
+                                            {{ sub.score }}
+                                        </span>
                                     </el-tooltip>
+                                    <span
+                                        v-if="
+                                            idx <
+                                            row.exam_submissions[exam.id]
+                                                .length -
+                                                1
+                                        "
+                                        class="score-divider"
+                                    >
+                                        /
+                                    </span>
                                 </template>
-                                <span v-else class="no-score">-</span>
-                            </template>
-                        </el-table-column>
-                    </template>
+                            </div>
+                            <span v-else class="text-muted">-</span>
+                        </template>
+                    </el-table-column>
                 </el-table>
 
                 <el-empty
@@ -394,7 +388,6 @@ const fetchReport = async () => {
             params.date_end = dateRange.value[1]
         }
 
-        // Handle multiple exam_ids for query parameters
         if (filters.value.exam_ids && filters.value.exam_ids.length > 0) {
             params.exam_ids = filters.value.exam_ids
         }
@@ -467,7 +460,6 @@ const submitGrade = async (answer: any) => {
 
 const closeGradingDialog = () => {
     gradingDialogVisible.value = false
-    // Refresh the pivot table to reflect any changes made during manual grading
     fetchReport()
 }
 </script>
@@ -506,6 +498,49 @@ const closeGradingDialog = () => {
 }
 .filter-form .el-form-item {
     margin-bottom: 15px;
+}
+
+/* 🚀 新增 Score 顯示樣式 */
+.score-container {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 1.1em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.score-val {
+    color: var(--el-color-primary);
+    cursor: pointer;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.score-val:hover {
+    background-color: var(--el-color-primary-light-9);
+    color: var(--el-color-primary-dark-2);
+}
+
+.no-score-val {
+    color: #909399;
+}
+
+.no-score-val:hover {
+    background-color: var(--el-fill-color-light);
+    color: #606266;
+}
+
+.score-divider {
+    color: var(--el-text-color-secondary);
+    font-weight: normal;
+}
+
+.text-muted {
+    color: var(--el-text-color-placeholder);
 }
 
 /* --- Grading Dialog Styles --- */

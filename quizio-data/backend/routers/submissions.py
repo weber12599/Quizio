@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 import models
@@ -55,6 +55,10 @@ async def create_submission_batch(
     """
     if not submissions:
         return await crud_submissions.create_submissions_batch(db, submissions)
+
+    unified_time = datetime.now(timezone.utc)
+    for sub in submissions:
+        sub.record_at = unified_time
 
     # Gather all unique exam IDs in the batch
     exam_ids = {sub.exam_id for sub in submissions}
