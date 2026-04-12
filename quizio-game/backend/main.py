@@ -92,6 +92,7 @@ async def join_room(sid, data):
                 'target_class': data.get('target_class'),
                 'allow_guests': data.get('allow_guests', True),
                 'expected_students': data.get('expected_students', []),
+                'expected_students_set': set(data.get('expected_students', [])),
             }
         else:
             room_states[room_pin]['token'] = token
@@ -115,7 +116,10 @@ async def join_room(sid, data):
             token = room.get('token')
             student_info = await check_student_credentials(student_id, password, token)
 
-            if not student_info:
+            if (
+                not student_info
+                or student_id not in room_states[room_pin]['expected_students_set']
+            ):
                 await sio.emit(
                     'error',
                     {'message': 'Invalid credentials.'},
