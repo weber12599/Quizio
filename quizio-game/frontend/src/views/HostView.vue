@@ -367,36 +367,117 @@
                                         </el-tag>
                                     </template>
                                     <template #actions>
-                                        <div class="text-right w-full">
-                                            <el-button
-                                                v-if="
-                                                    currentDisplayedEq?.question_id ===
-                                                    eq.question_id
-                                                "
-                                                type="warning"
-                                                plain
-                                                @click="displayOnScreen(eq)"
-                                                size="large"
-                                            >
-                                                <el-icon class="mr-1"
-                                                    ><VideoPause
-                                                /></el-icon>
-                                                {{ $t('host.stop_displaying') }}
-                                            </el-button>
-                                            <el-button
-                                                v-else
-                                                type="primary"
-                                                plain
-                                                @click="displayOnScreen(eq)"
-                                                size="large"
-                                            >
-                                                <el-icon class="mr-1"
-                                                    ><Monitor
-                                                /></el-icon>
-                                                {{
-                                                    $t('host.display_on_screen')
-                                                }}
-                                            </el-button>
+                                        <div class="flex-between w-full">
+                                            <div>
+                                                <el-button
+                                                    v-if="
+                                                        !broadcastedIds.includes(
+                                                            eq.question_id
+                                                        )
+                                                    "
+                                                    type="success"
+                                                    plain
+                                                    @click="quickBroadcast(eq)"
+                                                    size="large"
+                                                >
+                                                    {{
+                                                        $t(
+                                                            'host.quick_broadcast'
+                                                        )
+                                                    }}
+                                                </el-button>
+                                            </div>
+
+                                            <div>
+                                                <el-button
+                                                    v-if="
+                                                        currentDisplayedEq?.question_id !==
+                                                        eq.question_id
+                                                    "
+                                                    type="primary"
+                                                    plain
+                                                    @click="
+                                                        changeDisplayState(
+                                                            eq,
+                                                            'question'
+                                                        )
+                                                    "
+                                                    size="large"
+                                                >
+                                                    <el-icon class="mr-1"
+                                                        ><Monitor
+                                                    /></el-icon>
+                                                    {{
+                                                        $t(
+                                                            'host.display_on_screen'
+                                                        )
+                                                    }}
+                                                </el-button>
+
+                                                <el-button-group v-else>
+                                                    <el-button
+                                                        :type="
+                                                            currentDisplayState ===
+                                                            'question'
+                                                                ? 'primary'
+                                                                : 'default'
+                                                        "
+                                                        @click="
+                                                            changeDisplayState(
+                                                                eq,
+                                                                'question'
+                                                            )
+                                                        "
+                                                        size="large"
+                                                    >
+                                                        📝
+                                                    </el-button>
+                                                    <el-button
+                                                        :type="
+                                                            currentDisplayState ===
+                                                            'stats'
+                                                                ? 'primary'
+                                                                : 'default'
+                                                        "
+                                                        @click="
+                                                            changeDisplayState(
+                                                                eq,
+                                                                'stats'
+                                                            )
+                                                        "
+                                                        size="large"
+                                                    >
+                                                        📊
+                                                    </el-button>
+                                                    <el-button
+                                                        :type="
+                                                            currentDisplayState ===
+                                                            'answer'
+                                                                ? 'primary'
+                                                                : 'default'
+                                                        "
+                                                        @click="
+                                                            changeDisplayState(
+                                                                eq,
+                                                                'answer'
+                                                            )
+                                                        "
+                                                        size="large"
+                                                    >
+                                                        💡
+                                                    </el-button>
+                                                    <el-button
+                                                        type="danger"
+                                                        plain
+                                                        @click="stopDisplaying"
+                                                        size="large"
+                                                    >
+                                                        <el-icon
+                                                            ><VideoPause
+                                                        /></el-icon>
+                                                    </el-button>
+                                                </el-button-group>
+                                            </div>
                                         </div>
                                     </template>
                                 </GameQuestionCard>
@@ -693,6 +774,12 @@ const selectedExam = ref<number | ''>('')
 const expectedStudents = ref<string[]>([])
 const expectedStudentInfo = ref<Record<string, string>>({})
 
+const playerStats = ref({ student_count: 0, guest_count: 0, total_count: 0 })
+const broadcastedIds = ref<number[]>([])
+const currentDisplayedEq = ref<ExamQuestion | null>(null)
+const currentDisplayState = ref<'question' | 'stats' | 'answer'>('question')
+const selectedQuestionIds = ref<number[]>([])
+
 // Drawer
 const isDrawerVisible = ref(false)
 const selectedStudent = ref<{
@@ -705,11 +792,6 @@ const selectedStudent = ref<{
 const attendanceDialogVisible = ref(false)
 const submissionDialogVisible = ref(false)
 const selectedQuestionIdForDetails = ref<number | null>(null)
-
-const playerStats = ref({ student_count: 0, guest_count: 0, total_count: 0 })
-const broadcastedIds = ref<number[]>([])
-const currentDisplayedEq = ref<ExamQuestion | null>(null)
-const selectedQuestionIds = ref<number[]>([])
 
 const roomStats = ref<any>({
     target_class: '',
@@ -950,6 +1032,17 @@ const leaveRoom = () => {
     setTimeout(() => socket.disconnect(), 100)
 }
 
+const quickBroadcast = (eq: ExamQuestion) => {
+    if (broadcastedIds.value.includes(eq.question_id)) return
+
+    const questionsToBroadcast = [{ ...eq.question, score: eq.score }]
+    socket.emit('host_broadcast_questions', {
+        room_pin: roomPin.value,
+        questions: questionsToBroadcast
+    })
+    broadcastedIds.value.push(eq.question_id)
+}
+
 const broadcastSelected = () => {
     if (selectedQuestionIds.value.length === 0) return
     const questionsToBroadcast = waitingPool.value
@@ -964,6 +1057,28 @@ const broadcastSelected = () => {
     })
     broadcastedIds.value.push(...selectedQuestionIds.value)
     selectedQuestionIds.value = []
+}
+
+const changeDisplayState = (
+    eq: ExamQuestion,
+    state: 'question' | 'stats' | 'answer'
+) => {
+    currentDisplayedEq.value = eq
+    currentDisplayState.value = state
+    isLeaderboardDisplayed.value = false
+    socket.emit('host_display_question', {
+        room_pin: roomPin.value,
+        question: eq.question,
+        display_state: state
+    })
+}
+
+const stopDisplaying = () => {
+    currentDisplayedEq.value = null
+    socket.emit('host_display_question', {
+        room_pin: roomPin.value,
+        question: null
+    })
 }
 
 const displayOnScreen = (eq: ExamQuestion) => {
@@ -1061,6 +1176,7 @@ onMounted(() => {
         broadcastedIds.value = data.broadcasted_ids
         isLeaderboardDisplayed.value = data.is_leaderboard_displayed
         recoveredDisplayedId.value = data.displayed_question_id
+        currentDisplayState.value = data.display_state || 'question'
 
         if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
             currentDisplayedEq.value =

@@ -160,6 +160,7 @@
                     <GameQuestionCard
                         :question="displayedQuestion"
                         role="screen"
+                        :displayState="displayState"
                         :stats="{ counts: answerStats, total: totalAnswers }"
                     />
                 </div>
@@ -244,6 +245,7 @@ const errorMessage = ref('')
 
 const currentView = ref<'lobby' | 'question' | 'leaderboard'>('lobby')
 const displayedQuestion = ref<any>(null)
+const displayState = ref<'question' | 'stats' | 'answer'>('question')
 const answerStats = ref<Record<string, number>>({})
 const totalAnswers = ref(0)
 const leaderboard = ref<any[]>([])
@@ -329,6 +331,7 @@ onMounted(() => {
     socket.on('display_question', (data: any) => {
         if (data.question) {
             displayedQuestion.value = data.question
+            displayState.value = data.display_state || 'question'
             currentView.value = 'question'
         } else {
             displayedQuestion.value = null

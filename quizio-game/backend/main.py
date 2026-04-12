@@ -86,6 +86,7 @@ async def join_room(sid, data):
                 'guest_count': 0,
                 'broadcasted_questions': {},
                 'displayed_question': None,
+                'display_state': 'question',
                 'answers': {},
                 'gradings': {},
                 'current_screen': 'lobby',
@@ -197,6 +198,7 @@ async def join_room(sid, data):
             {
                 'broadcasted_ids': broadcasted_ids,
                 'displayed_question_id': displayed_id,
+                'display_state': room.get('display_state', 'question'),
                 'is_leaderboard_displayed': is_leaderboard,
             },
             to=sid,
@@ -344,6 +346,7 @@ async def host_broadcast_questions(sid, data):
 async def host_display_question(sid, data):
     room_pin = str(data.get('room_pin'))
     question = data.get('question')
+    display_state = data.get('display_state', 'question')
 
     room = room_states.get(room_pin)
     if not room:
@@ -354,16 +357,21 @@ async def host_display_question(sid, data):
         return
 
     room['displayed_question'] = question
+    room['display_state'] = display_state if question else 'question'
     room['current_screen'] = 'question' if question else 'lobby'
 
     if question:
-        print(f'🖥️ Host broadcast question ID {question["id"]} on the screen')
+        print(f'🖥️ Host broadcast Q {question["id"]} with state: {display_state}')
     else:
         print('🖥️ Host clear the screen')
 
     for target_sid, player in room['players'].items():
         if player['role'] == 'screen':
-            await sio.emit('display_question', {'question': question}, to=target_sid)
+            await sio.emit(
+                'display_question',
+                {'question': question, 'display_state': display_state},
+                to=target_sid,
+            )
 
             if question:
                 q_id = str(question['id'])

@@ -235,12 +235,73 @@
         </div>
 
         <div v-else-if="role === 'screen'" class="screen-area">
-            <div v-if="isChoiceType" class="stats-bars flex-col gap-3">
-                <div v-for="(opt, idx) in options" :key="idx">
-                    <div class="text-lg font-bold mb-2 text-main">
-                        {{ opt }}
+            <div
+                v-if="isChoiceType"
+                class="choice-stats-layout flex-col gap-4 mt-4"
+            >
+                <div
+                    v-for="(opt, idx) in options"
+                    :key="idx"
+                    class="screen-option-card"
+                    :class="{
+                        'is-correct-answer':
+                            displayState === 'answer' && isCorrectOption(idx)
+                    }"
+                >
+                    <div
+                        class="flex-align-center"
+                        :class="{
+                            'mb-3':
+                                displayState === 'stats' ||
+                                displayState === 'answer'
+                        }"
+                    >
+                        <el-tag
+                            v-if="isChoiceType"
+                            :type="
+                                displayState === 'answer' &&
+                                isCorrectOption(idx)
+                                    ? 'success'
+                                    : 'info'
+                            "
+                            effect="plain"
+                            class="mr-3 option-letter-tag"
+                            round
+                        >
+                            {{
+                                isBooleanType
+                                    ? idx === 0
+                                        ? 'True'
+                                        : 'False'
+                                    : String.fromCharCode(65 + idx)
+                            }}
+                        </el-tag>
+                        <span
+                            v-if="!isBooleanType"
+                            class="text-lg font-bold text-main"
+                            :class="{
+                                'text-success':
+                                    displayState === 'answer' &&
+                                    isCorrectOption(idx)
+                            }"
+                        >
+                            {{ opt }}
+                        </span>
+                        <span
+                            v-if="
+                                displayState === 'answer' &&
+                                isCorrectOption(idx)
+                            "
+                            class="ml-3 text-xl"
+                            >✅</span
+                        >
                     </div>
+
                     <el-progress
+                        v-if="
+                            displayState === 'stats' ||
+                            displayState === 'answer'
+                        "
                         :percentage="getStatPercentage(idx)"
                         :stroke-width="36"
                         text-inside
@@ -254,22 +315,46 @@
                     </el-progress>
                 </div>
             </div>
-            <div v-else class="text-stats text-center py-5">
+
+            <div v-else class="text-stats-layout flex-col mt-4">
                 <div
-                    class="font-black"
-                    style="
-                        font-size: 7rem;
-                        color: var(--el-color-primary);
-                        line-height: 1;
-                    "
+                    v-if="displayState === 'stats' || displayState === 'answer'"
+                    class="text-stats text-center py-5"
                 >
-                    {{ stats?.total || 0 }}
+                    <div
+                        class="font-black"
+                        style="
+                            font-size: 7rem;
+                            color: var(--el-color-primary);
+                            line-height: 1;
+                        "
+                    >
+                        {{ stats?.total || 0 }}
+                    </div>
+                    <div
+                        class="text-xl text-muted mt-3"
+                        style="font-size: 2rem; font-weight: bold"
+                    >
+                        {{ $t('screen.responses_received') }}
+                    </div>
                 </div>
+
                 <div
-                    class="text-xl text-muted mt-3"
-                    style="font-size: 2rem; font-weight: bold"
+                    v-if="
+                        displayState === 'answer' && question.reference_answer
+                    "
+                    class="custom-result-box box-ref-ans mt-5"
                 >
-                    {{ $t('screen.responses_received') }}
+                    <div class="box-header" style="font-size: 2rem">
+                        <span class="mr-2">💡</span>
+                        {{ $t('common.reference_answer') }}
+                    </div>
+                    <div
+                        class="box-body markdown-body screen-huge-text"
+                        v-html="
+                            renderMarkdown(String(question.reference_answer))
+                        "
+                    ></div>
                 </div>
             </div>
         </div>
@@ -298,6 +383,7 @@ const props = defineProps({
         type: [String, Number, Boolean, Array],
         default: undefined
     },
+    displayState: { type: String, default: 'question' },
     gradingResult: { type: Object, default: undefined },
     stats: { type: Object, default: () => ({ counts: {}, total: 0 }) }
 })
@@ -318,7 +404,7 @@ const localAnswer = computed({
         emit('update:modelValue', val)
     }
 })
-
+const isBooleanType = computed(() => ['boolean'].includes(props.question.type))
 const isChoiceType = computed(() =>
     ['single', 'multiple', 'boolean'].includes(props.question.type)
 )
@@ -513,8 +599,7 @@ const getProgressColor = (idx: number) => {
 .option-letter-tag {
     font-size: 1rem;
     font-weight: bold;
-    width: 30px;
-    height: 30px; /* 縮小字母標籤 */
+    height: 30px;
     text-align: center;
     line-height: 28px;
 }
@@ -827,5 +912,34 @@ html.dark .box-header {
     font-size: clamp(1.2rem, 2.5vh, 2rem) !important;
     max-width: 90%;
     margin: 0 auto;
+}
+
+/* ==========================================
+   Screen Mode Option Cards
+========================================== */
+.screen-option-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 24px;
+    border-radius: 16px;
+    background-color: var(--el-fill-color-light);
+    border: 3px solid transparent;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.screen-option-card.is-correct-answer {
+    background-color: var(--el-color-success-light-9);
+    border-color: var(--el-color-success);
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px rgba(103, 194, 58, 0.2);
+}
+
+.ml-3 {
+    margin-left: 12px;
+}
+
+.text-stats-layout {
+    gap: 16px;
 }
 </style>
