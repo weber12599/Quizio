@@ -17,6 +17,7 @@
 
                 <el-form
                     label-position="top"
+                    @submit.prevent
                     @keyup.enter="joinAsScreen"
                     size="large"
                 >
@@ -465,7 +466,7 @@ onUnmounted(() => {
 }
 .max-w-5xl {
     max-width: calc(100dvw - 40px);
-    margin: 10px;
+    padding: 10px;
 }
 .gap-2 {
     gap: 8px;
@@ -494,7 +495,7 @@ onUnmounted(() => {
 ========================================== */
 .screen-view {
     height: 100dvh;
-    overflow: hidden; /* 確保不會有滾動條 */
+    overflow: hidden;
     background-color: var(--el-bg-color-page);
     color: var(--el-text-color-primary);
     display: flex;
@@ -585,14 +586,15 @@ onUnmounted(() => {
     }
 }
 
-/* --- Main Content Area --- */
+/* ==========================================
+   Main Content Area
+========================================== */
 .main-content-area {
     flex: 1;
     min-height: 0;
     width: 100%;
     display: flex;
     justify-content: center;
-    min-height: 0;
     align-items: stretch;
     overflow: hidden;
 }
@@ -603,10 +605,13 @@ onUnmounted(() => {
     height: 100%;
 }
 
-/* --- Lobby State --- */
+/* ==========================================
+   Lobby State (Fluid & Responsive)
+========================================== */
 .lobby-state {
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 .lobby-card {
     flex: 1;
@@ -614,51 +619,88 @@ onUnmounted(() => {
     flex-direction: column;
     border-radius: 24px;
     background-color: var(--el-bg-color-overlay);
+    min-height: 0;
 }
-.join-prompt {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: 1px;
-}
-.lobby-grid {
+
+.lobby-card :deep(.el-card__body) {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 40px;
+    justify-content: center;
+    align-items: center;
+    padding: 3vh 4vw;
+    min-height: 0;
+}
+
+.lobby-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3vh;
     justify-content: space-evenly;
     align-items: center;
     background-color: var(--el-fill-color-darker);
     border-radius: 20px;
-    padding: 40px;
+    padding: 3vh 40px;
     width: 100%;
+    min-height: 0;
 }
+
 .lobby-col {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
 }
+.border-b {
+    border-bottom: 2px dashed var(--el-border-color-lighter);
+    padding-bottom: 2vh;
+    width: 80%;
+}
+
 .pin-label {
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 2vh, 1.5rem);
     text-transform: uppercase;
     letter-spacing: 2px;
 }
 .pin-value {
-    font-size: 7rem;
+    font-size: clamp(3rem, 12vh, 8rem);
     font-weight: 900;
     letter-spacing: 8px;
     line-height: 1;
 }
 .url-display {
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 2.5vh, 1.8rem);
     font-family: monospace;
     font-weight: bold;
 }
+
 .qr-container {
     border: 4px solid #fff;
+    max-height: 25vh;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px;
 }
+
+.qr-container :deep(canvas),
+.qr-container :deep(img) {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+}
+
 .waiting-text {
-    font-size: 1.8rem;
+    font-size: clamp(1.2rem, 3vh, 2rem);
     font-weight: normal;
 }
 
-/* --- Leaderboard State --- */
+/* ==========================================
+   Leaderboard State
+========================================== */
 .leaderboard-card {
     border-radius: 20px;
     background-color: var(--el-bg-color-overlay);
