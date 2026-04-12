@@ -417,7 +417,12 @@ async def submit_answer(sid, data):
     q_type = question.get('type')
     correct_answer = question.get('reference_answer')
 
-    is_correct = grade_answer(q_type, answer, correct_answer)
+    is_correct = (
+        None
+        if question.get('needs_manual_grading', False)
+        else grade_answer(q_type, answer, correct_answer)
+    )
+
     grading_result = {'is_correct': is_correct, 'correct_answer': correct_answer}
     room['gradings'][q_id][player_id] = grading_result
 
@@ -502,12 +507,25 @@ async def end_game(sid, data):
                             .get(player_id, {})
                         )
 
+                        is_correct = grading.get('is_correct')
+                        if is_correct is True:
+                            earned_score = (
+                                room.get('broadcasted_questions', {})
+                                .get(q_id_str, {})
+                                .get('score', 0)
+                            )
+                        elif is_correct is False:
+                            earned_score = 0
+                        else:
+                            # If is_correct is None (Needs manual grading), score should also be None (NULL in DB)
+                            earned_score = None
+
                         answers_payload.append(
                             {
                                 'question_id': int(q_id_str),
                                 'answer_content': ans_content_str,
                                 'is_correct': grading.get('is_correct'),
-                                'score': 100 if grading.get('is_correct') else 0,
+                                'score': earned_score,
                             }
                         )
 

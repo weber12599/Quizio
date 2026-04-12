@@ -673,6 +673,7 @@ interface ExamQuestion {
     question_id: number
     sort_order: number
     question: Question
+    score: number
 }
 
 const { t } = useI18n()
@@ -953,7 +954,9 @@ const broadcastSelected = () => {
     if (selectedQuestionIds.value.length === 0) return
     const questionsToBroadcast = waitingPool.value
         .filter((eq) => selectedQuestionIds.value.includes(eq.question_id))
-        .map((eq) => eq.question)
+        .map((eq) => {
+            return { ...eq.question, score: eq.score }
+        })
 
     socket.emit('host_broadcast_questions', {
         room_pin: roomPin.value,

@@ -189,18 +189,18 @@
                         <div
                             class="custom-result-box"
                             :class="
-                                gradingResult?.is_correct
+                                gradingResult?.is_correct === true
                                     ? 'box-correct'
-                                    : gradingResult
+                                    : gradingResult?.is_correct === false
                                       ? 'box-incorrect'
                                       : 'box-pending'
                             "
                         >
                             <div class="box-header">
                                 <span class="mr-2">{{
-                                    gradingResult?.is_correct
+                                    gradingResult?.is_correct === true
                                         ? '✅'
-                                        : gradingResult
+                                        : gradingResult?.is_correct === false
                                           ? '❌'
                                           : '📝'
                                 }}</span>
@@ -349,7 +349,6 @@ const options = computed(() => {
     return parsedOpts
 })
 
-// 🚀 優化 1：Host 判斷正確選項（嚴謹的型別轉換與多選判斷）
 const isCorrectOption = (idx: number) => {
     const refAns = props.question.reference_answer
     if (refAns === undefined || refAns === null || refAns === '') return false
@@ -373,21 +372,19 @@ const isCorrectOption = (idx: number) => {
 }
 
 const bannerType = computed(() => {
-    if (props.question.type === 'essay') return 'info'
-    return props.gradingResult?.is_correct ? 'success' : 'error'
+    if (props.gradingResult?.is_correct === true) return 'success'
+    if (props.gradingResult?.is_correct === false) return 'error'
+    return 'info' // null, undefined (Needs manual grading)
 })
 const bannerIcon = computed(() => {
-    if (props.question.type === 'essay') return ''
-    return props.gradingResult?.is_correct ? '' : ''
+    return ''
 })
 const bannerText = computed(() => {
-    if (props.question.type === 'essay') return t('banner.pending_review')
-    return props.gradingResult?.is_correct
-        ? t('banner.correct')
-        : t('banner.incorrect')
+    if (props.gradingResult?.is_correct === true) return t('banner.correct')
+    if (props.gradingResult?.is_correct === false) return t('banner.incorrect')
+    return t('banner.pending_review') // null, undefined
 })
 
-// 🚀 優化 2：Client 的作答狀態分析（完美處理多選題的陣列交集）
 const getGradingClass = (idx: number) => {
     if (!props.gradingResult) return ''
 
