@@ -219,7 +219,8 @@
                                 "
                                 size="small"
                             >
-                                Q{{ index + 1 }}
+                                Q{{ index + 1 }} -
+                                {{ ans.question?.type }}
                                 {{
                                     ans.question?.needs_manual_grading
                                         ? '(Needs Manual Grading)'
@@ -234,29 +235,48 @@
                         ></div>
 
                         <div
-                            class="ref-answer-box"
-                            v-if="ans.question?.needs_manual_grading"
+                            v-if="
+                                ans.question?.type === 'single' ||
+                                ans.question?.type === 'multiple'
+                            "
+                            class="options-display"
                         >
-                            <span class="label">Reference:</span>
                             <div
-                                v-html="
-                                    renderMarkdown(
+                                v-for="(opt, oIdx) in parseOptions(
+                                    ans.question.options
+                                )"
+                                :key="oIdx"
+                                class="option-item"
+                            >
+                                <span class="option-label"
+                                    >{{ String.fromCharCode(65 + oIdx) }}.</span
+                                >
+                                <span class="option-text">{{ opt }}</span>
+                            </div>
+                        </div>
+
+                        <div class="ref-answer-box">
+                            <span class="label">Reference Answer:</span>
+                            <div class="ans-text">
+                                {{
+                                    formatDisplayAnswer(
+                                        ans.question?.type,
                                         ans.question?.reference_answer
                                     )
-                                "
-                            ></div>
+                                }}
+                            </div>
                         </div>
 
                         <div class="student-answer-box">
                             <span class="label">Student's Answer:</span>
-                            <div
-                                v-html="
-                                    renderMarkdown(
-                                        ans.answer_content ||
-                                            '*(No Answer Provided)*'
+                            <div class="ans-text">
+                                {{
+                                    formatDisplayAnswer(
+                                        ans.question?.type,
+                                        ans.answer_content
                                     )
-                                "
-                            ></div>
+                                }}
+                            </div>
                         </div>
 
                         <div class="grading-controls">
@@ -418,6 +438,61 @@ const formatRecordAt = (dateStr?: string | null) => {
     })
 }
 
+// 🚀 解析選項字串或陣列
+const parseOptions = (optsRaw: any): string[] => {
+    if (Array.isArray(optsRaw)) return optsRaw
+    if (typeof optsRaw === 'string') {
+        try {
+            const parsed = JSON.parse(optsRaw)
+            return Array.isArray(parsed) ? parsed : []
+        } catch {
+            return []
+        }
+    }
+    return []
+}
+
+// 🚀 優化：格式化顯示答案邏輯
+const formatDisplayAnswer = (type: string, val: any): string => {
+    if (val === undefined || val === null || val === '') return '*(No Answer)*'
+
+    // 是非題：0 -> True, 1 -> False 或布林值處理
+    if (type === 'boolean') {
+        const isTrue =
+            val === 0 ||
+            val === '0' ||
+            val === true ||
+            String(val).toLowerCase() === 'true'
+        return isTrue ? 'True' : 'False'
+    }
+
+    // 單選題：數字轉字母 A, B, C
+    if (type === 'single') {
+        const idx = parseInt(val)
+        return isNaN(idx) ? String(val) : String.fromCharCode(65 + idx)
+    }
+
+    // 多選題：處理陣列或 JSON 字串
+    if (type === 'multiple') {
+        let arr: any[] = []
+        try {
+            arr = Array.isArray(val) ? val : JSON.parse(val)
+        } catch {
+            arr = []
+        }
+        if (!Array.isArray(arr)) return String(val)
+        return arr
+            .map((v) => {
+                const idx = parseInt(v)
+                return isNaN(idx) ? String(v) : String.fromCharCode(65 + idx)
+            })
+            .sort()
+            .join(', ')
+    }
+
+    return String(val)
+}
+
 // --- Manual Grading Handlers ---
 const openGradingDialog = async (
     submissionId: number,
@@ -500,7 +575,6 @@ const closeGradingDialog = () => {
     margin-bottom: 15px;
 }
 
-/* 🚀 新增 Score 顯示樣式 */
 .score-container {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
     font-size: 1.1em;
@@ -550,7 +624,7 @@ const closeGradingDialog = () => {
     padding-right: 10px;
 }
 .grading-card {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 .q-header {
     margin-bottom: 10px;
@@ -560,25 +634,56 @@ const closeGradingDialog = () => {
     margin: 0 0 10px 0;
     max-width: 100%;
 }
+
+/* 🚀 選項顯示樣式 */
+.options-display {
+    background-color: var(--el-fill-color-blank);
+    border: 1px solid var(--el-border-color-lighter);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.option-item {
+    margin-bottom: 6px;
+    display: flex;
+    align-items: flex-start;
+}
+.option-label {
+    font-weight: bold;
+    color: var(--el-color-primary);
+    margin-right: 10px;
+    min-width: 20px;
+}
+.option-text {
+    color: var(--el-text-color-regular);
+}
+
 .ref-answer-box {
     background-color: #f0f9eb;
-    padding: 10px;
-    border-radius: 4px;
+    padding: 12px;
+    border-radius: 6px;
     margin-bottom: 10px;
-    font-size: 0.9em;
 }
 .student-answer-box {
     background-color: #fdf6ec;
-    padding: 10px;
-    border-radius: 4px;
+    padding: 12px;
+    border-radius: 6px;
     margin-bottom: 15px;
     border-left: 4px solid #e6a23c;
+}
+.ans-text {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--el-text-color-primary);
+    margin-top: 5px;
 }
 .label {
     font-weight: bold;
     display: block;
     margin-bottom: 5px;
     color: #606266;
+    font-size: 0.85rem;
+    text-transform: uppercase;
 }
 .grading-controls {
     display: flex;
