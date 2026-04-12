@@ -1087,8 +1087,16 @@ onUnmounted(() => {
 .host-view {
     padding: 32px 24px;
     max-width: 1400px;
+    width: 100%;
     margin: 0 auto;
     color: var(--el-text-color-primary);
+
+    height: 100dvh;
+    max-height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 .w-full {
     width: 100%;
@@ -1177,16 +1185,18 @@ onUnmounted(() => {
    Auth & Setup Panels
 --------------------------------------- */
 .auth-container {
+    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - 120px);
+    overflow-y: auto;
 }
 .auth-card {
     width: 100%;
     max-width: 520px;
     border-radius: 12px;
     background-color: var(--el-bg-color-overlay);
+    margin: auto;
 }
 .auth-form .el-form-item,
 .setup-form .el-form-item {
@@ -1199,14 +1209,18 @@ onUnmounted(() => {
 }
 
 /* --------------------------------------
-   Dashboard UI
+   Dashboard UI (Room State)
 --------------------------------------- */
 .room-container {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 24px;
+    min-height: 0;
+    height: 100%;
 }
 .dashboard-card {
+    flex-shrink: 0;
     border-radius: 12px;
     background-color: var(--el-bg-color-overlay);
 }
@@ -1250,22 +1264,51 @@ onUnmounted(() => {
 }
 
 /* --------------------------------------
-   Question Pool
+   Main Grid (Left: Pool, Right: Participants)
 --------------------------------------- */
+.main-layout-grid {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+}
+.main-layout-grid > .el-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
 .pool-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     border-radius: 12px;
     background-color: var(--el-bg-color-overlay);
+    min-height: 0;
+    height: 100%;
 }
 .pool-card :deep(.el-card__body) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     padding: 0;
+    min-height: 0;
+    height: 100%;
 }
+
 .question-list {
-    max-height: 70vh;
+    flex: 1;
     overflow-y: auto;
+    height: 100%;
     padding: 32px;
     background-color: var(--el-fill-color-light);
     border-radius: 0 0 12px 12px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
+question-list::-webkit-scrollbar {
+    display: none;
+}
+
 .question-list :deep(.game-question-card) {
     background-color: var(--el-bg-color-overlay);
 }
@@ -1276,17 +1319,27 @@ onUnmounted(() => {
     display: none;
 }
 
-/* --------------------------------------
-   Right Column (Participants)
---------------------------------------- */
 .right-col-content {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    min-height: 0;
+    height: 100%;
 }
 .right-col-content .el-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     border-radius: 12px;
     background-color: var(--el-bg-color-overlay);
+    min-height: 0;
+    height: 100%;
+}
+.right-col-content .el-card :deep(.el-card__body) {
+    flex: 1;
+    overflow-y: auto;
+    height: 100%;
+    padding: 24px;
 }
 
 .player-tag {
@@ -1306,7 +1359,6 @@ onUnmounted(() => {
     transform: translateY(-3px);
     box-shadow: var(--el-box-shadow-light);
 }
-
 .clickable-stat {
     cursor: pointer;
     transition:
@@ -1319,7 +1371,7 @@ onUnmounted(() => {
 }
 
 /* --------------------------------------
-   Drawer Styles
+   Drawer & Pulse Styles
 --------------------------------------- */
 .drawer-header {
     padding: 20px 24px 20px 0;
@@ -1354,7 +1406,46 @@ onUnmounted(() => {
     }
 }
 
+/* --------------------------------------
+   RWD (Mobile View)
+--------------------------------------- */
 @media (max-width: 992px) {
+    /* 手機版：解開鎖死的 100dvh，讓整頁可以自然捲動 */
+    .host-view {
+        height: 100dvh !important;
+        overflow-y: auto !important;
+    }
+    .main-layout-grid {
+        flex-direction: column;
+        flex-wrap: wrap; /* 手機版允許換行 */
+        gap: 24px;
+    }
+
+    /* 解除所有強制的 height: 100% 限制，讓子元件自由生長 */
+    .room-container,
+    .main-layout-grid,
+    .main-layout-grid > .el-col,
+    .pool-card,
+    .pool-card :deep(.el-card__body),
+    .right-col-content,
+    .right-col-content .el-card,
+    .right-col-content .el-card :deep(.el-card__body),
+    .question-list {
+        flex: none !important;
+        min-height: auto !important;
+        height: auto !important;
+    }
+
+    /* 為了避免手機版清單無限拉長，給予這兩區一個最大高度的內部捲軸 */
+    .question-list {
+        max-height: 50vh;
+        overflow-y: auto !important;
+    }
+    .right-col-content .el-card :deep(.el-card__body) {
+        max-height: 40vh;
+        overflow-y: auto !important;
+    }
+
     .dashboard-flex {
         flex-direction: column;
         align-items: flex-start;
@@ -1368,11 +1459,6 @@ onUnmounted(() => {
         width: 100%;
         display: flex;
         justify-content: flex-end;
-    }
-    .main-layout-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 32px;
     }
 }
 </style>
