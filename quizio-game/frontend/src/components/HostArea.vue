@@ -20,9 +20,16 @@
                         class="mr-3 option-letter-tag"
                         round
                     >
-                        {{ String.fromCharCode(65 + idx) }}
+                        {{
+                            isBooleanType
+                                ? idx === 0
+                                    ? $t('common.true_option')
+                                    : $t('common.false_option')
+                                : String.fromCharCode(65 + idx)
+                        }}
                     </el-tag>
                     <span
+                        v-if="!isBooleanType"
                         class="option-text"
                         :class="{
                             'font-bold text-success': isCorrectOption(idx)
@@ -38,7 +45,7 @@
             <div class="custom-result-box box-ref-ans">
                 <div class="box-header">
                     <span class="mr-2">📝</span>
-                    {{ $t('common.reference_answer') || 'Reference Answer' }}
+                    {{ $t('common.reference_answer') }}
                 </div>
                 <div
                     class="box-body markdown-body"
@@ -60,6 +67,7 @@ const props = defineProps<{
     question: any
     options: string[]
     isChoiceType: boolean
+    isBooleanType: boolean
     isCorrectOption: (idx: number) => boolean
 }>()
 

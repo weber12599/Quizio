@@ -154,7 +154,10 @@
                 </div>
 
                 <div
-                    v-else-if="currentView === 'question' && displayedQuestion"
+                    v-else-if="
+                        (currentView === 'question' && displayedQuestion) ||
+                        pinnedAnswer
+                    "
                     class="w-full max-w-5xl"
                 >
                     <GameQuestionCard
@@ -162,6 +165,7 @@
                         role="screen"
                         :displayState="displayState"
                         :stats="{ counts: answerStats, total: totalAnswers }"
+                        :pinnedAnswer="pinnedAnswer"
                     />
                 </div>
 
@@ -245,6 +249,7 @@ const errorMessage = ref('')
 
 const currentView = ref<'lobby' | 'question' | 'leaderboard'>('lobby')
 const displayedQuestion = ref<any>(null)
+const pinnedAnswer = ref<any>(null)
 const displayState = ref<'question' | 'stats' | 'answer'>('question')
 const answerStats = ref<Record<string, number>>({})
 const totalAnswers = ref(0)
@@ -332,11 +337,18 @@ onMounted(() => {
         if (data.question) {
             displayedQuestion.value = data.question
             displayState.value = data.display_state || 'question'
+            pinnedAnswer.value = data.pinned_answer || ''
             currentView.value = 'question'
         } else {
             displayedQuestion.value = null
+            displayState.value = 'question'
+            pinnedAnswer.value = null
             currentView.value = 'lobby'
         }
+    })
+
+    socket.on('update_pinned_answer', (data: any) => {
+        pinnedAnswer.value = data.pinned_answer
     })
 
     socket.on('update_stats', (data: any) => {
@@ -375,6 +387,7 @@ onUnmounted(() => {
     socket.disconnect()
     socket.off('room_state')
     socket.off('display_question')
+    socket.off('update_pinned_answer')
     socket.off('update_stats')
     socket.off('show_leaderboard')
     socket.off('error')

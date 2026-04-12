@@ -368,7 +368,7 @@
                                     </template>
                                     <template #actions>
                                         <div class="flex-between w-full">
-                                            <div>
+                                            <div class="gap-2">
                                                 <el-button
                                                     v-if="
                                                         !broadcastedIds.includes(
@@ -380,9 +380,31 @@
                                                     @click="quickBroadcast(eq)"
                                                     size="large"
                                                 >
+                                                    <el-icon class="mr-1"
+                                                        ><Position
+                                                    /></el-icon>
                                                     {{
                                                         $t(
                                                             'host.quick_broadcast'
+                                                        )
+                                                    }}
+                                                </el-button>
+
+                                                <el-button
+                                                    v-else
+                                                    type="success"
+                                                    plain
+                                                    @click="
+                                                        openPinAnswersDialog(eq)
+                                                    "
+                                                    size="large"
+                                                >
+                                                    <el-icon class="mr-1"
+                                                        ><View
+                                                    /></el-icon>
+                                                    {{
+                                                        $t(
+                                                            'host.preview_answers'
                                                         )
                                                     }}
                                                 </el-button>
@@ -722,6 +744,102 @@
                 </el-col>
             </el-row>
         </el-dialog>
+
+        <el-dialog
+            v-model="pinAnswersDialogVisible"
+            :title="$t('host.preview_answers')"
+            width="600px"
+        >
+            <template #header>
+                <div class="flex-align-center gap-2">
+                    <span class="el-dialog__title" style="font-size: 18px">
+                        {{ $t('host.preview_answers') }}
+                    </span>
+                    <el-button type="primary" link @click="refreshPinAnswers">
+                        <el-icon size="20"><Refresh /></el-icon>
+                    </el-button>
+                </div>
+            </template>
+
+            <el-alert
+                v-if="
+                    currentPinnedAnswer &&
+                    currentPinnedAnswer.question_id ===
+                        currentPinningEq?.question.id
+                "
+                type="success"
+                show-icon
+                :closable="false"
+                class="mb-4"
+            >
+                <template #title>
+                    {{ $t('host.currently_pinned') }}
+                    <strong>{{ currentPinnedAnswer.name }}</strong>
+                    {{ $t('host.pinned_on_screen') }}
+                    <el-button
+                        type="danger"
+                        link
+                        @click="unpinAnswer"
+                        class="ml-2"
+                    >
+                        {{ $t('host.unpin') }}
+                    </el-button>
+                </template>
+            </el-alert>
+
+            <div class="flex-col gap-3 max-h-[50vh] overflow-y-auto pr-2">
+                <el-empty
+                    v-if="answersForPinning.length === 0"
+                    :description="$t('host.no_student_answers')"
+                />
+                <el-card
+                    v-for="ans in answersForPinning"
+                    :key="ans.player_id"
+                    shadow="hover"
+                    :class="{
+                        'border-success':
+                            currentPinnedAnswer?.player_id === ans.player_id
+                    }"
+                >
+                    <div class="flex-between mb-2">
+                        <el-tag :type="ans.is_guest ? 'warning' : 'primary'">
+                            {{ ans.name }}
+                        </el-tag>
+                        <el-button
+                            :type="
+                                currentPinnedAnswer?.player_id === ans.player_id
+                                    ? 'success'
+                                    : 'primary'
+                            "
+                            plain
+                            size="small"
+                            @click="
+                                currentPinnedAnswer?.player_id ===
+                                    ans.player_id &&
+                                currentPinnedAnswer?.question_id ===
+                                    currentPinningEq?.question.id
+                                    ? unpinAnswer()
+                                    : pinAnswer(ans)
+                            "
+                        >
+                            {{
+                                currentPinnedAnswer?.player_id ===
+                                    ans.player_id &&
+                                currentPinnedAnswer?.question_id ===
+                                    currentPinningEq?.question.id
+                                    ? $t('host.pinned')
+                                    : $t('host.pin_action')
+                            }}
+                        </el-button>
+                    </div>
+                    <div
+                        class="text-main markdown-body"
+                        style="word-break: break-word"
+                        v-html="renderAnswerAsHtml(ans.answer)"
+                    ></div>
+                </el-card>
+            </div>
+        </el-dialog>
     </div>
 </template>
 
@@ -733,7 +851,8 @@ import api from '../api'
 import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import { formatQuestionType } from '../utils/locales'
-import { Position, Monitor, VideoPause } from '@element-plus/icons-vue'
+import { renderMarkdown } from '../utils/markdown'
+import { Position, Monitor, VideoPause, Refresh } from '@element-plus/icons-vue'
 
 interface Exam {
     id: number
@@ -773,6 +892,10 @@ const allowGuests = ref(true)
 const selectedExam = ref<number | ''>('')
 const expectedStudents = ref<string[]>([])
 const expectedStudentInfo = ref<Record<string, string>>({})
+const pinAnswersDialogVisible = ref(false)
+const answersForPinning = ref<any[]>([])
+const currentPinningEq = ref<ExamQuestion | null>(null)
+const currentPinnedAnswer = ref<any>(null)
 
 const playerStats = ref({ student_count: 0, guest_count: 0, total_count: 0 })
 const broadcastedIds = ref<number[]>([])
@@ -1063,6 +1186,13 @@ const changeDisplayState = (
     eq: ExamQuestion,
     state: 'question' | 'stats' | 'answer'
 ) => {
+    currentPinnedAnswer.value = null
+    socket.emit('host_pin_answer', {
+        room_pin: roomPin.value,
+        question_id: currentDisplayedEq.value?.question.id,
+        pinned_answer: null
+    })
+
     currentDisplayedEq.value = eq
     currentDisplayState.value = state
     isLeaderboardDisplayed.value = false
@@ -1075,27 +1205,11 @@ const changeDisplayState = (
 
 const stopDisplaying = () => {
     currentDisplayedEq.value = null
+    currentPinnedAnswer.value = null
     socket.emit('host_display_question', {
         room_pin: roomPin.value,
         question: null
     })
-}
-
-const displayOnScreen = (eq: ExamQuestion) => {
-    if (currentDisplayedEq.value?.question_id === eq.question_id) {
-        currentDisplayedEq.value = null
-        socket.emit('host_display_question', {
-            room_pin: roomPin.value,
-            question: null
-        })
-    } else {
-        currentDisplayedEq.value = eq
-        isLeaderboardDisplayed.value = false
-        socket.emit('host_display_question', {
-            room_pin: roomPin.value,
-            question: eq.question
-        })
-    }
 }
 
 const toggleLeaderboard = () => {
@@ -1121,6 +1235,110 @@ const openStudentDrawer = (playerId: string, info: any) => {
     selectedStudent.value = { player_id: playerId, ...info }
     isDrawerVisible.value = true
 }
+
+const openPinAnswersDialog = (eq: ExamQuestion) => {
+    currentPinningEq.value = eq
+    refreshPinAnswers()
+    pinAnswersDialogVisible.value = true
+}
+
+const refreshPinAnswers = () => {
+    if (currentPinningEq.value === null) {
+        return
+    }
+
+    const answers =
+        roomStats.value.answers?.[currentPinningEq.value.question_id] || {}
+    const clients = roomStats.value.clients_info || {}
+
+    answersForPinning.value = Object.entries(answers).map(
+        ([playerId, answer]) => {
+            return {
+                player_id: playerId,
+                name: clients[playerId]?.name || 'Unknown',
+                is_guest: clients[playerId]?.is_guest || false,
+                answer: answer
+            }
+        }
+    )
+}
+
+const formatPreviewAnswer = (answer: any) => {
+    const question = currentPinningEq.value?.question
+    if (!question) {
+        return answer
+    }
+
+    const qType = question.type
+    const isBoolean = qType === 'boolean'
+    const isChoice = ['single', 'multiple', 'boolean'].includes(qType)
+
+    if (isChoice) {
+        const formatItem = (val: any) => {
+            const idx = Number(val)
+            if (isBoolean) {
+                return idx === 0
+                    ? t('common.true_option')
+                    : t('common.false_option')
+            }
+            return String.fromCharCode(65 + idx)
+        }
+
+        if (Array.isArray(answer)) {
+            return answer.map(formatItem).join(', ')
+        }
+        return formatItem(answer)
+    }
+
+    return answer
+}
+
+const renderAnswerAsHtml = (answer: any) => {
+    const question = currentDisplayedEq.value?.question
+    const formattedText = formatPreviewAnswer(answer)
+
+    if (question && ['single', 'multiple', 'boolean'].includes(question.type)) {
+        return formattedText
+    }
+
+    return renderMarkdown(formattedText || '')
+}
+
+const pinAnswer = (studentAnswerInfo: any) => {
+    if (
+        currentDisplayedEq.value?.question_id !==
+            currentPinningEq.value?.question_id ||
+        currentDisplayState.value !== 'question'
+    ) {
+        changeDisplayState(currentPinningEq.value!, 'question')
+    }
+
+    const payload = {
+        ...studentAnswerInfo,
+        question_id: currentPinningEq.value?.question.id
+    }
+    currentPinnedAnswer.value = payload
+
+    socket.emit('host_pin_answer', {
+        room_pin: roomPin.value,
+        question_id: currentPinningEq.value?.question.id,
+        pinned_answer: payload
+    })
+}
+
+const unpinAnswer = () => {
+    if (currentDisplayState.value !== 'question') {
+        changeDisplayState(currentDisplayedEq.value!, 'question')
+    }
+
+    currentPinnedAnswer.value = null
+    socket.emit('host_pin_answer', {
+        room_pin: roomPin.value,
+        question_id: currentPinningEq.value?.question.id,
+        pinned_answer: null
+    })
+}
+
 const getStudentProgress = (playerId: string) => {
     if (broadcastedIds.value.length === 0) return '0 / 0'
     let answered = 0
@@ -1177,6 +1395,7 @@ onMounted(() => {
         isLeaderboardDisplayed.value = data.is_leaderboard_displayed
         recoveredDisplayedId.value = data.displayed_question_id
         currentDisplayState.value = data.display_state || 'question'
+        currentPinnedAnswer.value = data.pinned_answer || null
 
         if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
             currentDisplayedEq.value =

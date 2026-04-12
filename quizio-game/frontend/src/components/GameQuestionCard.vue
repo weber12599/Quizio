@@ -58,6 +58,7 @@
             :question="question"
             :options="options"
             :isChoiceType="isChoiceType"
+            :isBooleanType="isBooleanType"
             :isCorrectOption="isCorrectOption"
         />
 
@@ -85,6 +86,7 @@
             :isCorrectOption="isCorrectOption"
             :getStatPercentage="getStatPercentage"
             :getProgressColor="getProgressColor"
+            :pinnedAnswer="pinnedAnswer"
         />
 
         <div class="q-actions border-t" v-if="$slots.actions">
@@ -112,7 +114,11 @@ const props = defineProps({
     },
     displayState: { type: String, default: 'question' },
     gradingResult: { type: Object, default: undefined },
-    stats: { type: Object, default: () => ({ counts: {}, total: 0 }) }
+    stats: { type: Object, default: () => ({ counts: {}, total: 0 }) },
+    pinnedAnswer: {
+        type: [String, Number, Boolean, Array],
+        default: undefined
+    }
 })
 
 const emit = defineEmits(['update:modelValue'])

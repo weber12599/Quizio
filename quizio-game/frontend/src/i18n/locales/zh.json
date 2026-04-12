@@ -74,7 +74,14 @@
         "joined_students": "已加入",
         "submission_details": "繳交狀況明細",
         "unsubmitted_list": "尚未繳交",
-        "submitted_list": "已繳交"
+        "submitted_list": "已繳交",
+        "preview_answers": "預覽作答並釘選",
+        "currently_pinned": "目前已釘選",
+        "pinned_on_screen": "的作答於大螢幕展示。",
+        "unpin": "取消釘選",
+        "no_student_answers": "尚無學生作答",
+        "pinned": "已釘選",
+        "pin_action": "📌 釘選"
     },
     "screen": {
         "title": "大螢幕投放設定",

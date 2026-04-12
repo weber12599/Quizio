@@ -74,7 +74,14 @@
         "joined_students": "Joined",
         "submission_details": "Submission",
         "unsubmitted_list": "Unsubmitted",
-        "submitted_list": "Submitted"
+        "submitted_list": "Submitted",
+        "preview_answers": "Preview & Pin Answers",
+        "currently_pinned": "Currently pinning",
+        "pinned_on_screen": "'s answer on the screen.",
+        "unpin": "Unpin",
+        "no_student_answers": "No student answers yet",
+        "pinned": "Pinned",
+        "pin_action": "📌 Pin"
     },
     "screen": {
         "title": "Screen / Projector Setup",

@@ -1,7 +1,21 @@
 <template>
     <div class="screen-area">
+        <div v-if="pinnedAnswer" class="pinned-layout flex-col mt-4">
+            <div class="custom-result-box box-pinned-ans mt-2">
+                <div class="box-header" style="font-size: 2rem">
+                    <span class="mr-3">📌</span>
+                    {{ pinnedAnswer.name }}
+                </div>
+                <div
+                    class="box-body markdown-body screen-huge-text"
+                    style="font-size: 3rem; line-height: 1.4"
+                    v-html="formattedPinnedHtml"
+                ></div>
+            </div>
+        </div>
+
         <div
-            v-if="isChoiceType"
+            v-else-if="isChoiceType"
             class="choice-stats-layout flex-col gap-4 mt-4"
         >
             <div
@@ -35,8 +49,8 @@
                         {{
                             isBooleanType
                                 ? idx === 0
-                                    ? 'True'
-                                    : 'False'
+                                    ? $t('common.true_option')
+                                    : $t('common.false_option')
                                 : String.fromCharCode(65 + idx)
                         }}
                     </el-tag>
@@ -115,12 +129,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { renderMarkdown } from '../utils/markdown'
 
 const { t } = useI18n()
 
-defineProps<{
+const props = defineProps<{
     question: any
     options: string[]
     isChoiceType: boolean
@@ -130,7 +145,33 @@ defineProps<{
     isCorrectOption: (idx: number) => boolean
     getStatPercentage: (idx: number | string) => number
     getProgressColor: (idx: number) => string
+    pinnedAnswer?: any
 }>()
+
+const formattedPinnedHtml = computed(() => {
+    if (!props.pinnedAnswer || props.pinnedAnswer.answer === undefined)
+        return ''
+
+    const ans = props.pinnedAnswer.answer
+
+    if (props.isChoiceType) {
+        const formatItem = (val: any) => {
+            const idx = Number(val)
+            if (props.isBooleanType) {
+                return idx === 0
+                    ? t('common.true_option')
+                    : t('common.false_option')
+            }
+            return String.fromCharCode(65 + idx)
+        }
+        const textStr = Array.isArray(ans)
+            ? ans.map(formatItem).join(', ')
+            : formatItem(ans)
+        return String(textStr)
+    }
+
+    return renderMarkdown(String(ans))
+})
 </script>
 
 <style scoped>
@@ -243,5 +284,27 @@ defineProps<{
     color: var(--el-color-success);
     border-bottom: 1px dashed var(--el-color-success-light-5);
     background-color: var(--el-color-success-light-8);
+}
+.box-pinned-ans {
+    border-color: var(--el-color-primary);
+    border-style: solid;
+    background-color: var(--el-color-primary-light-9);
+    box-shadow: 0 12px 36px rgba(64, 158, 255, 0.25);
+    transform: translateY(-5px);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.box-pinned-ans .box-header {
+    color: #fff;
+    background-color: var(--el-color-primary);
+    border-bottom: none;
+    padding: 16px 24px;
+}
+.box-pinned-ans .box-body {
+    padding: 40px 32px;
+    color: var(--el-text-color-primary);
+}
+.screen-huge-text :deep(p) {
+    font-size: 3rem;
+    margin-bottom: 0.5em;
 }
 </style>

@@ -1,4 +1,3 @@
-import json
 from typing import Dict
 
 import socketio
@@ -11,7 +10,6 @@ from utils import (
     generate_leaderboard,
     grade_answer,
     sanitize_rich_text,
-    submit_batch_submissions,
 )
 
 # Initialize FastAPI app
@@ -87,6 +85,7 @@ async def join_room(sid, data):
                 'broadcasted_questions': {},
                 'displayed_question': None,
                 'display_state': 'question',
+                'pinned_answer': None,
                 'answers': {},
                 'gradings': {},
                 'current_screen': 'lobby',
@@ -200,6 +199,7 @@ async def join_room(sid, data):
                 'displayed_question_id': displayed_id,
                 'display_state': room.get('display_state', 'question'),
                 'is_leaderboard_displayed': is_leaderboard,
+                'pinned_answer': room.get('pinned_answer'),
             },
             to=sid,
         )
@@ -241,7 +241,15 @@ async def join_room(sid, data):
         if current_screen == 'question':
             displayed_q = room.get('displayed_question')
             if displayed_q:
-                await sio.emit('display_question', {'question': displayed_q}, to=sid)
+                await sio.emit(
+                    'display_question',
+                    {
+                        'question': displayed_q,
+                        'display_state': room.get('display_state', 'question'),
+                        'pinned_answer': room.get('pinned_answer'),
+                    },
+                    to=sid,
+                )
 
                 q_id = str(displayed_q['id'])
                 q_type = displayed_q.get('type')
@@ -356,6 +364,12 @@ async def host_display_question(sid, data):
     if not player_info or player_info['role'] != 'host':
         return
 
+    current_displayed = room.get('displayed_question')
+    if not question or (
+        current_displayed and current_displayed.get('id') != question.get('id')
+    ):
+        room['pinned_answer'] = None
+
     room['displayed_question'] = question
     room['display_state'] = display_state if question else 'question'
     room['current_screen'] = 'question' if question else 'lobby'
@@ -369,7 +383,11 @@ async def host_display_question(sid, data):
         if player['role'] == 'screen':
             await sio.emit(
                 'display_question',
-                {'question': question, 'display_state': display_state},
+                {
+                    'question': question,
+                    'display_state': display_state,
+                    'pinned_answer': room.get('pinned_answer'),
+                },
                 to=target_sid,
             )
 
@@ -381,6 +399,37 @@ async def host_display_question(sid, data):
                 await sio.emit(
                     'update_stats', {'stats': stats, 'total': total}, to=target_sid
                 )
+
+
+@sio.event
+async def host_pin_answer(sid, data):
+    room_pin = str(data.get('room_pin'))
+    question_id = data.get('question_id')
+    pinned_answer = data.get('pinned_answer')
+
+    room = room_states.get(room_pin)
+    if not room:
+        return
+
+    player_info = room['players'].get(sid)
+    if not player_info or player_info['role'] != 'host':
+        return
+
+    if pinned_answer and question_id:
+        pinned_answer['question_id'] = question_id
+
+    room['pinned_answer'] = pinned_answer
+
+    print(f'📌 Host pinned an answer for Q {question_id} in room {room_pin}')
+
+    # Broadcast the pinned answer to the Screen (and Host for state sync validation)
+    for target_sid, player in room['players'].items():
+        if player['role'] in ['screen', 'host']:
+            await sio.emit(
+                'update_pinned_answer',
+                {'pinned_answer': pinned_answer},
+                to=target_sid,
+            )
 
 
 @sio.event
