@@ -60,6 +60,7 @@
             :isChoiceType="isChoiceType"
             :isBooleanType="isBooleanType"
             :isCorrectOption="isCorrectOption"
+            @showOptionDetails="(idx) => $emit('showOptionDetails', idx)"
         />
 
         <ClientArea
@@ -121,7 +122,7 @@ const props = defineProps({
     }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'showOptionDetails'])
 
 const {
     localAnswer,

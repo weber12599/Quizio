@@ -293,6 +293,10 @@
                                                 eq.question_id
                                             )
                                     }"
+                                    @showOptionDetails="
+                                        (idx) =>
+                                            openObjectiveDetailsDialog(eq, idx)
+                                    "
                                 >
                                     <template #header-left>
                                         <div class="flex-align-center gap-4">
@@ -840,6 +844,126 @@
                 </el-card>
             </div>
         </el-dialog>
+
+        <el-dialog v-model="objectiveDialogVisible" width="650px">
+            <template #header>
+                <div class="flex-align-center gap-2">
+                    <span class="el-dialog__title" style="font-size: 18px">
+                        {{ $t('host.objective_details') }}
+                    </span>
+                    <el-button
+                        type="primary"
+                        link
+                        @click="refreshObjectiveDetails"
+                    >
+                        <el-icon size="20"><Refresh /></el-icon>
+                    </el-button>
+                </div>
+            </template>
+
+            <el-tabs v-model="objectiveDetailsTab" type="border-card">
+                <el-tab-pane
+                    :label="
+                        $t('host.tab_picked_option', {
+                            option: getOptionLabel(currentObjectiveOptionIdx),
+                            count: optionStudents.length
+                        })
+                    "
+                    name="option"
+                >
+                    <el-empty
+                        v-if="optionStudents.length === 0"
+                        :description="$t('host.no_students_picked')"
+                    />
+                    <div v-else class="student-tag-list">
+                        <el-tag
+                            v-for="s in optionStudents"
+                            :key="s.player_id"
+                            :type="s.is_correct ? 'success' : 'danger'"
+                            effect="light"
+                            size="large"
+                        >
+                            {{ s.name }}
+                        </el-tag>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane
+                    :label="
+                        $t('host.tab_correct_list', {
+                            count: correctStudents.length
+                        })
+                    "
+                    name="correct"
+                >
+                    <el-empty
+                        v-if="correctStudents.length === 0"
+                        :description="$t('host.no_students_correct')"
+                    />
+                    <div v-else class="student-tag-list">
+                        <el-tag
+                            v-for="s in correctStudents"
+                            :key="s.player_id"
+                            type="success"
+                            effect="light"
+                            size="large"
+                        >
+                            {{ s.name }}
+                        </el-tag>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane
+                    :label="
+                        $t('host.tab_incorrect_list', {
+                            count: incorrectStudents.length
+                        })
+                    "
+                    name="incorrect"
+                >
+                    <el-empty
+                        v-if="incorrectStudents.length === 0"
+                        :description="$t('host.no_students_incorrect')"
+                    />
+                    <div v-else class="student-tag-list">
+                        <el-tag
+                            v-for="s in incorrectStudents"
+                            :key="s.player_id"
+                            type="danger"
+                            effect="light"
+                            size="large"
+                        >
+                            {{ s.name }}
+                        </el-tag>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane
+                    :label="
+                        $t('host.tab_unsubmitted_list', {
+                            count: unsubmittedStudents.length
+                        })
+                    "
+                    name="unsubmitted"
+                >
+                    <el-empty
+                        v-if="unsubmittedStudents.length === 0"
+                        :description="$t('host.all_submitted')"
+                    />
+                    <div v-else class="student-tag-list">
+                        <el-tag
+                            v-for="s in unsubmittedStudents"
+                            :key="s.player_id"
+                            type="info"
+                            effect="light"
+                            size="large"
+                        >
+                            {{ s.name }}
+                        </el-tag>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+        </el-dialog>
     </div>
 </template>
 
@@ -875,6 +999,13 @@ interface ExamQuestion {
     question: Question
     score: number
 }
+interface ObjectiveStudent {
+    player_id: string
+    name: string
+    is_guest: boolean
+    answer: any
+    is_correct: boolean | null
+}
 
 const { t } = useI18n()
 
@@ -896,12 +1027,20 @@ const pinAnswersDialogVisible = ref(false)
 const answersForPinning = ref<any[]>([])
 const currentPinningEq = ref<ExamQuestion | null>(null)
 const currentPinnedAnswer = ref<any>(null)
+const objectiveDialogVisible = ref(false)
+const currentObjectiveEq = ref<ExamQuestion | null>(null)
+const currentObjectiveOptionIdx = ref<number | null>(null)
+const objectiveDetailsTab = ref('option')
 
 const playerStats = ref({ student_count: 0, guest_count: 0, total_count: 0 })
 const broadcastedIds = ref<number[]>([])
 const currentDisplayedEq = ref<ExamQuestion | null>(null)
 const currentDisplayState = ref<'question' | 'stats' | 'answer'>('question')
 const selectedQuestionIds = ref<number[]>([])
+const optionStudents = ref<ObjectiveStudent[]>([])
+const correctStudents = ref<ObjectiveStudent[]>([])
+const incorrectStudents = ref<ObjectiveStudent[]>([])
+const unsubmittedStudents = ref<ObjectiveStudent[]>([])
 
 // Drawer
 const isDrawerVisible = ref(false)
@@ -1234,6 +1373,70 @@ const getSubmissionCount = (qId: number) => {
 const openStudentDrawer = (playerId: string, info: any) => {
     selectedStudent.value = { player_id: playerId, ...info }
     isDrawerVisible.value = true
+}
+
+const openObjectiveDetailsDialog = (eq: ExamQuestion, idx: number) => {
+    currentObjectiveEq.value = eq
+    currentObjectiveOptionIdx.value = idx
+    objectiveDetailsTab.value = 'option'
+    refreshObjectiveDetails()
+    objectiveDialogVisible.value = true
+}
+
+const refreshObjectiveDetails = () => {
+    if (!currentObjectiveEq.value) return
+
+    const qId = currentObjectiveEq.value.question_id
+    const answers = roomStats.value.answers?.[qId] || {}
+    const gradings = roomStats.value.gradings?.[qId] || {}
+    const clients = roomStats.value.clients_info || {}
+
+    optionStudents.value = []
+    correctStudents.value = []
+    incorrectStudents.value = []
+    unsubmittedStudents.value = []
+
+    Object.entries(clients).forEach(([playerId, clientInfo]: [string, any]) => {
+        const ans = answers[playerId]
+        const grading = gradings[playerId]
+
+        const studentObj: ObjectiveStudent = {
+            player_id: playerId,
+            name: clientInfo.name || 'Unknown',
+            is_guest: clientInfo.is_guest || false,
+            answer: ans,
+            is_correct: grading?.is_correct ?? null
+        }
+
+        if (ans === undefined || ans === null) {
+            unsubmittedStudents.value.push(studentObj)
+            return
+        }
+
+        if (studentObj.is_correct === true)
+            correctStudents.value.push(studentObj)
+        else if (studentObj.is_correct === false)
+            incorrectStudents.value.push(studentObj)
+
+        if (currentObjectiveOptionIdx.value !== null) {
+            const targetIdx = currentObjectiveOptionIdx.value
+            let picked = false
+            if (Array.isArray(ans)) {
+                picked = ans.some((a) => Number(a) === targetIdx)
+            } else {
+                picked = Number(ans) === targetIdx
+            }
+            if (picked) optionStudents.value.push(studentObj)
+        }
+    })
+}
+
+const getOptionLabel = (idx: number | null) => {
+    if (idx === null || !currentObjectiveEq.value) return ''
+    const isBoolean = currentObjectiveEq.value.question.type === 'boolean'
+    if (isBoolean)
+        return idx === 0 ? t('common.true_option') : t('common.false_option')
+    return String.fromCharCode(65 + idx)
 }
 
 const openPinAnswersDialog = (eq: ExamQuestion) => {

@@ -81,7 +81,16 @@
         "unpin": "Unpin",
         "no_student_answers": "No student answers yet",
         "pinned": "Pinned",
-        "pin_action": "📌 Pin"
+        "pin_action": "📌 Pin",
+        "objective_details": "Objective Details",
+        "tab_picked_option": "Picked [{option}] ({count})",
+        "tab_correct_list": "Correct List 🟩 ({count})",
+        "tab_incorrect_list": "Incorrect List 🟥 ({count})",
+        "tab_unsubmitted_list": "Unsubmitted ⌛ ({count})",
+        "no_students_picked": "No students picked this option",
+        "no_students_correct": "No students answered correctly",
+        "no_students_incorrect": "No students answered incorrectly",
+        "all_submitted": "All students submitted"
     },
     "screen": {
         "title": "Screen / Projector Setup",

@@ -4,7 +4,7 @@
             <el-card
                 v-for="(opt, idx) in options"
                 :key="idx"
-                shadow="never"
+                shadow="hover"
                 class="option-graded-card"
                 :class="
                     isCorrectOption(idx)
@@ -12,6 +12,7 @@
                         : ''
                 "
                 :body-style="{ padding: '10px 16px' }"
+                @click="$emit('showOptionDetails', idx)"
             >
                 <div class="flex-align-start">
                     <el-tag
@@ -71,6 +72,8 @@ const props = defineProps<{
     isCorrectOption: (idx: number) => boolean
 }>()
 
+defineEmits(['showOptionDetails'])
+
 const hasReferenceAnswer = computed(() => {
     return (
         props.question?.reference_answer !== undefined &&
@@ -118,10 +121,15 @@ const hasReferenceAnswer = computed(() => {
     min-width: 30px;
 }
 .option-graded-card {
-    border-width: 2px;
     border-radius: 8px;
-    transition: all 0.3s;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
     background-color: var(--el-fill-color-blank);
+}
+.option-graded-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .option-text {
     font-size: 1.05rem;

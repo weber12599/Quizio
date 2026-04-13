@@ -81,7 +81,16 @@
         "unpin": "取消釘選",
         "no_student_answers": "尚無學生作答",
         "pinned": "已釘選",
-        "pin_action": "📌 釘選"
+        "pin_action": "📌 釘選",
+        "objective_details": "答題狀態明細",
+        "tab_picked_option": "選擇 [{option}] ({count})",
+        "tab_correct_list": "答對名單 🟩 ({count})",
+        "tab_incorrect_list": "答錯名單 🟥 ({count})",
+        "tab_unsubmitted_list": "未作答 ⌛ ({count})",
+        "no_students_picked": "無人選擇此選項",
+        "no_students_correct": "無人答對",
+        "no_students_incorrect": "無人答錯",
+        "all_submitted": "全數作答完畢"
     },
     "screen": {
         "title": "大螢幕投放設定",
