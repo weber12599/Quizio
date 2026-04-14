@@ -1,8 +1,9 @@
-import { io, Socket } from 'socket.io-client'
+import { io } from 'socket.io-client'
+import type { QuizioSocket } from '../types/socket'
 
 const SOCKET_URL = '/'
 
-export const socket: Socket = io(SOCKET_URL, {
+export const socket: QuizioSocket = io(SOCKET_URL, {
     autoConnect: false,
     transports: ['websocket'],
 
@@ -20,6 +21,4 @@ socket.on('connect', () => {
 
 socket.on('disconnect', (reason) => {
     console.log('Disconnected from Game Server. Reason:', reason)
-    // If disconnected due to server drop or network loss,
-    // Socket.io will automatically try to reconnect in the background based on the settings above.
 })

@@ -2,7 +2,7 @@
     <div class="client-view">
         <ButtonFloatingAction />
 
-        <div v-if="!isConnected" class="auth-container">
+        <div v-if="!isJoined" class="auth-container">
             <el-card
                 class="auth-card"
                 shadow="hover"
@@ -119,14 +119,25 @@
                     </h2>
                     <div class="flex-align-center gap-3">
                         <el-tag
-                            type="success"
+                            :type="isConnected ? 'success' : 'warning'"
                             effect="plain"
                             round
                             size="large"
                         >
                             <span class="flex-align-center gap-2">
-                                <span class="pulse-dot mr-2"></span>
-                                {{ $t('client.connected') }}
+                                <span
+                                    class="pulse-dot mr-2"
+                                    :style="
+                                        isConnected
+                                            ? ''
+                                            : 'background-color: var(--el-color-warning);'
+                                    "
+                                ></span>
+                                {{
+                                    isConnected
+                                        ? $t('client.connected')
+                                        : $t('common.connecting')
+                                }}
                             </span>
                         </el-tag>
                         <el-button type="danger" plain @click="leaveRoom">{{
@@ -135,6 +146,16 @@
                     </div>
                 </div>
             </el-card>
+
+            <el-alert
+                v-if="!isConnected"
+                :title="$t('common.network_disconnected')"
+                type="warning"
+                show-icon
+                center
+                :closable="false"
+                class="mt-4"
+            />
 
             <div class="feed-container mt-4">
                 <el-empty
@@ -218,6 +239,7 @@ const password = ref('')
 const guestName = ref('')
 const errorMessage = ref('')
 const isConnected = ref(false)
+const isJoined = ref(false)
 const isLoading = ref(false)
 
 const questionsFeed = ref<Question[]>([])
@@ -244,8 +266,9 @@ const performJoin = (
 ) => {
     if (!isAuto) errorMessage.value = ''
     isLoading.value = true
+    socket.off('connect')
     socket.connect()
-    socket.once('connect', () => {
+    socket.on('connect', () => {
         socket.emit('client_join_room', {
             room_pin: pin,
             is_guest: isGuest,
@@ -298,6 +321,7 @@ const leaveRoom = () => {
     socket.disconnect()
     localStorage.removeItem('quizio_student_creds')
     localStorage.removeItem('quizio_upload_token')
+    isJoined.value = false
     isConnected.value = false
     questionsFeed.value = []
     submittedAnswers.value = {}
@@ -319,33 +343,44 @@ onMounted(() => {
         performJoin(pin, sid, pwd, gname, isGuest, true)
     }
 
-    socket.on('room_state', (data: any) => {
+    socket.on('room_state', (data) => {
         if (String(data.room_pin) === String(roomPin.value)) {
+            isJoined.value = true
             isConnected.value = true
             isLoading.value = false
         }
     })
-    socket.on('auth_success', (data: any) => {
+    socket.on('auth_success', (data) => {
         if (data.upload_token)
             localStorage.setItem('quizio_upload_token', data.upload_token)
     })
-    socket.on('error', (data: any) => {
+    socket.on('error', (data) => {
         errorMessage.value = data.message
         isLoading.value = false
         socket.disconnect()
+        isJoined.value = false
         isConnected.value = false
         localStorage.removeItem('quizio_student_creds')
     })
-    socket.on('new_questions', (data: any) => {
+    socket.on('new_questions', (data) => {
         data.questions.forEach((incomingQ: any) => {
             if (!questionsFeed.value.some((q) => q.id === incomingQ.id))
                 questionsFeed.value.push(incomingQ)
         })
     })
-    socket.on('recovered_answers', (data: any) => {
+    socket.on('recovered_answers', (data) => {
         submittedAnswers.value = { ...submittedAnswers.value, ...data.answers }
         if (data.gradings)
             gradingResults.value = { ...gradingResults.value, ...data.gradings }
+    })
+    socket.on('disconnect', (reason) => {
+        isConnected.value = false
+        if (
+            reason === 'io server disconnect' ||
+            reason === 'io client disconnect'
+        ) {
+            isJoined.value = false
+        }
     })
 })
 
@@ -355,6 +390,7 @@ onUnmounted(() => {
     socket.off('error')
     socket.off('new_questions')
     socket.off('recovered_answers')
+    socket.off('disconnect')
 })
 </script>
 

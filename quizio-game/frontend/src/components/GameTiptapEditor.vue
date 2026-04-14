@@ -126,7 +126,10 @@ const editor = useEditor({
     ],
     content: props.modelValue,
     onUpdate: ({ editor }) => {
-        emit('update:modelValue', editor.storage.markdown.getMarkdown())
+        emit(
+            'update:modelValue',
+            (editor.storage as any).markdown.getMarkdown()
+        )
     },
     editorProps: {
         handlePaste(view, event) {
@@ -150,9 +153,11 @@ const editor = useEditor({
 watch(
     () => props.modelValue,
     (value) => {
-        const currentMarkdown = editor.value?.storage.markdown.getMarkdown()
+        const currentMarkdown = (
+            editor.value?.storage as any
+        ).markdown.getMarkdown()
         if (currentMarkdown !== value) {
-            editor.value?.commands.setContent(value, false)
+            ;(editor.value?.commands as any).setContent(value, false)
         }
     }
 )

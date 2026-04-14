@@ -1,8 +1,8 @@
 <template>
     <div class="screen-view">
-        <ButtonFloatingAction v-if="!isConnected" />
+        <ButtonFloatingAction v-if="!isJoined" />
 
-        <div v-if="!isConnected" class="login-container">
+        <div v-if="!isJoined" class="login-container">
             <el-card
                 class="login-card"
                 shadow="always"
@@ -70,14 +70,38 @@
                     {{ $t('common.leave') }}
                 </el-button>
 
-                <div class="player-count-badge flex-align-center">
-                    <span class="pulse-dot mr-3"></span>
-                    <span class="count-label mr-2">{{
-                        $t('screen.students_joined')
-                    }}</span>
-                    <span class="count-number">{{
-                        playerStats.total_count
-                    }}</span>
+                <div class="flex-align-center gap-4">
+                    <el-tag
+                        :type="isConnected ? 'success' : 'warning'"
+                        effect="plain"
+                        round
+                        size="large"
+                    >
+                        <span class="flex-align-center gap-2">
+                            <span
+                                class="pulse-dot mr-2"
+                                :style="
+                                    isConnected
+                                        ? ''
+                                        : 'background-color: var(--el-color-warning);'
+                                "
+                            ></span>
+                            {{
+                                isConnected
+                                    ? $t('client.connected')
+                                    : $t('common.connecting')
+                            }}
+                        </span>
+                    </el-tag>
+
+                    <div class="player-count-badge flex-align-center">
+                        <span class="count-label mr-2">{{
+                            $t('screen.students_joined')
+                        }}</span>
+                        <span class="count-number">{{
+                            playerStats.total_count
+                        }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -243,6 +267,7 @@ const { t } = useI18n()
 // --- State ---
 const roomPin = ref('')
 const isConnected = ref(false)
+const isJoined = ref(false)
 const isLoading = ref(false)
 const isReconnecting = ref(false)
 const errorMessage = ref('')
@@ -285,7 +310,8 @@ const joinAsScreen = () => {
         socket.emit('screen_join_room', joinPayload)
         localStorage.setItem('quizio_screen_pin', roomPin.value)
     } else {
-        socket.once('connect', () => {
+        socket.off('connect')
+        socket.on('connect', () => {
             socket.emit('screen_join_room', joinPayload)
             localStorage.setItem('quizio_screen_pin', roomPin.value)
         })
@@ -297,6 +323,7 @@ const leaveRoom = () => {
     socket.disconnect()
     localStorage.removeItem('quizio_screen_pin')
 
+    isJoined.value = false
     isConnected.value = false
     isReconnecting.value = false
     currentView.value = 'lobby'
@@ -316,8 +343,9 @@ onMounted(() => {
         joinAsScreen()
     }
 
-    socket.on('room_state', async (data: any) => {
+    socket.on('room_state', async (data) => {
         if (String(data.room_pin) === String(roomPin.value)) {
+            isJoined.value = true
             isConnected.value = true
             isLoading.value = false
             isReconnecting.value = false
@@ -330,10 +358,12 @@ onMounted(() => {
         }
     })
 
-    socket.on('display_question', (data: any) => {
+    socket.on('display_question', (data) => {
         if (data.question) {
             displayedQuestion.value = data.question
-            displayState.value = data.display_state || 'question'
+            displayState.value =
+                (data.display_state as 'question' | 'stats' | 'answer') ||
+                'question'
             pinnedAnswer.value = data.pinned_answer || ''
             currentView.value = 'question'
         } else {
@@ -344,26 +374,27 @@ onMounted(() => {
         }
     })
 
-    socket.on('update_pinned_answer', (data: any) => {
+    socket.on('update_pinned_answer', (data) => {
         pinnedAnswer.value = data.pinned_answer
     })
 
-    socket.on('update_stats', (data: any) => {
+    socket.on('update_stats', (data) => {
         answerStats.value = data.stats
         totalAnswers.value = data.total
     })
 
-    socket.on('show_leaderboard', (data: any) => {
+    socket.on('show_leaderboard', (data) => {
         leaderboard.value = data.leaderboard
         currentView.value = 'leaderboard'
     })
 
-    socket.on('error', (data: any) => {
+    socket.on('error', (data) => {
         errorMessage.value = data.message
         isLoading.value = false
 
         localStorage.removeItem('quizio_screen_pin')
         socket.disconnect()
+        isJoined.value = false
         isConnected.value = false
     })
 
@@ -372,9 +403,11 @@ onMounted(() => {
             reason === 'io server disconnect' ||
             reason === 'io client disconnect'
         ) {
+            isJoined.value = false
             isConnected.value = false
             isReconnecting.value = false
         } else {
+            isConnected.value = false
             isReconnecting.value = true
         }
     })

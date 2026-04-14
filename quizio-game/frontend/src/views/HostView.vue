@@ -553,7 +553,12 @@
                                     :type="
                                         info.is_guest ? 'warning' : 'primary'
                                     "
-                                    @click="openStudentDrawer(playerId, info)"
+                                    @click="
+                                        openStudentDrawer(
+                                            String(playerId),
+                                            info
+                                        )
+                                    "
                                 >
                                     {{ info.name }}
                                 </el-tag>
@@ -769,7 +774,7 @@
                 v-if="
                     currentPinnedAnswer &&
                     currentPinnedAnswer.question_id ===
-                        currentPinningEq?.question.id
+                        currentPinningEq?.question_id
                 "
                 type="success"
                 show-icon
@@ -821,7 +826,7 @@
                                 currentPinnedAnswer?.player_id ===
                                     ans.player_id &&
                                 currentPinnedAnswer?.question_id ===
-                                    currentPinningEq?.question.id
+                                    currentPinningEq?.question_id
                                     ? unpinAnswer()
                                     : pinAnswer(ans)
                             "
@@ -830,7 +835,7 @@
                                 currentPinnedAnswer?.player_id ===
                                     ans.player_id &&
                                 currentPinnedAnswer?.question_id ===
-                                    currentPinningEq?.question.id
+                                    currentPinningEq?.question_id
                                     ? $t('host.pinned')
                                     : $t('host.pin_action')
                             }}
@@ -1020,7 +1025,7 @@ const classes = ref<string[]>([])
 const exams = ref<Exam[]>([])
 const selectedClass = ref('')
 const allowGuests = ref(true)
-const selectedExam = ref<number | ''>('')
+const selectedExam = ref<number | null>(null)
 const expectedStudents = ref<string[]>([])
 const expectedStudentInfo = ref<Record<string, string>>({})
 const pinAnswersDialogVisible = ref(false)
@@ -1232,7 +1237,7 @@ const startRoom = () => {
         socket.emit('host_join_room', {
             room_pin: roomPin.value,
             token: authToken.value,
-            exam_id: selectedExam.value,
+            exam_id: Number(selectedExam.value),
             target_class: selectedClass.value,
             allow_guests: allowGuests.value,
             expected_students: expectedStudents.value
@@ -1281,7 +1286,7 @@ const leaveRoom = () => {
     isReconnecting.value = false
     authToken.value = ''
     selectedClass.value = ''
-    selectedExam.value = ''
+    selectedExam.value = null
     broadcastedIds.value = []
     selectedQuestionIds.value = []
     currentDisplayedEq.value = null
@@ -1324,7 +1329,7 @@ const changeDisplayState = (
     currentPinnedAnswer.value = null
     socket.emit('host_pin_answer', {
         room_pin: roomPin.value,
-        question_id: currentDisplayedEq.value?.question.id,
+        question_id: eq.question_id,
         pinned_answer: null
     })
 
@@ -1504,28 +1509,36 @@ const renderAnswerAsHtml = (answer: any) => {
 }
 
 const pinAnswer = (studentAnswerInfo: any) => {
+    if (!currentPinningEq.value) {
+        return
+    }
+
     if (
         currentDisplayedEq.value?.question_id !==
-            currentPinningEq.value?.question_id ||
+            currentPinningEq.value.question_id ||
         currentDisplayState.value !== 'question'
     ) {
-        changeDisplayState(currentPinningEq.value!, 'question')
+        changeDisplayState(currentPinningEq.value, 'question')
     }
 
     const payload = {
         ...studentAnswerInfo,
-        question_id: currentPinningEq.value?.question.id
+        question_id: currentPinningEq.value.question_id
     }
     currentPinnedAnswer.value = payload
 
     socket.emit('host_pin_answer', {
         room_pin: roomPin.value,
-        question_id: currentPinningEq.value?.question.id,
+        question_id: currentPinningEq.value.question_id,
         pinned_answer: payload
     })
 }
 
 const unpinAnswer = () => {
+    if (!currentPinningEq.value) {
+        return
+    }
+
     if (currentDisplayState.value !== 'question') {
         changeDisplayState(currentDisplayedEq.value!, 'question')
     }
@@ -1533,7 +1546,7 @@ const unpinAnswer = () => {
     currentPinnedAnswer.value = null
     socket.emit('host_pin_answer', {
         room_pin: roomPin.value,
-        question_id: currentPinningEq.value?.question.id,
+        question_id: currentPinningEq.value.question_id,
         pinned_answer: null
     })
 }
@@ -1589,11 +1602,13 @@ onMounted(() => {
         roomStats.value = data
     })
 
-    socket.on('host_recovered_state', (data: any) => {
+    socket.on('host_recovered_state', (data) => {
         broadcastedIds.value = data.broadcasted_ids
         isLeaderboardDisplayed.value = data.is_leaderboard_displayed
         recoveredDisplayedId.value = data.displayed_question_id
-        currentDisplayState.value = data.display_state || 'question'
+        currentDisplayState.value =
+            (data.display_state as 'question' | 'stats' | 'answer') ||
+            'question'
         currentPinnedAnswer.value = data.pinned_answer || null
 
         if (recoveredDisplayedId.value && waitingPool.value.length > 0) {
