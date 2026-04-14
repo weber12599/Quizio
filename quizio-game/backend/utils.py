@@ -189,17 +189,15 @@ def generate_leaderboard(room: dict) -> list:
     scores = {}
     names = {}
 
-    for p_sid, p in room['players'].items():
-        if p['role'] == 'client':
-            st_id = p['student_id']
-            scores[st_id] = 0
-            names[st_id] = p['name']
+    for player_id, p in room['clients'].items():
+        scores[player_id] = 0
+        names[player_id] = p['name']
 
     gradings = room.get('gradings', {})
     for q_id, q_gradings in gradings.items():
-        for st_id, result in q_gradings.items():
+        for player_id, result in q_gradings.items():
             if result.get('is_correct'):
-                scores[st_id] = scores.get(st_id, 0) + 100
+                scores[player_id] = scores.get(player_id, 0) + 100
 
     leaderboard = [
         {'name': names.get(st_id, 'Unknown'), 'score': score}

@@ -186,7 +186,7 @@
 
                         <el-empty
                             v-if="leaderboard.length === 0"
-                            :description="$t('screen.no_data')"
+                            :description="$t('screen.no_scores')"
                             :image-size="120"
                         />
 
@@ -278,18 +278,15 @@ const joinAsScreen = () => {
     errorMessage.value = ''
 
     const joinPayload = {
-        room_pin: roomPin.value,
-        role: 'screen',
-        student_id: 'screen',
-        password: ''
+        room_pin: roomPin.value
     }
 
     if (socket.connected) {
-        socket.emit('join_room', joinPayload)
+        socket.emit('screen_join_room', joinPayload)
         localStorage.setItem('quizio_screen_pin', roomPin.value)
     } else {
         socket.once('connect', () => {
-            socket.emit('join_room', joinPayload)
+            socket.emit('screen_join_room', joinPayload)
             localStorage.setItem('quizio_screen_pin', roomPin.value)
         })
         socket.connect()

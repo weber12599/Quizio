@@ -246,13 +246,12 @@ const performJoin = (
     isLoading.value = true
     socket.connect()
     socket.once('connect', () => {
-        socket.emit('join_room', {
+        socket.emit('client_join_room', {
             room_pin: pin,
-            role: 'client',
             is_guest: isGuest,
-            student_id: sid,
-            password: pwd,
-            guest_name: gname
+            guest_name: isGuest ? gname : null,
+            student_id: !isGuest ? sid : null,
+            password: !isGuest ? pwd : null
         })
         localStorage.setItem(
             'quizio_student_creds',
@@ -288,7 +287,7 @@ const submitAnswer = (questionId: number, answer: any) => {
     submittedAnswers.value[questionId] = answer
     socket.emit(
         'submit_answer',
-        { room_pin: roomPin.value, question_id: questionId, answer },
+        { room_pin: roomPin.value, question_id: questionId, answer: answer },
         (response: GradingResult) => {
             gradingResults.value[questionId] = response
         }

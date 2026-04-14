@@ -1229,11 +1229,8 @@ const startRoom = () => {
     isLoading.value = true
     socket.off('connect')
     socket.on('connect', () => {
-        socket.emit('join_room', {
+        socket.emit('host_join_room', {
             room_pin: roomPin.value,
-            role: 'host',
-            student_id: 'Host_Teacher',
-            password: '',
             token: authToken.value,
             exam_id: selectedExam.value,
             target_class: selectedClass.value,
@@ -1276,8 +1273,7 @@ const startRoom = () => {
 const leaveRoom = () => {
     if (isConnected.value)
         socket.emit('end_game', {
-            room_pin: roomPin.value,
-            exam_id: selectedExam.value
+            room_pin: roomPin.value
         })
     localStorage.removeItem('setup_data')
     localStorage.removeItem('host_token')
