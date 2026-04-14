@@ -15,7 +15,7 @@ export interface DisplayQuestionPayload {
 }
 
 export interface UpdateStatsPayload {
-    stats: any // We will strictly type this when doing Wordcloud!
+    stats: Record<string, number>
     total: number
 }
 

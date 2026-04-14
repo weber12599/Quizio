@@ -1,4 +1,6 @@
 import os
+from collections import Counter
+from typing import Any, Dict, Tuple
 
 import httpx
 import nh3
@@ -166,22 +168,38 @@ def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:
     return False
 
 
-def compute_stats(q_type: str, answers_dict: dict) -> tuple:
-    """Compute answer statistics for the bar charts."""
-    stats = {}
-    total = len(answers_dict)
+def compute_stats(q_type: str, answers_dict: dict) -> Tuple[Dict[str, int], int]:
+    """
+    Computes statistics based on the question type.
+    Always returns a tuple of (frequency_dict, total_answers).
+    """
+    total = len(answers_dict) if answers_dict else 0
+    if total == 0:
+        return {}, 0
 
-    for sid, ans in answers_dict.items():
-        if q_type == 'multiple' and isinstance(ans, list):
-            for a in ans:
-                stats[str(a)] = stats.get(str(a), 0) + 1
-        elif q_type == 'boolean':
-            ans_idx = '0' if ans else '1'
-            stats[ans_idx] = stats.get(ans_idx, 0) + 1
-        elif q_type == 'single':
-            stats[str(ans)] = stats.get(str(ans), 0) + 1
+    if q_type in ['single', 'boolean']:
+        stats = {}
+        for ans in answers_dict.values():
+            if ans is not None:
+                ans_str = str(ans)
+                stats[ans_str] = stats.get(ans_str, 0) + 1
+        return stats, total
 
-    return stats, total
+    elif q_type == 'multiple':
+        stats = {}
+        for ans_list in answers_dict.values():
+            if isinstance(ans_list, list):
+                for ans in ans_list:
+                    if ans is not None:
+                        ans_str = str(ans)
+                        stats[ans_str] = stats.get(ans_str, 0) + 1
+        return stats, total
+
+    elif q_type == 'short':
+        stats = calculate_exact_frequency(answers_dict)
+        return stats, total
+
+    return {}, total
 
 
 def generate_leaderboard(room: dict) -> list:
@@ -205,3 +223,26 @@ def generate_leaderboard(room: dict) -> list:
     ]
     leaderboard.sort(key=lambda x: x['score'], reverse=True)
     return leaderboard
+
+
+def calculate_exact_frequency(answers_dict: Dict[str, Any]) -> Dict[str, int]:
+    """
+    Calculates the exact word frequency for short answer questions (Strategy A).
+    Converts all valid string answers to lowercase and strips whitespaces.
+
+    Returns:
+        A dictionary mapping the cleaned answer to its frequency count.
+        Example: {"apple": 3, "banana": 1}
+    """
+    if not answers_dict:
+        return {}
+
+    processed_answers = []
+
+    for player_id, answer in answers_dict.items():
+        if isinstance(answer, str) and answer.strip():
+            cleaned_ans = answer.strip().lower()
+            processed_answers.append(cleaned_ans)
+
+    # Counter returns a dictionary-like object, we convert it to a standard dict
+    return dict(Counter(processed_answers))

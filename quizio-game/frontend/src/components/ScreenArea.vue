@@ -89,27 +89,65 @@
         </div>
 
         <div v-else class="text-stats-layout flex-col mt-4">
-            <div
+            <template
                 v-if="displayState === 'stats' || displayState === 'answer'"
-                class="text-stats text-center py-5"
             >
                 <div
-                    class="font-black"
-                    style="
-                        font-size: 7rem;
-                        color: var(--el-color-primary);
-                        line-height: 1;
-                    "
+                    v-if="question.type === 'short'"
+                    class="wordcloud-wrapper py-2 w-full"
                 >
-                    {{ stats?.total || 0 }}
+                    <div class="text-center mb-4">
+                        <el-tag
+                            size="large"
+                            type="primary"
+                            effect="plain"
+                            round
+                        >
+                            {{ $t('screen.responses_received') }}:
+                            <strong
+                                style="font-size: 1.2rem; margin-left: 6px"
+                                >{{ stats?.total || 0 }}</strong
+                            >
+                        </el-tag>
+                    </div>
+
+                    <div
+                        style="height: 38vh; min-height: 350px; width: 100%"
+                        v-if="wordCloudData.length > 0"
+                    >
+                        <vue-word-cloud
+                            :words="wordCloudData"
+                            :color="getWordColor"
+                            font-family="'Microsoft JhengHei', 'PingFang TC', 'Helvetica Neue', sans-serif"
+                            :spacing="1 / 4"
+                        />
+                    </div>
+                    <el-empty
+                        v-else
+                        :description="$t('common.none')"
+                        :image-size="80"
+                    />
                 </div>
-                <div
-                    class="text-xl text-muted mt-3"
-                    style="font-size: 2rem; font-weight: bold"
-                >
-                    {{ $t('screen.responses_received') }}
+
+                <div v-else class="text-stats text-center py-5">
+                    <div
+                        class="font-black"
+                        style="
+                            font-size: 7rem;
+                            color: var(--el-color-primary);
+                            line-height: 1;
+                        "
+                    >
+                        {{ stats?.total || 0 }}
+                    </div>
+                    <div
+                        class="text-xl text-muted mt-3"
+                        style="font-size: 2rem; font-weight: bold"
+                    >
+                        {{ $t('screen.responses_received') }}
+                    </div>
                 </div>
-            </div>
+            </template>
 
             <div
                 v-if="displayState === 'answer' && question.reference_answer"
@@ -132,6 +170,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { renderMarkdown } from '../utils/markdown'
+import VueWordCloud from 'vue3-word-cloud'
 
 const { t } = useI18n()
 
@@ -147,6 +186,24 @@ const props = defineProps<{
     getProgressColor: (idx: number) => string
     pinnedAnswer?: any
 }>()
+
+// --- Wordcloud ---
+const wordCloudData = computed<[string, number][]>(() => {
+    const counts = props.stats?.counts
+    if (!counts) return []
+
+    return Object.entries(counts).map(([word, frequency]) => [
+        word,
+        Number(frequency)
+    ])
+})
+
+const getWordColor = ([, weight]: [string, number]) => {
+    if (weight >= 5) return '#409EFF'
+    if (weight >= 3) return '#67C23A'
+    if (weight >= 2) return '#E6A23C'
+    return '#909399'
+}
 
 const formattedPinnedHtml = computed(() => {
     if (!props.pinnedAnswer || props.pinnedAnswer.answer === undefined)
@@ -195,6 +252,9 @@ const formattedPinnedHtml = computed(() => {
 .mb-3 {
     margin-bottom: 12px;
 }
+.mb-4 {
+    margin-bottom: 24px;
+}
 .mr-2 {
     margin-right: 8px;
 }
@@ -207,9 +267,16 @@ const formattedPinnedHtml = computed(() => {
 .text-center {
     text-align: center;
 }
+.py-2 {
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
 .py-5 {
     padding-top: 40px;
     padding-bottom: 40px;
+}
+.w-full {
+    width: 100%;
 }
 
 .font-bold {

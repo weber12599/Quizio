@@ -65,7 +65,7 @@
                 <el-input
                     v-else
                     v-model="localAnswer"
-                    type="textarea"
+                    type="text"
                     :rows="4"
                     :placeholder="$t('placeholder.short')"
                     class="custom-textarea"
