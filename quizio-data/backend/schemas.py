@@ -120,8 +120,6 @@ class QuestionBase(BaseModel):
     options: Optional[Any] = None
     reference_answer: Any
     literacy_tags: Optional[List[str]] = None
-    is_archived: bool = False
-    owner_id: Optional[int] = None
     is_public: bool = False
     needs_manual_grading: bool = False
 

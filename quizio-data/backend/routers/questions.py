@@ -5,10 +5,40 @@ import schemas
 from core.deps import get_current_user
 from crud import questions as crud_questions
 from database import get_db
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix='/api/questions', tags=['questions'])
+
+
+# ==========================================
+# Dependencies
+# ==========================================
+
+
+async def get_question_r(
+    question_db_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+) -> models.Question:
+    db_question = await crud_questions.get_question(db, question_db_id, current_user)
+    if not db_question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Question not found'
+        )
+    return db_question
+
+
+async def get_question_rwd(
+    db_question: models.Question = Depends(get_question_r),
+    current_user: models.User = Depends(get_current_user),
+) -> models.Question:
+    if not current_user.is_superuser and db_question.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Unauthorized access: You do not own this question.',
+        )
+    return db_question
 
 
 @router.get('/', response_model=List[schemas.Question])
@@ -16,29 +46,32 @@ async def read_questions(
     question_type: Optional[str] = None,
     difficulty: Optional[int] = None,
     lesson: Optional[str] = None,
-    include_archived: bool = False,
+    is_locked: Optional[bool] = Query(
+        None, description='Filter questions by lock status'
+    ),
+    is_archived: Optional[bool] = Query(
+        False, description='Filter questions by archive status (default False)'
+    ),
+    is_deleted: Optional[bool] = Query(
+        False, description='Filter questions by deleted status (default False)'
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     return await crud_questions.get_questions(
-        db=db,
-        current_user=current_user,
+        db,
+        current_user,
         question_type=question_type,
         difficulty=difficulty,
         lesson=lesson,
-        include_archived=include_archived,
+        is_locked=is_locked,
+        is_archived=is_archived,
+        is_deleted=is_deleted,
     )
 
 
-@router.get('/{question_id}', response_model=schemas.Question)
-async def read_question(
-    question_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    db_question = await crud_questions.get_question(db, question_id, current_user)
-    if not db_question:
-        raise HTTPException(status_code=404, detail='Question not found')
+@router.get('/{question_db_id}', response_model=schemas.Question)
+async def read_question(db_question: models.Question = Depends(get_question_r)):
     return db_question
 
 
@@ -48,21 +81,19 @@ async def create_new_question(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_questions.create_question(db, question, current_user)
+    try:
+        return await crud_questions.create_question(db, question, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.put('/{question_id}', response_model=schemas.Question)
+@router.put('/{question_db_id}', response_model=schemas.Question)
 async def update_existing_question(
-    question_id: int,
     question_in: schemas.QuestionUpdate,
+    db_question: models.Question = Depends(get_question_rwd),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Retrieve the existing question first
-    db_question = await crud_questions.get_question(db, question_id, current_user)
-    if not db_question:
-        raise HTTPException(status_code=404, detail='Question not found')
-
     # Business Rule: Once a question is public, it cannot be reverted to private
     if db_question.is_public and question_in.is_public is False:
         raise HTTPException(
@@ -70,38 +101,52 @@ async def update_existing_question(
             detail='Once a question is public, it cannot be made private.',
         )
 
-    # Attempt to update it (this will now archive the old and create a new one)
-    updated_question = await crud_questions.update_question(
-        db, db_question, question_in, current_user
+    try:
+        updated_question = await crud_questions.update_question(
+            db, db_question, question_in, current_user
+        )
+        return updated_question
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+# ==========================================
+# Lifecycle Management Endpoints
+# ==========================================
+
+
+@router.post('/{question_db_id}/lock', response_model=schemas.Question)
+async def lock_existing_question(
+    db_question: models.Question = Depends(get_question_rwd),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud_questions.lock_question(db, db_question)
+
+
+@router.put('/{question_db_id}/archive', response_model=schemas.Question)
+async def archive_existing_question(
+    is_archived: bool = Query(
+        ..., description='Set to true to archive, false to unarchive'
+    ),
+    db_question: models.Question = Depends(get_question_rwd),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud_questions.toggle_archive_question(db, db_question, is_archived)
+
+
+@router.post('/{question_db_id}/restore', response_model=schemas.Question)
+async def restore_deleted_question(
+    db_question: models.Question = Depends(get_question_rwd),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud_questions.toggle_delete_question(
+        db, db_question, is_deleted=False
     )
 
-    # Check if ownership validation failed
-    if not updated_question:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Not authorized to update this question',
-        )
 
-    return updated_question
-
-
-@router.delete('/{question_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.delete('/{question_db_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_existing_question(
-    question_id: int,
+    db_question: models.Question = Depends(get_question_rwd),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
-    # Retrieve the existing question first
-    db_question = await crud_questions.get_question(db, question_id, current_user)
-    if not db_question:
-        raise HTTPException(status_code=404, detail='Question not found')
-
-    # Attempt to delete it
-    success = await crud_questions.delete_question(db, db_question, current_user)
-
-    # Check if ownership validation failed
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Not authorized to delete this question',
-        )
+    await crud_questions.toggle_delete_question(db, db_question, is_deleted=True)
