@@ -91,7 +91,6 @@ class StudentBase(BaseModel):
     email: Optional[EmailStr] = None
     admission_year: Optional[int] = None
     class_name: Optional[str] = None
-    teacher_id: Optional[int] = None
 
 
 class StudentCreate(StudentBase):
