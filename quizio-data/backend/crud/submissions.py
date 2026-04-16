@@ -19,9 +19,22 @@ async def get_manual_grading_question_ids(db: AsyncSession, question_ids: set) -
     result = await db.execute(
         select(models.Question.id)
         .where(models.Question.id.in_(question_ids))
-        .where(models.Question.needs_manual_grading == True)
+        .where(models.Question.needs_manual_grading.is_(True))
     )
     return set(result.scalars().all())
+
+
+async def get_student_answer(db: AsyncSession, answer_db_id: int):
+    result = await db.execute(
+        select(models.StudentAnswer)
+        .options(
+            selectinload(models.StudentAnswer.grading_histories),
+            selectinload(models.StudentAnswer.question),
+            selectinload(models.StudentAnswer.exam),
+        )
+        .where(models.StudentAnswer.id == answer_db_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def create_student_submission(
@@ -103,34 +116,20 @@ async def create_submissions_batch(
 
 
 async def grade_student_answer(
-    db: AsyncSession, answer_id: int, new_score: int, teacher_id: int
+    db: AsyncSession,
+    db_answer: models.StudentAnswer,
+    new_score: int,
+    current_user: models.User,
 ) -> Optional[models.StudentAnswer]:
     """
     Manually update a student's answer score and record the grading history.
     """
-    result = await db.execute(
-        select(models.StudentAnswer)
-        .options(
-            selectinload(models.StudentAnswer.grading_histories),
-            selectinload(models.StudentAnswer.question),
-            selectinload(models.StudentAnswer.exam),
-        )
-        .where(models.StudentAnswer.id == answer_id)
-    )
-    db_answer = result.scalar_one_or_none()
-
-    if not db_answer:
-        return None
-
-    if db_answer.exam.owner_id != teacher_id:
-        raise ValueError('UNAUTHORIZED_GRADING')
-
     # Record the history before changing the score
     history = models.AnswerGradingHistory(
         answer_id=db_answer.id,
         old_score=db_answer.score,
         new_score=new_score,
-        teacher_id=teacher_id,
+        teacher_id=current_user.id,
     )
     db.add(history)
 
