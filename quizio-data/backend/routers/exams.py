@@ -11,24 +11,47 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter(prefix='/api/exams', tags=['exams'])
 
 
+# ==========================================
+# Dependencies
+# ==========================================
+
+
+async def get_exam_rwd(
+    exam_db_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+) -> models.Exam:
+    db_exam = await crud_exams.get_exam(db, exam_db_id, current_user)
+    if not db_exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Exam not found'
+        )
+    return db_exam
+
+
 @router.get('/', response_model=List[schemas.ExamResponse])
 async def read_exams(
     is_locked: Optional[bool] = Query(None, description='Filter exams by lock status'),
+    is_archived: Optional[bool] = Query(
+        False, description='Filter exams by archive status (default False)'
+    ),
+    is_deleted: Optional[bool] = Query(
+        False, description='Filter exams by deleted status (default False)'
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_exams.get_exams(db, current_user, is_locked=is_locked)
+    return await crud_exams.get_exams(
+        db,
+        current_user,
+        is_locked=is_locked,
+        is_archived=is_archived,
+        is_deleted=is_deleted,
+    )
 
 
-@router.get('/{exam_id}', response_model=schemas.ExamResponse)
-async def read_exam(
-    exam_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    db_exam = await crud_exams.get_exam(db, exam_id, current_user)
-    if not db_exam:
-        raise HTTPException(status_code=404, detail='Exam not found')
+@router.get('/{exam_db_id}', response_model=schemas.ExamResponse)
+async def read_exam(db_exam: models.Exam = Depends(get_exam_rwd)):
     return db_exam
 
 
@@ -40,71 +63,61 @@ async def create_new_exam(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Verify question access before creating the exam
-    if exam.questions:
-        question_ids = [q.question_id for q in exam.questions]
-        has_access = await crud_exams.verify_questions_access(
-            db, question_ids, current_user
-        )
-        if not has_access:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail='One or more questions are not found or you do not have permission to use them.',
-            )
-
-    return await crud_exams.create_exam(db, exam, current_user)
+    try:
+        return await crud_exams.create_exam(db, exam, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.put('/{exam_id}', response_model=schemas.ExamResponse)
+@router.put('/{exam_db_id}', response_model=schemas.ExamResponse)
 async def update_existing_exam(
-    exam_id: int,
     exam_in: schemas.ExamUpdate,
+    db_exam: models.Exam = Depends(get_exam_rwd),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_exam = await crud_exams.get_exam(db, exam_id, current_user)
-    if not db_exam:
-        raise HTTPException(status_code=404, detail='Exam not found')
-
-    # Business Rule: Cannot modify a locked exam
-    if db_exam.is_locked:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='This exam is locked and cannot be edited.',
-        )
-
-    # Verify question access before updating the exam
-    if exam_in.questions is not None:
-        question_ids = [q.question_id for q in exam_in.questions]
-        if question_ids:
-            has_access = await crud_exams.verify_questions_access(
-                db, question_ids, current_user
-            )
-            if not has_access:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail='One or more questions are not found or you do not have permission to use them.',
-                )
-
-    updated_exam = await crud_exams.update_exam(db, db_exam, exam_in, current_user)
-    return updated_exam
+    try:
+        updated_exam = await crud_exams.update_exam(db, db_exam, exam_in, current_user)
+        return updated_exam
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.delete('/{exam_id}', status_code=status.HTTP_204_NO_CONTENT)
+# ==========================================
+# Lifecycle Management Endpoints
+# ==========================================
+
+
+@router.post('/{exam_db_id}/lock', response_model=schemas.ExamResponse)
+async def lock_existing_exam(
+    db_exam: models.Exam = Depends(get_exam_rwd),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud_exams.lock_exam(db, db_exam)
+
+
+@router.put('/{exam_db_id}/archive', response_model=schemas.ExamResponse)
+async def archive_existing_exam(
+    is_archived: bool = Query(
+        ..., description='Set to true to archive, false to unarchive'
+    ),
+    db_exam: models.Exam = Depends(get_exam_rwd),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud_exams.toggle_archive_exam(db, db_exam, is_archived)
+
+
+@router.post('/{exam_db_id}/restore', response_model=schemas.ExamResponse)
+async def restore_deleted_exam(
+    db_exam: models.Exam = Depends(get_exam_rwd),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud_exams.toggle_delete_exam(db, db_exam, is_deleted=False)
+
+
+@router.delete('/{exam_db_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_existing_exam(
-    exam_id: int,
+    db_exam: models.Exam = Depends(get_exam_rwd),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
-    db_exam = await crud_exams.get_exam(db, exam_id, current_user)
-    if not db_exam:
-        raise HTTPException(status_code=404, detail='Exam not found')
-
-    # Business Rule: Cannot delete a locked exam
-    if db_exam.is_locked:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='This exam is locked and cannot be deleted.',
-        )
-
-    await crud_exams.delete_exam(db, db_exam, current_user)
+    await crud_exams.toggle_delete_exam(db, db_exam, is_deleted=True)

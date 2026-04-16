@@ -16,14 +16,21 @@ async def verify_questions_access(
 
     # Remove duplicates for the database check
     unique_q_ids = list(set(question_ids))
-    query = select(models.Question).where(models.Question.id.in_(unique_q_ids))
+
+    # Strict mode: Questions must be active, not archived, and explicitly locked
+    query = select(models.Question).where(
+        models.Question.id.in_(unique_q_ids),
+        models.Question.deleted_at.is_(None),
+        models.Question.is_archived.is_(False),
+        models.Question.is_locked.is_(True),
+    )
 
     # Data isolation: Superusers bypass this filter
     if not current_user.is_superuser:
         query = query.where(
             or_(
                 models.Question.owner_id == current_user.id,
-                models.Question.is_public == True,
+                models.Question.is_public.is_(True),
             )
         )
 
@@ -35,7 +42,7 @@ async def verify_questions_access(
 
 
 # Get a single exam by ID, eagerly loading its questions
-async def get_exam(db: AsyncSession, exam_id: int, current_user: models.User):
+async def get_exam(db: AsyncSession, exam_db_id: int, current_user: models.User):
     query = (
         select(models.Exam)
         .options(
@@ -44,7 +51,7 @@ async def get_exam(db: AsyncSession, exam_id: int, current_user: models.User):
                 models.ExamQuestion.question
             )
         )
-        .where(models.Exam.id == exam_id)
+        .where(models.Exam.id == exam_db_id)
     )
 
     # Data isolation: Regular teachers can only view their own exams
@@ -57,7 +64,11 @@ async def get_exam(db: AsyncSession, exam_id: int, current_user: models.User):
 
 # Get all exams for the current user
 async def get_exams(
-    db: AsyncSession, current_user: models.User, is_locked: Optional[bool] = None
+    db: AsyncSession,
+    current_user: models.User,
+    is_locked: Optional[bool] = None,
+    is_archived: Optional[bool] = None,
+    is_deleted: Optional[bool] = None,
 ):
     query = select(models.Exam).options(
         selectinload(models.Exam.exam_questions).selectinload(
@@ -70,6 +81,16 @@ async def get_exams(
 
     if is_locked is not None:
         query = query.where(models.Exam.is_locked == is_locked)
+
+    if is_archived is not None:
+        query = query.where(models.Exam.is_archived == is_archived)
+
+    if is_deleted is not None:
+        query = (
+            query.where(models.Exam.deleted_at.is_not(None))
+            if is_deleted
+            else query.where(models.Exam.deleted_at.is_(None))
+        )
 
     query = query.order_by(models.Exam.id.desc())
     result = await db.execute(query)
@@ -121,6 +142,10 @@ async def update_exam(
     exam_update: schemas.ExamUpdate,
     current_user: models.User,
 ):
+    # Core defense: Once locked, archived or deleted, an exam cannot be modified
+    if db_exam.is_locked or db_exam.is_archived or db_exam.deleted_at is not None:
+        raise ValueError('Cannot modify a protected exam. Please clone it to edit.')
+
     # Verify if the user has access to the newly provided questions
     if exam_update.questions is not None:
         question_ids = [q.question_id for q in exam_update.questions]
@@ -131,7 +156,9 @@ async def update_exam(
 
     update_data = exam_update.model_dump(exclude_unset=True, exclude={'questions'})
 
-    # Update basic fields (title, description, is_locked)
+    # Prevent modification of locked or archived states through standard updates
+    update_data.pop('is_locked', None)
+    update_data.pop('is_archived', None)
     for key, value in update_data.items():
         setattr(db_exam, key, value)
 
@@ -157,10 +184,37 @@ async def update_exam(
     return await get_exam(db, db_exam.id, current_user)
 
 
-# Delete an exam
-async def delete_exam(
-    db: AsyncSession, db_exam: models.Exam, current_user: models.User
-):
-    await db.delete(db_exam)
+# Lock an exam
+async def lock_exam(db: AsyncSession, db_exam: models.Exam):
+    if db_exam.is_locked:
+        return db_exam
+
+    db_exam.is_locked = True
+    db_exam.updated_at = func.now()
     await db.commit()
-    return True
+    return db_exam
+
+
+# Archive or Unarchive an exam
+async def toggle_archive_exam(
+    db: AsyncSession, db_exam: models.Exam, is_archived: bool
+):
+    if not (db_exam.is_archived ^ is_archived):
+        return db_exam
+
+    db_exam.is_archived = is_archived
+    db_exam.updated_at = func.now()
+    await db.commit()
+    return db_exam
+
+
+# Soft delete an exam
+async def toggle_delete_exam(db: AsyncSession, db_exam: models.Exam, is_deleted: bool):
+    current_is_deleted = db_exam.deleted_at is not None
+    if not (current_is_deleted ^ is_deleted):
+        return db_exam
+
+    db_exam.deleted_at = func.now() if is_deleted else None
+    db_exam.updated_at = func.now()
+    await db.commit()
+    return db_exam

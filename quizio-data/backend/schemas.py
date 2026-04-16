@@ -181,7 +181,6 @@ class ExamUpdate(BaseModel):
     description: Optional[str] = None
     target_date: Optional[date] = None
     questions: Optional[List[ExamQuestionSetup]] = None
-    is_locked: Optional[bool] = None
 
 
 class ExamQuestionResponse(BaseModel):
