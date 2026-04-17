@@ -53,7 +53,6 @@ class UserBase(BaseModel):
     username: str
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
-    is_active: bool = True
     is_superuser: bool = False
 
 
@@ -65,12 +64,12 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
-    is_active: Optional[bool] = None
 
 
 class UserResponse(UserBase):
     id: int
     created_at: datetime
+    deleted_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
