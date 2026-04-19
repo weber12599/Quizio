@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import nh3
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -104,8 +104,10 @@ class StudentUpdate(BaseModel):
     class_name: Optional[str] = None
 
 
-class Student(StudentBase):
+class StudentResponse(StudentBase):
     id: int
+    teacher_id: int
+    deleted_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -115,10 +117,12 @@ class QuestionBase(BaseModel):
     difficulty: Optional[int] = 1
     lesson: Optional[str] = None
     content: str
-    options: Optional[Any] = None
-    reference_answer: Any
+    options: Optional[List[str]] = None
+    reference_answer: Union[bool, int, str, List[int]]
     literacy_tags: Optional[List[str]] = None
     is_public: bool = False
+    is_locked: bool = False
+    is_archived: bool = False
     needs_manual_grading: bool = False
 
     @field_validator('content')
@@ -136,8 +140,8 @@ class QuestionUpdate(BaseModel):
     difficulty: Optional[int] = None
     lesson: Optional[str] = None
     content: Optional[str] = None
-    options: Optional[Any] = None
-    reference_answer: Optional[Any] = None
+    options: Optional[List[str]] = None
+    reference_answer: Optional[Union[bool, int, str, List[int]]] = None
     literacy_tags: Optional[List[str]] = None
     is_archived: Optional[bool] = None
     is_public: Optional[bool] = None
@@ -151,8 +155,12 @@ class QuestionUpdate(BaseModel):
         return v
 
 
-class Question(QuestionBase):
+class QuestionResponse(QuestionBase):
     id: int
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -184,7 +192,7 @@ class ExamQuestionResponse(BaseModel):
     question_id: int
     sort_order: int
     score: int
-    question: Question
+    question: QuestionResponse
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -193,16 +201,18 @@ class ExamResponse(ExamBase):
     id: int
     owner_id: int
     is_locked: bool
+    is_archived: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
     exam_questions: List[ExamQuestionResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserWithDetails(UserResponse):
-    students: List[Student] = []
-    questions: List[Question] = []
+    students: List[StudentResponse] = []
+    questions: List[QuestionResponse] = []
     exams: List[ExamResponse] = []
 
 
@@ -229,16 +239,16 @@ class StudentAnswer(StudentAnswerBase):
     submission_id: int
     exam_id: int
     created_at: datetime
-    question: Optional[Question] = None
+    question: Optional[QuestionResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class StudentSubmissionBase(BaseModel):
     exam_id: int
+    record_at: datetime
     student_id: Optional[int] = None
     guest_name: Optional[str] = None
-    record_at: Optional[datetime] = None
 
 
 class StudentSubmissionCreate(StudentSubmissionBase):
@@ -256,7 +266,7 @@ class StudentSubmission(StudentSubmissionBase):
 class SubmissionScoreDetail(BaseModel):
     submission_id: int
     score: int
-    record_at: Optional[datetime] = None
+    record_at: datetime
 
 
 class ExamGradeHeader(BaseModel):

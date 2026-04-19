@@ -121,7 +121,7 @@ async def restore_deleted_user(
     db_user: models.User = Depends(get_user_rwd),
     db: AsyncSession = Depends(get_db),
 ):
-    return await crud_users.toggle_delete_user(db, db_user, is_deleted=False)
+    return await crud_users.toggle_delete_user(db, db_user, False)
 
 
 @router.delete('/{user_db_id}', status_code=status.HTTP_204_NO_CONTENT)
@@ -129,4 +129,4 @@ async def delete_existing_user(
     db_user: models.User = Depends(get_user_rwd),
     db: AsyncSession = Depends(get_db),
 ):
-    await crud_users.toggle_delete_user(db, db_user, is_deleted=True)
+    await crud_users.toggle_delete_user(db, db_user, True)

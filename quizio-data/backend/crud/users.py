@@ -40,7 +40,7 @@ async def get_users(db: AsyncSession, current_user: models.User):
     if not current_user.is_superuser:
         raise ValueError('Not authorized as a super user')
 
-    result = await db.execute(select(models.User))
+    result = await db.execute(select(models.User).order_by(models.User.id.asc()))
     return result.scalars().all()
 
 
@@ -107,4 +107,4 @@ async def toggle_delete_user(db: AsyncSession, db_user: models.User, is_deleted:
 
     db_user.deleted_at = func.now() if is_deleted else None
     await db.commit()
-    return db_user
+    return await get_user(db, db_user.id)

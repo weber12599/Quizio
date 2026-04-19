@@ -121,19 +121,24 @@ async def update_question(
 
 
 # Lock a question
-async def lock_question(db: AsyncSession, db_question: models.Question):
+async def lock_question(
+    db: AsyncSession, db_question: models.Question, current_user: models.User
+):
     if db_question.is_locked:
         return db_question
 
     db_question.is_locked = True
     db_question.updated_at = func.now()
     await db.commit()
-    return db_question
+    return await get_question(db, db_question.id, current_user)
 
 
 # Archive or Unarchive a question
 async def toggle_archive_question(
-    db: AsyncSession, db_question: models.Question, is_archived: bool
+    db: AsyncSession,
+    db_question: models.Question,
+    is_archived: bool,
+    current_user: models.User,
 ):
     if not (db_question.is_archived ^ is_archived):
         return db_question
@@ -141,12 +146,15 @@ async def toggle_archive_question(
     db_question.is_archived = is_archived
     db_question.updated_at = func.now()
     await db.commit()
-    return db_question
+    return await get_question(db, db_question.id, current_user)
 
 
 # Soft delete a question
 async def toggle_delete_question(
-    db: AsyncSession, db_question: models.Question, is_deleted: bool
+    db: AsyncSession,
+    db_question: models.Question,
+    is_deleted: bool,
+    current_user: models.User,
 ):
     current_is_deleted = db_question.deleted_at is not None
     if not (current_is_deleted ^ is_deleted):
@@ -155,4 +163,4 @@ async def toggle_delete_question(
     db_question.deleted_at = func.now() if is_deleted else None
     db_question.updated_at = func.now()
     await db.commit()
-    return db_question
+    return await get_question(db, db_question.id, current_user)

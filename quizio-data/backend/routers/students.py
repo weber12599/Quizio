@@ -38,12 +38,12 @@ async def get_unique_classes(
     return await crud_students.get_teacher_classes(db, current_user)
 
 
-@router.get('/', response_model=List[schemas.Student])
+@router.get('/', response_model=List[schemas.StudentResponse])
 async def read_students(
     admission_year: Optional[int] = None,
     class_name: Optional[str] = None,
     is_deleted: Optional[bool] = Query(
-        False, description='Filter students by deleted status (default False)'
+        None, description='Filter students by deleted status (default False)'
     ),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -57,12 +57,14 @@ async def read_students(
     )
 
 
-@router.get('/{student_db_id}', response_model=schemas.Student)
+@router.get('/{student_db_id}', response_model=schemas.StudentResponse)
 async def read_student(db_student: models.Student = Depends(get_student_rwd)):
     return db_student
 
 
-@router.post('/', response_model=schemas.Student, status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/', response_model=schemas.StudentResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_new_student(
     student: schemas.StudentCreate,
     db: AsyncSession = Depends(get_db),
@@ -80,7 +82,7 @@ async def create_new_student(
         )
 
 
-@router.put('/{student_db_id}', response_model=schemas.Student)
+@router.put('/{student_db_id}', response_model=schemas.StudentResponse)
 async def update_existing_student(
     student_in: schemas.StudentUpdate,
     db_student: models.Student = Depends(get_student_rwd),
@@ -107,17 +109,21 @@ async def update_existing_student(
 # ==========================================
 
 
-@router.post('/{student_db_id}/restore', response_model=schemas.Student)
+@router.post('/{student_db_id}/restore', response_model=schemas.StudentResponse)
 async def restore_deleted_student(
     db_student: models.Student = Depends(get_student_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_students.toggle_delete_student(db, db_student, is_deleted=False)
+    return await crud_students.toggle_delete_student(
+        db, db_student, False, current_user
+    )
 
 
 @router.delete('/{student_db_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_existing_student(
     db_student: models.Student = Depends(get_student_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    await crud_students.toggle_delete_student(db, db_student, is_deleted=True)
+    await crud_students.toggle_delete_student(db, db_student, True, current_user)

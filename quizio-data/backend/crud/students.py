@@ -57,8 +57,8 @@ async def get_teacher_classes(
 async def get_students(
     db: AsyncSession,
     current_user: models.User,
-    admission_year: int = None,
-    class_name: str = None,
+    admission_year: Optional[int] = None,
+    class_name: Optional[str] = None,
     is_deleted: Optional[bool] = None,
 ):
     query = select(models.Student)
@@ -132,7 +132,10 @@ async def update_student(
 
 # Soft delete a student
 async def toggle_delete_student(
-    db: AsyncSession, db_student: models.Student, is_deleted: bool
+    db: AsyncSession,
+    db_student: models.Student,
+    is_deleted: bool,
+    current_user: models.User,
 ):
     current_is_deleted = db_student.deleted_at is not None
     if not (current_is_deleted ^ is_deleted):
@@ -140,4 +143,4 @@ async def toggle_delete_student(
 
     db_student.deleted_at = func.now() if is_deleted else None
     await db.commit()
-    return db_student
+    return await get_student(db, db_student.id, current_user)

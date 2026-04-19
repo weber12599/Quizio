@@ -185,19 +185,19 @@ async def update_exam(
 
 
 # Lock an exam
-async def lock_exam(db: AsyncSession, db_exam: models.Exam):
+async def lock_exam(db: AsyncSession, db_exam: models.Exam, current_user: models.User):
     if db_exam.is_locked:
         return db_exam
 
     db_exam.is_locked = True
     db_exam.updated_at = func.now()
     await db.commit()
-    return db_exam
+    return await get_exam(db, db_exam.id, current_user)
 
 
 # Archive or Unarchive an exam
 async def toggle_archive_exam(
-    db: AsyncSession, db_exam: models.Exam, is_archived: bool
+    db: AsyncSession, db_exam: models.Exam, is_archived: bool, current_user: models.User
 ):
     if not (db_exam.is_archived ^ is_archived):
         return db_exam
@@ -205,11 +205,13 @@ async def toggle_archive_exam(
     db_exam.is_archived = is_archived
     db_exam.updated_at = func.now()
     await db.commit()
-    return db_exam
+    return await get_exam(db, db_exam.id, current_user)
 
 
 # Soft delete an exam
-async def toggle_delete_exam(db: AsyncSession, db_exam: models.Exam, is_deleted: bool):
+async def toggle_delete_exam(
+    db: AsyncSession, db_exam: models.Exam, is_deleted: bool, current_user: models.User
+):
     current_is_deleted = db_exam.deleted_at is not None
     if not (current_is_deleted ^ is_deleted):
         return db_exam
@@ -217,4 +219,4 @@ async def toggle_delete_exam(db: AsyncSession, db_exam: models.Exam, is_deleted:
     db_exam.deleted_at = func.now() if is_deleted else None
     db_exam.updated_at = func.now()
     await db.commit()
-    return db_exam
+    return await get_exam(db, db_exam.id, current_user)

@@ -33,10 +33,10 @@ async def get_exam_rwd(
 async def read_exams(
     is_locked: Optional[bool] = Query(None, description='Filter exams by lock status'),
     is_archived: Optional[bool] = Query(
-        False, description='Filter exams by archive status (default False)'
+        None, description='Filter exams by archive status (default False)'
     ),
     is_deleted: Optional[bool] = Query(
-        False, description='Filter exams by deleted status (default False)'
+        None, description='Filter exams by deleted status (default False)'
     ),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -92,8 +92,9 @@ async def update_existing_exam(
 async def lock_existing_exam(
     db_exam: models.Exam = Depends(get_exam_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_exams.lock_exam(db, db_exam)
+    return await crud_exams.lock_exam(db, db_exam, current_user)
 
 
 @router.put('/{exam_db_id}/archive', response_model=schemas.ExamResponse)
@@ -103,21 +104,24 @@ async def archive_existing_exam(
     ),
     db_exam: models.Exam = Depends(get_exam_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_exams.toggle_archive_exam(db, db_exam, is_archived)
+    return await crud_exams.toggle_archive_exam(db, db_exam, is_archived, current_user)
 
 
 @router.post('/{exam_db_id}/restore', response_model=schemas.ExamResponse)
 async def restore_deleted_exam(
     db_exam: models.Exam = Depends(get_exam_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_exams.toggle_delete_exam(db, db_exam, is_deleted=False)
+    return await crud_exams.toggle_delete_exam(db, db_exam, False, current_user)
 
 
 @router.delete('/{exam_db_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_existing_exam(
     db_exam: models.Exam = Depends(get_exam_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    await crud_exams.toggle_delete_exam(db, db_exam, is_deleted=True)
+    await crud_exams.toggle_delete_exam(db, db_exam, True, current_user)

@@ -41,7 +41,7 @@ async def get_question_rwd(
     return db_question
 
 
-@router.get('/', response_model=List[schemas.Question])
+@router.get('/', response_model=List[schemas.QuestionResponse])
 async def read_questions(
     question_type: Optional[str] = None,
     difficulty: Optional[int] = None,
@@ -50,10 +50,10 @@ async def read_questions(
         None, description='Filter questions by lock status'
     ),
     is_archived: Optional[bool] = Query(
-        False, description='Filter questions by archive status (default False)'
+        None, description='Filter questions by archive status (default False)'
     ),
     is_deleted: Optional[bool] = Query(
-        False, description='Filter questions by deleted status (default False)'
+        None, description='Filter questions by deleted status (default False)'
     ),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -70,12 +70,14 @@ async def read_questions(
     )
 
 
-@router.get('/{question_db_id}', response_model=schemas.Question)
+@router.get('/{question_db_id}', response_model=schemas.QuestionResponse)
 async def read_question(db_question: models.Question = Depends(get_question_r)):
     return db_question
 
 
-@router.post('/', response_model=schemas.Question, status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/', response_model=schemas.QuestionResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_new_question(
     question: schemas.QuestionCreate,
     db: AsyncSession = Depends(get_db),
@@ -87,7 +89,7 @@ async def create_new_question(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.put('/{question_db_id}', response_model=schemas.Question)
+@router.put('/{question_db_id}', response_model=schemas.QuestionResponse)
 async def update_existing_question(
     question_in: schemas.QuestionUpdate,
     db_question: models.Question = Depends(get_question_rwd),
@@ -115,32 +117,37 @@ async def update_existing_question(
 # ==========================================
 
 
-@router.post('/{question_db_id}/lock', response_model=schemas.Question)
+@router.post('/{question_db_id}/lock', response_model=schemas.QuestionResponse)
 async def lock_existing_question(
     db_question: models.Question = Depends(get_question_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_questions.lock_question(db, db_question)
+    return await crud_questions.lock_question(db, db_question, current_user)
 
 
-@router.put('/{question_db_id}/archive', response_model=schemas.Question)
+@router.put('/{question_db_id}/archive', response_model=schemas.QuestionResponse)
 async def archive_existing_question(
     is_archived: bool = Query(
         ..., description='Set to true to archive, false to unarchive'
     ),
     db_question: models.Question = Depends(get_question_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    return await crud_questions.toggle_archive_question(db, db_question, is_archived)
+    return await crud_questions.toggle_archive_question(
+        db, db_question, is_archived, current_user
+    )
 
 
-@router.post('/{question_db_id}/restore', response_model=schemas.Question)
+@router.post('/{question_db_id}/restore', response_model=schemas.QuestionResponse)
 async def restore_deleted_question(
     db_question: models.Question = Depends(get_question_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     return await crud_questions.toggle_delete_question(
-        db, db_question, is_deleted=False
+        db, db_question, False, current_user
     )
 
 
@@ -148,5 +155,6 @@ async def restore_deleted_question(
 async def delete_existing_question(
     db_question: models.Question = Depends(get_question_rwd),
     db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    await crud_questions.toggle_delete_question(db, db_question, is_deleted=True)
+    await crud_questions.toggle_delete_question(db, db_question, True, current_user)
