@@ -1,14 +1,41 @@
 import axios from 'axios'
 import router from '../router'
+import type { TokenResponse } from './types/auth'
+import type { UserCreate, UserResponse, UserUpdate } from './types/users'
+import type { MediaUploadResponse } from './types/media'
+import type {
+    StudentCreate,
+    StudentResponse,
+    StudentsGet,
+    StudentUpdate
+} from './types/students'
+import type {
+    QuestionCreate,
+    QuestionResponse,
+    QuestionsGet,
+    QuestionUpdate
+} from './types/questions'
+import type {
+    ExamCreate,
+    ExamResponse,
+    ExamsGet,
+    ExamUpdate
+} from './types/exams'
+import type {
+    GetGradeReport,
+    GradeReportResponse,
+    StudentAnswerResponse,
+    StudentSubmissionResponse
+} from './types/submissions'
 
 // Create a centralized Axios instance
-const api = axios.create({
+const instance = axios.create({
     baseURL: '/api',
     timeout: 10000
 })
 
 // Request Interceptor: Auto-attach token to headers
-api.interceptors.request.use(
+instance.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token')
         if (token && config.headers) {
@@ -22,7 +49,7 @@ api.interceptors.request.use(
 )
 
 // Response Interceptor: Global error handling (e.g., 401 Unauthorized)
-api.interceptors.response.use(
+instance.interceptors.response.use(
     (response) => {
         return response
     },
@@ -39,121 +66,160 @@ api.interceptors.response.use(
     }
 )
 
-export interface MediaUploadResponse {
-    fid: string
-    filename: string
-    content_type: string
-    size: number
-    url: string
-}
-
-export interface ExamGradeHeader {
-    id: number
-    title: string
-    target_date: string | null
-    max_attempts: number
-}
-
-export interface SubmissionScoreDetail {
-    submission_id: number
-    score: number
-    record_at: string | null
-}
-
-export interface StudentGradeEntry {
-    student_db_id: number | null
-    student_id: string
-    name: string
-    class_name: string | null
-    exam_submissions: Record<string, SubmissionScoreDetail[]>
-}
-
-export interface GradeReportResponse {
-    exams: ExamGradeHeader[]
-    students: StudentGradeEntry[]
-}
-
-export interface Student {
-    id: number
-    student_id: string
-    name: string
-    email?: string | null
-    admission_year?: number | null
-    class_name?: string | null
-    teacher_id?: number | null
-}
-
-/**
- * Upload a media file to the backend, which proxies it to SeaweedFS
- * @param file The file object to upload (preferably compressed WebP)
- * @returns A Promise resolving to the upload response containing the fid
- */
-export const uploadMedia = async (file: File): Promise<MediaUploadResponse> => {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await api.post('/media/upload', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
+export interface ApiError {
+    response?: {
+        status: number
+        data?: {
+            detail?: string
         }
-    })
-
-    return response.data
+    }
 }
 
-/**
- * Fetch all distinct classes for the current teacher
- */
-export const getTeacherClasses = () => {
-    return api.get<string[]>('/students/classes')
+const dataAPI = {
+    // Auth
+    verifyUser: async (username: string, password: string) => {
+        const formData = new URLSearchParams()
+        formData.append('username', username)
+        formData.append('password', password)
+
+        return await instance.post<TokenResponse>('/auth/login', formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+    },
+    // Media
+    uploadMedia: async (file: File): Promise<MediaUploadResponse> => {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await instance.post('/media/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+
+        return response.data
+    },
+    // User
+    getUsers: async () => {
+        return await instance.get<UserResponse[]>('/users/')
+    },
+    getMe: async () => {
+        return await instance.get<UserResponse>('/users/me')
+    },
+    createUser: async (data: UserCreate) => {
+        return await instance.post<UserResponse>('/users/', data)
+    },
+    updateUser: async (id: number, data: UserUpdate) => {
+        return await instance.put<UserResponse>(`/users/${id}`, data)
+    },
+    restoreUser: async (id: number) => {
+        return await instance.post<UserResponse>(`/users/${id}/restore`)
+    },
+    deleteUser: async (id: number) => {
+        return await instance.delete(`/users/${id}`)
+    },
+    // Student
+    getTeacherClasses: async () => {
+        return await instance.get<string[]>('/students/classes')
+    },
+    getStudents: async (params: StudentsGet) => {
+        return await instance.get<StudentResponse[]>('/students/', { params })
+    },
+    getStudent: async (id: number) => {
+        return await instance.get<StudentResponse>(`/students/${id}`)
+    },
+    createStudent: async (data: StudentCreate) => {
+        return await instance.post<StudentResponse>('/students/', data)
+    },
+    updateStudent: async (id: number, data: StudentUpdate) => {
+        return await instance.put<StudentResponse>(`/students/${id}`, data)
+    },
+    restoreStudent: async (id: number) => {
+        return await instance.post<StudentResponse>(`/students/${id}/restore`)
+    },
+    deleteStudent: async (id: number) => {
+        return await instance.delete(`/students/${id}`)
+    },
+    // Question
+    getQuestions: async (params: QuestionsGet) => {
+        return await instance.get<QuestionResponse[]>('/questions/', { params })
+    },
+    getQuestion: async (id: number) => {
+        return await instance.get<QuestionResponse>(`/questions/${id}`)
+    },
+    createQuestion: async (data: QuestionCreate) => {
+        return await instance.post<QuestionResponse>('/questions/', data)
+    },
+    updateQuestion: async (id: number, data: QuestionUpdate) => {
+        return await instance.put<QuestionResponse>(`/questions/${id}`, data)
+    },
+    lockQuestion: async (id: number) => {
+        return await instance.post<QuestionResponse>(`/questions/${id}/lock`)
+    },
+    archiveQuestion: async (id: number, is_archived: boolean) => {
+        return await instance.put<QuestionResponse>(
+            `/questions/${id}/archive`,
+            null,
+            {
+                params: { is_archived: is_archived }
+            }
+        )
+    },
+    restoreQuestion: async (id: number) => {
+        return await instance.post<QuestionResponse>(`/questions/${id}/restore`)
+    },
+    deleteQuestion: async (id: number) => {
+        return await instance.delete(`/questions/${id}`)
+    },
+    // Exam
+    getExams: async (params: ExamsGet) => {
+        return await instance.get<ExamResponse[]>('/exams/', { params })
+    },
+    getExam: async (id: number) => {
+        return await instance.get<ExamResponse>(`/exams/${id}`)
+    },
+    createExam: async (data: ExamCreate) => {
+        return await instance.post<ExamResponse>('/exams/', data)
+    },
+    updateExam: async (id: number, data: ExamUpdate) => {
+        return await instance.put<ExamResponse>(`/exams/${id}`, data)
+    },
+    lockExam: async (id: number) => {
+        return await instance.post<ExamResponse>(`/exams/${id}/lock`)
+    },
+    archiveExam: async (id: number, is_archived: boolean) => {
+        return await instance.put<ExamResponse>(`/exams/${id}/archive`, null, {
+            params: { is_archived: is_archived }
+        })
+    },
+    restoreExam: async (id: number) => {
+        return await instance.post<ExamResponse>(`/exams/${id}/restore`)
+    },
+    deleteExam: async (id: number) => {
+        return await instance.delete(`/exams/${id}`)
+    },
+    // Submission
+    getGradeReport: async (params: GetGradeReport) => {
+        return await instance.get<GradeReportResponse>('/submissions/', {
+            params,
+            paramsSerializer: { indexes: null }
+        })
+    },
+    getSubmissionDetails: async (submissionId: number) => {
+        return await instance.get<StudentSubmissionResponse>(
+            `/submissions/${submissionId}`
+        )
+    },
+    gradeStudentAnswer: async (answerId: number, score: number) => {
+        return await instance.put<StudentAnswerResponse>(
+            `/submissions/answers/${answerId}/grade`,
+            {
+                score
+            }
+        )
+    }
 }
 
-/**
- * Fetch the pivot table grade report
- */
-export const getGradeReport = (params: {
-    class_name?: string
-    student_id?: string
-    date_start?: string
-    date_end?: string
-    exam_ids?: number[]
-}) => {
-    return api.get<GradeReportResponse>('/submissions/', {
-        params,
-        paramsSerializer: { indexes: null }
-    })
-}
-
-/**
- * Fetch all students for the current teacher.
- * Can be optionally filtered by class_name or admission_year.
- */
-export const getStudents = (params?: {
-    class_name?: string
-    admission_year?: number
-}) => {
-    return api.get<Student[]>('/students/', { params })
-}
-
-/**
- * Fetch all exams (used for the multiple select filter)
- */
-export const getExams = () => {
-    return api.get<any[]>('/exams/')
-}
-
-/**
- * Fetch detailed submission including answers and questions for a specific student and exam
- */
-export const getSubmissionDetails = (submissionId: number) => {
-    return api.get<any>(`/submissions/details/${submissionId}`)
-}
-
-/**
- * Manually update a student's score for a specific answer
- */
-export const gradeStudentAnswer = (answerId: number, score: number) => {
-    return api.put<any>(`/submissions/answers/${answerId}/grade`, { score })
-}
-
-export default api
+export default dataAPI

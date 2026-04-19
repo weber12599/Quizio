@@ -79,7 +79,7 @@ import { ElMessage } from 'element-plus'
 
 // 引入我們前面實作的工具
 import { compressImageToWebP } from '../utils/image'
-import { uploadMedia } from '../api/index'
+import dataAPI from '../api'
 import { getFullMediaUrl } from '../utils/media'
 
 const props = defineProps({
@@ -113,7 +113,7 @@ const uploadAndInsertImage = async (file: File) => {
             maxHeight: 1200
         })
         // 2. 呼叫後端代傳至 SeaweedFS
-        const res = await uploadMedia(compressedFile)
+        const res = await dataAPI.uploadMedia(compressedFile)
         // 3. 取得 Nginx 快取網址
         const url = getFullMediaUrl(res.fid)
         // 4. 插入編輯器
