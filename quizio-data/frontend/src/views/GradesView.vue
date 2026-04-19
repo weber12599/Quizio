@@ -119,7 +119,13 @@
                     >
                         <template #header>
                             <el-tooltip
-                                :content="`預定考試日期: ${exam.target_date || '未設定'}`"
+                                :content="`Target date: ${
+                                    exam.target_date
+                                        ? dayjs(
+                                              new Date(exam.target_date)
+                                          ).format('YYYY/MM/DD')
+                                        : '-'
+                                }`"
                                 placement="top"
                                 effect="dark"
                             >
@@ -141,7 +147,9 @@
                                     :key="sub.submission_id"
                                 >
                                     <el-tooltip
-                                        :content="`測驗時間: ${formatRecordAt(sub.record_at)}`"
+                                        :content="`Record: ${dayjs(
+                                            new Date(sub.record_at)
+                                        ).format('YYYY/MM/DD HH:mm:ss')}`"
                                         placement="top"
                                         effect="dark"
                                     >
@@ -312,19 +320,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Search, Check } from '@element-plus/icons-vue'
+import { ElMessage, dayjs } from 'element-plus'
+
+import dataAPI from '../api'
+import type { StudentResponse } from '../api/types/students'
+import type { ExamResponse } from '../api/types/exams'
+import type {
+    GradeReportResponse,
+    StudentSubmissionResponse,
+    StudentAnswerResponse,
+    GetGradeReport
+} from '../api/types/submissions'
+
 import { renderMarkdown } from '../utils/markdown'
-import {
-    getTeacherClasses,
-    getGradeReport,
-    getStudents,
-    getExams,
-    getSubmissionDetails,
-    gradeStudentAnswer,
-    type GradeReportResponse,
-    type Student
-} from '../api'
 
 // --- State: Filters ---
 const filters = ref({
@@ -336,9 +344,9 @@ const dateRange = ref<[string, string] | null>(null)
 
 // --- State: Dropdown Options ---
 const classOptions = ref<string[]>([])
-const allStudents = ref<Student[]>([])
-const studentOptions = ref<Student[]>([])
-const examOptions = ref<any[]>([])
+const allStudents = ref<StudentResponse[]>([])
+const studentOptions = ref<StudentResponse[]>([])
+const examOptions = ref<ExamResponse[]>([])
 
 // --- State: Table Data ---
 const loading = ref(false)
@@ -348,7 +356,7 @@ const reportData = ref<GradeReportResponse | null>(null)
 // --- State: Grading Dialog ---
 const gradingDialogVisible = ref(false)
 const submissionLoading = ref(false)
-const currentSubmission = ref<any>(null)
+const currentSubmission = ref<StudentSubmissionResponse | null>(null)
 const currentStudentName = ref('')
 const currentExamTitle = ref('')
 const savingAnswerId = ref<number | null>(null)
@@ -357,9 +365,9 @@ const savingAnswerId = ref<number | null>(null)
 onMounted(async () => {
     try {
         const [classRes, studentRes, examRes] = await Promise.all([
-            getTeacherClasses(),
-            getStudents(),
-            getExams()
+            dataAPI.getTeacherClasses(),
+            dataAPI.getStudents({}),
+            dataAPI.getExams({})
         ])
         classOptions.value = classRes.data
         allStudents.value = studentRes.data
@@ -398,10 +406,11 @@ const fetchReport = async () => {
     hasSearched.value = true
 
     try {
-        const params: any = {
-            class_name: filters.value.class_name || undefined,
-            student_id: filters.value.student_id || undefined
-        }
+        const params: GetGradeReport = {}
+        if (filters.value.class_name)
+            params.class_name = filters.value.class_name
+        if (filters.value.student_id)
+            params.student_id = filters.value.student_id
 
         if (dateRange.value && dateRange.value.length === 2) {
             params.date_start = dateRange.value[0]
@@ -412,7 +421,7 @@ const fetchReport = async () => {
             params.exam_ids = filters.value.exam_ids
         }
 
-        const res = await getGradeReport(params)
+        const res = await dataAPI.getGradeReport(params)
         reportData.value = res.data
     } catch (error) {
         ElMessage.error('Failed to fetch grade report')
@@ -424,23 +433,12 @@ const fetchReport = async () => {
 }
 
 // --- Utility ---
-const formatRecordAt = (dateStr?: string | null) => {
-    if (!dateStr) return '無紀錄'
-    const date = new Date(dateStr)
-    return date.toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    })
-}
-
-// 🚀 解析選項字串或陣列
-const parseOptions = (optsRaw: any): string[] => {
-    if (Array.isArray(optsRaw)) return optsRaw
+const parseOptions = (
+    optsRaw: string | string[] | null | undefined
+): string[] => {
+    if (Array.isArray(optsRaw)) {
+        return optsRaw
+    }
     if (typeof optsRaw === 'string') {
         try {
             const parsed = JSON.parse(optsRaw)
@@ -452,44 +450,56 @@ const parseOptions = (optsRaw: any): string[] => {
     return []
 }
 
-// 🚀 優化：格式化顯示答案邏輯
-const formatDisplayAnswer = (type: string, val: any): string => {
-    if (val === undefined || val === null || val === '') return '*(No Answer)*'
+const formatDisplayAnswer = (
+    type: 'boolean' | 'single' | 'multiple' | 'short' | 'essay',
+    val?: boolean | number | string | number[] | null
+): string => {
+    if (val === undefined || val === null || val === '') {
+        return '*(No Answer)*'
+    }
 
-    // 是非題：0 -> True, 1 -> False 或布林值處理
+    // true/false
     if (type === 'boolean') {
         const isTrue =
             val === 0 ||
             val === '0' ||
             val === true ||
             String(val).toLowerCase() === 'true'
-        return isTrue ? 'True' : 'False'
+        return isTrue ? 'True (O)' : 'False (X)'
     }
 
-    // 單選題：數字轉字母 A, B, C
+    // single
     if (type === 'single') {
-        const idx = parseInt(val)
+        const idx = parseInt(String(val))
         return isNaN(idx) ? String(val) : String.fromCharCode(65 + idx)
     }
 
-    // 多選題：處理陣列或 JSON 字串
+    // multiple
     if (type === 'multiple') {
-        let arr: any[] = []
-        try {
-            arr = Array.isArray(val) ? val : JSON.parse(val)
-        } catch {
-            arr = []
+        let arr: (string | number)[] = []
+        if (Array.isArray(val)) {
+            arr = val
+        } else if (typeof val === 'string') {
+            try {
+                arr = JSON.parse(val)
+                if (!Array.isArray(arr)) arr = [val]
+            } catch {
+                arr = val.split(',').map((s) => s.trim())
+            }
+        } else {
+            arr = [val as number]
         }
-        if (!Array.isArray(arr)) return String(val)
+
         return arr
             .map((v) => {
-                const idx = parseInt(v)
+                const idx = parseInt(String(v))
                 return isNaN(idx) ? String(v) : String.fromCharCode(65 + idx)
             })
             .sort()
             .join(', ')
     }
 
+    // short, essay
     return String(val)
 }
 
@@ -501,13 +511,13 @@ const openGradingDialog = async (
     attempt: number
 ) => {
     currentStudentName.value = studentName
-    currentExamTitle.value = `${examTitle} (第 ${attempt} 次測驗)`
+    currentExamTitle.value = `${examTitle} (Attempt ${attempt})`
     gradingDialogVisible.value = true
     submissionLoading.value = true
     currentSubmission.value = null
 
     try {
-        const response = await getSubmissionDetails(submissionId)
+        const response = await dataAPI.getSubmissionDetails(submissionId)
         currentSubmission.value = response.data
     } catch (error) {
         ElMessage.error('Failed to fetch submission details')
@@ -516,7 +526,7 @@ const openGradingDialog = async (
     }
 }
 
-const submitGrade = async (answer: any) => {
+const submitGrade = async (answer: StudentAnswerResponse) => {
     if (answer.score === null || answer.score === undefined) {
         ElMessage.warning('Please enter a valid score')
         return
@@ -524,7 +534,7 @@ const submitGrade = async (answer: any) => {
 
     savingAnswerId.value = answer.id
     try {
-        await gradeStudentAnswer(answer.id, answer.score)
+        await dataAPI.gradeStudentAnswer(answer.id, answer.score)
         ElMessage.success('Score updated successfully')
     } catch (error) {
         ElMessage.error('Failed to update score')

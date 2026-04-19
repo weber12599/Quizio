@@ -11,7 +11,7 @@
             </template>
 
             <el-table
-                :data="teachers"
+                :data="rows"
                 v-loading="loading"
                 border
                 style="width: 100%"
@@ -46,11 +46,8 @@
                             active-color="#13ce66"
                             inactive-color="#ff4949"
                             @change="
-                                (val) =>
-                                    handleStatusChange(
-                                        scope.row,
-                                        val as boolean
-                                    )
+                                (val: boolean) =>
+                                    handleStatusChange(scope.row, val)
                             "
                             :disabled="scope.row.id === authStore.user?.id"
                         />
@@ -74,7 +71,6 @@
             v-model="dialogVisible"
             :title="dialogType === 'add' ? 'Add Teacher' : 'Edit Teacher'"
             width="500px"
-            @closed="resetForm"
         >
             <el-form
                 ref="formRef"
@@ -82,24 +78,18 @@
                 :rules="rules"
                 label-width="120px"
             >
-                <el-form-item label="Username" prop="username">
+                <el-form-item label="Username" prop="username" required>
                     <el-input
                         v-model="formData.username"
                         :disabled="dialogType === 'edit'"
-                        placeholder="e.g., teacher_wang"
-                    />
-                </el-form-item>
-
-                <el-form-item label="Full Name" prop="full_name">
-                    <el-input
-                        v-model="formData.full_name"
-                        placeholder="Teacher's full name"
+                        placeholder="Please enter username"
                     />
                 </el-form-item>
 
                 <el-form-item
                     label="Password"
                     prop="password"
+                    :required="dialogType === 'add'"
                     :rules="
                         dialogType === 'edit'
                             ? []
@@ -119,15 +109,22 @@
                         :placeholder="
                             dialogType === 'edit'
                                 ? 'Leave blank to keep current password'
-                                : 'Initial password'
+                                : 'Please enter password'
                         "
+                    />
+                </el-form-item>
+
+                <el-form-item label="Full Name" prop="full_name">
+                    <el-input
+                        v-model="formData.full_name"
+                        placeholder="Please enter full name"
                     />
                 </el-form-item>
 
                 <el-form-item label="Email" prop="email">
                     <el-input
                         v-model="formData.email"
-                        placeholder="Required for regular teachers"
+                        placeholder="Please enter valid email"
                     />
                 </el-form-item>
 
@@ -155,15 +152,28 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Edit } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import api from '../api'
+
 import { useAuthStore } from '../stores/auth'
+
+import dataAPI, { type ApiError } from '../api'
+import type { UserCreate, UserResponse, UserUpdate } from '../api/types/users'
 
 const authStore = useAuthStore()
 
+type UserRow = UserResponse & { is_active: boolean }
+
+interface TeacherFormData {
+    id: number | null
+    username: string
+    password: string | null
+    full_name: string
+    email: string
+    is_superuser: boolean
+}
+
 // State management
-const teachers = ref<any[]>([])
+const rows = ref<UserRow[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogType = ref<'add' | 'edit'>('add')
@@ -171,14 +181,13 @@ const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 
 // Form Data
-const formData = reactive({
+const formData = reactive<TeacherFormData>({
     id: null as number | null,
     username: '',
+    password: null as string | null,
     full_name: '',
     email: '',
-    password: '',
-    is_superuser: false,
-    is_active: true
+    is_superuser: false
 })
 
 // Validation Rules
@@ -199,10 +208,13 @@ const rules = reactive<FormRules>({
 const fetchTeachers = async () => {
     loading.value = true
     try {
-        // 🌟 注意結尾斜線，避免 307 導向錯誤
-        const response = await api.get('/users/')
-        teachers.value = response.data
-    } catch (error: any) {
+        const response = await dataAPI.getUsers()
+        rows.value = response.data.map((teacher) => ({
+            ...teacher,
+            is_active: teacher.deleted_at === null
+        }))
+    } catch (err: unknown) {
+        const error = err as ApiError
         ElMessage.error(
             error.response?.data?.detail || 'Failed to fetch teachers'
         )
@@ -211,71 +223,78 @@ const fetchTeachers = async () => {
     }
 }
 
-// Dialog Handlers
-const openAddDialog = () => {
-    dialogType.value = 'add'
-    dialogVisible.value = true
-}
-
-const openEditDialog = (row: any) => {
-    dialogType.value = 'edit'
-    Object.assign(formData, {
-        id: row.id,
-        username: row.username,
-        full_name: row.full_name || '',
-        email: row.email || '',
-        password: '', // Leave blank deliberately
-        is_superuser: row.is_superuser,
-        is_active: row.is_active
-    })
-    dialogVisible.value = true
-}
-
 // Submit Data
 const handleSubmit = async () => {
-    if (!formRef.value) return
+    if (!formRef.value) {
+        return
+    }
 
     await formRef.value.validate(async (valid) => {
-        if (valid) {
-            submitLoading.value = true
-            try {
-                const payload = { ...formData }
-                // 如果編輯時沒有填寫密碼，就不要送出這個欄位
-                if (dialogType.value === 'edit' && !payload.password) {
-                    delete payload.password
+        if (!valid) {
+            return
+        }
+
+        submitLoading.value = true
+        try {
+            if (dialogType.value === 'add') {
+                const payload: UserCreate = {
+                    username: formData.username,
+                    password: formData.password as string,
+                    full_name: formData.full_name || null,
+                    email: formData.email || null,
+                    is_superuser: formData.is_superuser
+                }
+                await dataAPI.createUser(payload)
+                ElMessage.success('Teacher added successfully')
+            } else if (formData.id !== null && formData.id !== undefined) {
+                const payload: UserUpdate = {
+                    full_name: formData.full_name || null,
+                    email: formData.email || null
+                }
+                if (formData.password) {
+                    payload.password = formData.password
                 }
 
-                if (dialogType.value === 'add') {
-                    // 🌟 注意結尾斜線
-                    await api.post('/users/', payload)
-                    ElMessage.success('Teacher added successfully')
-                } else {
-                    await api.put(`/users/${formData.id}`, payload)
-                    ElMessage.success('Teacher updated successfully')
-                }
+                await dataAPI.updateUser(formData.id, payload)
+                ElMessage.success('Teacher updated successfully')
+            }
 
-                dialogVisible.value = false
-                fetchTeachers()
-            } catch (error: any) {
+            dialogVisible.value = false
+            fetchTeachers()
+        } catch (err: unknown) {
+            const error = err as ApiError
+            if (
+                error.response?.status === 409 ||
+                error.response?.data?.detail?.includes('exists')
+            ) {
+                ElMessage.warning('Username or Email already exists!')
+            } else {
                 ElMessage.error(
                     error.response?.data?.detail || 'Operation failed'
                 )
-            } finally {
-                submitLoading.value = false
             }
+        } finally {
+            submitLoading.value = false
         }
     })
 }
 
 // Inline toggle for active status
-const handleStatusChange = async (row: any, isActive: boolean) => {
+const handleStatusChange = async (row: UserRow, isActive: boolean) => {
     try {
-        await api.put(`/api/users/${row.id}`, { is_active: isActive })
-        ElMessage.success(
-            `User status updated to ${isActive ? 'Active' : 'Inactive'}`
-        )
-    } catch (error: any) {
-        // Rollback UI change if API fails
+        if (isActive) {
+            await dataAPI.restoreUser(row.id)
+            row.deleted_at = null
+            row.is_active = true
+            ElMessage.success('User restored')
+        } else {
+            await dataAPI.deleteUser(row.id)
+            row.deleted_at = new Date().toISOString()
+            row.is_active = false
+            ElMessage.success('User deleted')
+        }
+    } catch (err: unknown) {
+        const error = err as ApiError
         row.is_active = !isActive
         ElMessage.error(
             error.response?.data?.detail || 'Failed to update status'
@@ -283,16 +302,39 @@ const handleStatusChange = async (row: any, isActive: boolean) => {
     }
 }
 
+// Dialog Handlers
+const openAddDialog = () => {
+    dialogType.value = 'add'
+    resetForm()
+    dialogVisible.value = true
+}
+
+const openEditDialog = (row: UserRow) => {
+    dialogType.value = 'edit'
+    resetForm()
+    Object.assign(formData, {
+        id: row.id,
+        username: row.username,
+        password: '', // Leave blank deliberately
+        full_name: row.full_name || '',
+        email: row.email || '',
+        is_superuser: row.is_superuser
+    })
+    dialogVisible.value = true
+}
+
 const resetForm = () => {
-    if (formRef.value) formRef.value.resetFields()
+    if (formRef.value) {
+        formRef.value.clearValidate()
+    }
+
     Object.assign(formData, {
         id: null,
         username: '',
+        password: '',
         full_name: '',
         email: '',
-        password: '',
-        is_superuser: false,
-        is_active: true
+        is_superuser: false
     })
 }
 

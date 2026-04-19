@@ -10,84 +10,240 @@
                 </div>
             </template>
 
+            <el-form :inline="true" class="filter-bar">
+                <el-form-item label="Lock Status">
+                    <el-select
+                        v-model="filterLockStatus"
+                        clearable
+                        style="width: 150px"
+                    >
+                        <el-option label="Draft" :value="false" />
+                        <el-option label="Locked" :value="true" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="Archive Status">
+                    <el-select
+                        v-model="filterArchiveStatus"
+                        clearable
+                        style="width: 150px"
+                    >
+                        <el-option label="Active" :value="false" />
+                        <el-option label="Archived" :value="true" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="Delete Status">
+                    <el-select
+                        v-model="filterDeleteStatus"
+                        clearable
+                        style="width: 150px"
+                    >
+                        <el-option label="Not Deleted" :value="false" />
+                        <el-option label="Deleted" :value="true" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="handleSearch">
+                        <el-icon><Search /></el-icon> Search
+                    </el-button>
+                    <el-button @click="resetFilters">Reset</el-button>
+                </el-form-item>
+            </el-form>
+
             <el-table
-                :data="exams"
+                :data="rows"
                 v-loading="loading"
                 border
                 style="width: 100%"
             >
                 <el-table-column prop="id" label="ID" width="60" />
+
+                <el-table-column prop="status" label="Status" width="100">
+                    <template #default="scope">
+                        <el-tag
+                            v-if="scope.row.is_locked"
+                            size="small"
+                            type="success"
+                            >Locked</el-tag
+                        >
+                        <el-tag v-else size="small" type="info">Draft</el-tag>
+
+                        <el-tag
+                            v-if="scope.row.is_archived"
+                            size="small"
+                            type="warning"
+                            >Archived</el-tag
+                        >
+                        <el-tag
+                            v-if="
+                                scope.row.deleted_at !== null &&
+                                scope.row.deleted_at !== undefined
+                            "
+                            size="small"
+                            type="danger"
+                            >Deleted</el-tag
+                        >
+                    </template>
+                </el-table-column>
+
                 <el-table-column
                     prop="title"
                     label="Title"
-                    min-width="200"
+                    width="200"
                     show-overflow-tooltip
                 />
+
                 <el-table-column
                     prop="description"
                     label="Description"
-                    min-width="250"
+                    width="250"
                     show-overflow-tooltip
                 />
-                <el-table-column label="Status" width="120" align="center">
-                    <template #default="scope">
-                        <el-tag
-                            :type="scope.row.is_locked ? 'danger' : 'success'"
-                        >
-                            {{ scope.row.is_locked ? 'Locked' : 'Draft' }}
-                        </el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column label="Target Date" width="130" align="center">
-                    <template #default="scope">
-                        {{ scope.row.target_date || '-' }}
-                    </template>
-                </el-table-column>
-                <el-table-column label="Last Updated" width="180">
+
+                <el-table-column
+                    prop="target_date"
+                    label="Target Date"
+                    width="130"
+                    show-overflow-tooltip
+                >
                     <template #default="scope">
                         {{
-                            new Date(
-                                scope.row.updated_at || scope.row.created_at
-                            ).toLocaleString()
+                            scope.row.target_date
+                                ? dayjs(new Date(scope.row.target_date)).format(
+                                      'YYYY/MM/DD'
+                                  )
+                                : null
                         }}
                     </template>
                 </el-table-column>
-                <el-table-column label="Created At" width="180">
+
+                <el-table-column
+                    prop="updated_at"
+                    label="Last Updated"
+                    width="180"
+                >
                     <template #default="scope">
-                        {{ new Date(scope.row.created_at).toLocaleString() }}
+                        {{
+                            dayjs(new Date(scope.row.updated_at)).format(
+                                'YYYY/MM/DD HH:mm:ss'
+                            )
+                        }}
                     </template>
                 </el-table-column>
-                <el-table-column label="Actions" width="280" fixed="right">
+
+                <el-table-column
+                    label="Actions"
+                    width="120"
+                    fixed="right"
+                    align="center"
+                >
                     <template #default="scope">
-                        <el-button
-                            size="small"
-                            @click="openEditDialog(scope.row)"
-                            :type="scope.row.is_locked ? 'info' : 'default'"
-                            :plain="scope.row.is_locked"
-                        >
-                            <el-icon>
-                                <View v-if="scope.row.is_locked" />
-                                <Edit v-else />
-                            </el-icon>
-                            {{ scope.row.is_locked ? 'Preview' : 'Edit' }}
-                        </el-button>
-                        <el-button
-                            size="small"
-                            type="warning"
-                            @click="handleLock(scope.row)"
-                            :disabled="scope.row.is_locked"
-                        >
-                            <el-icon><Lock /></el-icon> Lock
-                        </el-button>
-                        <el-button
-                            size="small"
-                            type="danger"
-                            plain
-                            @click="handleDelete(scope.row)"
-                            :disabled="scope.row.is_locked"
-                        >
-                            <el-icon><Delete /></el-icon> Delete
-                        </el-button>
+                        <el-tooltip placement="top">
+                            <template #content>
+                                <span>Edit</span>
+                            </template>
+                            <el-button
+                                link
+                                size="small"
+                                @click="openEditDialog(scope.row)"
+                                :disabled="!isEditable(scope.row)"
+                            >
+                                <el-icon>
+                                    <Edit />
+                                </el-icon>
+                            </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip placement="top">
+                            <template #content>
+                                <span>Preview</span>
+                            </template>
+                            <el-button
+                                link
+                                size="small"
+                                @click="openEditDialog(scope.row)"
+                                :disabled="isEditable(scope.row)"
+                            >
+                                <el-icon>
+                                    <View />
+                                </el-icon>
+                            </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip placement="top">
+                            <template #content>
+                                <span>More</span>
+                            </template>
+                            <el-dropdown
+                                v-if="isStatusEditable(scope.row)"
+                                trigger="click"
+                                style="
+                                    margin-left: 12px;
+                                    vertical-align: middle;
+                                "
+                            >
+                                <el-button link size="small">
+                                    <el-icon><More /></el-icon>
+                                </el-button>
+
+                                <template #dropdown>
+                                    <el-dropdown-menu>
+                                        <el-dropdown-item
+                                            v-if="!scope.row.is_locked"
+                                            @click="handleLock(scope.row)"
+                                        >
+                                            <el-icon><Lock /></el-icon> Lock
+                                        </el-dropdown-item>
+
+                                        <el-dropdown-item
+                                            @click="
+                                                scope.row.is_archived
+                                                    ? handleUnarchive(scope.row)
+                                                    : handleArchive(scope.row)
+                                            "
+                                        >
+                                            <el-icon
+                                                v-if="!scope.row.is_archived"
+                                                ><Box
+                                            /></el-icon>
+                                            <el-icon v-else
+                                                ><RefreshLeft
+                                            /></el-icon>
+                                            {{
+                                                scope.row.is_archived
+                                                    ? 'Unarchive'
+                                                    : 'Archive'
+                                            }}
+                                        </el-dropdown-item>
+
+                                        <el-dropdown-item
+                                            @click="
+                                                !scope.row.deleted_at
+                                                    ? handleDelete(scope.row)
+                                                    : handleRestore(scope.row)
+                                            "
+                                            :style="{
+                                                color: !scope.row.deleted_at
+                                                    ? 'var(--el-color-danger)'
+                                                    : 'var(--el-color-warning)'
+                                            }"
+                                        >
+                                            <el-icon
+                                                v-if="!scope.row.deleted_at"
+                                                ><Delete
+                                            /></el-icon>
+                                            <el-icon v-else
+                                                ><RefreshLeft
+                                            /></el-icon>
+                                            {{
+                                                !scope.row.deleted_at
+                                                    ? 'Delete'
+                                                    : 'Restore'
+                                            }}
+                                        </el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </template>
+                            </el-dropdown>
+                        </el-tooltip>
                     </template>
                 </el-table-column>
             </el-table>
@@ -180,8 +336,29 @@
                                     </el-button>
                                     <el-tag
                                         size="small"
+                                        type="info"
+                                        style="margin-right: 8px"
+                                        >{{ `ID: ${q.id}` }}</el-tag
+                                    >
+                                    <el-tag
+                                        size="small"
+                                        type="primary"
                                         style="margin-right: 8px"
                                         >{{ q.type }}</el-tag
+                                    >
+                                    <el-tag
+                                        v-if="q.is_archived"
+                                        size="small"
+                                        type="warning"
+                                        style="margin-right: 8px"
+                                        >Archived</el-tag
+                                    >
+                                    <el-tag
+                                        v-if="q.deleted_at != null"
+                                        size="small"
+                                        type="danger"
+                                        style="margin-right: 8px"
+                                        >Deleted</el-tag
                                     >
                                     <span
                                         class="q-text"
@@ -240,7 +417,8 @@
                                     <template v-if="q.type === 'single'">
                                         {{
                                             String.fromCharCode(
-                                                65 + q.reference_answer
+                                                65 +
+                                                    (q.reference_answer as number)
                                             )
                                         }}
                                     </template>
@@ -268,7 +446,7 @@
                                         <div
                                             v-html="
                                                 renderMarkdown(
-                                                    q.reference_answer
+                                                    q.reference_answer as string
                                                 )
                                             "
                                             class="answer-content"
@@ -363,7 +541,8 @@
                                     <template v-if="q.type === 'single'">
                                         {{
                                             String.fromCharCode(
-                                                65 + q.reference_answer
+                                                65 +
+                                                    (q.reference_answer as number)
                                             )
                                         }}
                                     </template>
@@ -391,7 +570,7 @@
                                         <div
                                             v-html="
                                                 renderMarkdown(
-                                                    q.reference_answer
+                                                    q.reference_answer as string
                                                 )
                                             "
                                             class="answer-content"
@@ -408,8 +587,17 @@
 
                     <div v-else class="edit-mode-container">
                         <h3>Exam Details</h3>
-                        <el-form :model="formData" label-position="top">
-                            <el-form-item label="Exam Title" required>
+                        <el-form
+                            ref="formRef"
+                            :model="formData"
+                            :rules="rules"
+                            label-position="top"
+                        >
+                            <el-form-item
+                                label="Exam Title"
+                                prop="title"
+                                required
+                            >
                                 <el-input
                                     v-model="formData.title"
                                     placeholder="Enter exam title..."
@@ -606,7 +794,8 @@
                                             >
                                                 {{
                                                     String.fromCharCode(
-                                                        65 + q.reference_answer
+                                                        65 +
+                                                            (q.reference_answer as number)
                                                     )
                                                 }}
                                             </template>
@@ -646,7 +835,7 @@
                                                 <div
                                                     v-html="
                                                         renderMarkdown(
-                                                            q.reference_answer
+                                                            q.reference_answer as string
                                                         )
                                                     "
                                                     class="answer-content"
@@ -682,7 +871,7 @@
                     <el-button
                         v-if="dialogType !== 'preview'"
                         type="primary"
-                        @click="submitForm"
+                        @click="handleSubmit"
                         :loading="submitLoading"
                         >Save Exam</el-button
                     >
@@ -693,97 +882,87 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-    Plus,
-    Edit,
-    Delete,
-    Lock,
-    Search,
-    Top,
-    Bottom,
-    Minus,
-    View,
-    Printer,
-    Close,
-    ArrowDown,
-    ArrowRight
-} from '@element-plus/icons-vue'
+import { ref, nextTick, computed, onMounted, reactive } from 'vue'
+import { ElMessage, ElMessageBox, dayjs } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
+import type { FormInstance, FormRules } from 'element-plus'
+
+import { useAuthStore } from '../stores/auth'
+
+import dataAPI, { type ApiError } from '../api'
+import type { QuestionResponse } from '../api/types/questions'
+import type {
+    ExamResponse,
+    ExamCreate,
+    ExamUpdate,
+    ExamsGet
+} from '../api/types/exams'
+
 import { renderMarkdown } from '../utils/markdown'
 import { stripMarkdown } from '../utils/format'
-import api from '../api'
 
-// Interfaces
-interface Question {
-    id: number
-    type: string
-    content: string
-    options: any
-    reference_answer: any
-    difficulty: number
-    lesson: string | null
-    literacy_tags: string[] | null
-    is_public: boolean
-    owner_id: number
-}
+const authStore = useAuthStore()
 
-interface SelectedQuestion extends Question {
-    score: number
-}
+type ExamRow = ExamResponse
+type SelectedQuestion = QuestionResponse & { score: number }
 
-interface ExamQuestionResponse {
-    exam_id: number
-    question_id: number
-    sort_order: number
-    score: number
-    question: Question
-}
-
-interface Exam {
-    id: number
+interface ExamFormData {
+    id: number | null
     title: string
     description: string | null
-    is_locked: boolean
     target_date: string | null
-    created_at: string
-    updated_at: string | null
-    owner_id: number
-    exam_questions: ExamQuestionResponse[]
 }
 
-// State
-const exams = ref<Exam[]>([])
+// State management
+const rows = ref<ExamRow[]>([])
 const loading = ref(false)
+const dialogVisible = ref(false)
+const dialogType = ref<'add' | 'edit' | 'preview'>('add')
 const submitLoading = ref(false)
+const formRef = ref<FormInstance>()
+const filterLockStatus = ref<boolean | null>(null)
+const filterArchiveStatus = ref<boolean | null>(false)
+const filterDeleteStatus = ref<boolean | null>(false)
 const isPreviewing = ref(false)
 const currentPrintMode = ref<'questions' | 'answers'>('questions')
-
-// Expand states
 const expandedBankQs = ref<number[]>([])
 const expandedSelectedQs = ref<number[]>([])
 
-// Editor State
-const dialogVisible = ref(false)
-const dialogType = ref<'add' | 'edit' | 'preview'>('add')
-const formData = ref({
-    id: null as number | null,
+// Form Data
+const formData = reactive<ExamFormData>({
+    id: null,
     title: '',
     description: '',
-    target_date: null as string | null
+    target_date: null
+})
+
+// Validation Rules
+const rules = reactive<FormRules>({
+    title: [
+        { required: true, message: 'Exam title is required', trigger: 'blur' }
+    ]
 })
 
 // Question Bank State
-const bankQuestions = ref<Question[]>([])
+const bankQuestions = ref<QuestionResponse[]>([])
 const questionsLoading = ref(false)
 const searchKeyword = ref('')
 const selectedQuestions = ref<SelectedQuestion[]>([])
 
 // Computed property for filtering question bank
 const filteredQuestions = computed(() => {
-    if (!searchKeyword.value) return bankQuestions.value
+    const selectedIds = new Set(selectedQuestions.value.map((q) => q.id))
+
+    const activeQuestions = bankQuestions.value.filter(
+        (q) => (!q.is_archived && q.deleted_at == null) || selectedIds.has(q.id)
+    )
+
+    if (!searchKeyword.value) {
+        return activeQuestions
+    }
+
     const lowerKeyword = searchKeyword.value.toLowerCase()
-    return bankQuestions.value.filter(
+    return activeQuestions.filter(
         (q) =>
             q.content.toLowerCase().includes(lowerKeyword) ||
             (q.lesson && q.lesson.toLowerCase().includes(lowerKeyword))
@@ -794,20 +973,101 @@ const totalScore = computed(() => {
     return selectedQuestions.value.reduce((sum, q) => sum + (q.score || 0), 0)
 })
 
-// Expand Handlers
+// Fetch all exams
+const fetchExams = async () => {
+    loading.value = true
+    try {
+        const params: ExamsGet = {}
+        if (
+            filterLockStatus.value !== null &&
+            filterLockStatus.value !== undefined
+        ) {
+            params.is_locked = filterLockStatus.value
+        }
+        if (
+            filterDeleteStatus.value !== null &&
+            filterDeleteStatus.value !== undefined
+        ) {
+            params.is_deleted = filterDeleteStatus.value
+        }
+        if (
+            filterArchiveStatus.value !== null &&
+            filterArchiveStatus.value !== undefined
+        ) {
+            params.is_archived = filterArchiveStatus.value
+        }
+
+        const response = await dataAPI.getExams(params)
+        rows.value = response.data
+    } catch (err: unknown) {
+        const error = err as ApiError
+        ElMessage.error(
+            error.response?.data?.detail || 'Failed to fetch exams.'
+        )
+    } finally {
+        loading.value = false
+    }
+}
+
+const handleSearch = () => {
+    fetchExams()
+}
+
+const resetFilters = () => {
+    filterLockStatus.value = null
+    filterArchiveStatus.value = false
+    filterDeleteStatus.value = false
+    fetchExams()
+}
+
+// Helpers
+const isEditable = (row: ExamRow) => {
+    if (
+        row.is_archived ||
+        (row.deleted_at !== null && row.deleted_at !== undefined)
+    ) {
+        return false
+    }
+    return !row.is_locked && authStore.user?.id === row.owner_id
+}
+
+const isStatusEditable = (row: ExamRow) => {
+    return authStore.user?.is_superuser || authStore.user?.id === row.owner_id
+}
+
+const fetchQuestions = async () => {
+    questionsLoading.value = true
+    try {
+        const response = await dataAPI.getQuestions({ is_locked: true })
+        bankQuestions.value = response.data
+    } catch (err: unknown) {
+        const error = err as ApiError
+        ElMessage.error(
+            error.response?.data?.detail || 'Failed to fetch question bank.'
+        )
+    } finally {
+        questionsLoading.value = false
+    }
+}
+
 const toggleBankQ = (id: number) => {
     const index = expandedBankQs.value.indexOf(id)
-    if (index > -1) expandedBankQs.value.splice(index, 1)
-    else expandedBankQs.value.push(id)
+    if (index > -1) {
+        expandedBankQs.value.splice(index, 1)
+    } else {
+        expandedBankQs.value.push(id)
+    }
 }
 
 const toggleSelectedQ = (index: number) => {
     const pos = expandedSelectedQs.value.indexOf(index)
-    if (pos > -1) expandedSelectedQs.value.splice(pos, 1)
-    else expandedSelectedQs.value.push(index)
+    if (pos > -1) {
+        expandedSelectedQs.value.splice(pos, 1)
+    } else {
+        expandedSelectedQs.value.push(index)
+    }
 }
 
-// Helper to swap expand state when moving items
 const swapExpandedState = (idx1: number, idx2: number) => {
     const has1 = expandedSelectedQs.value.includes(idx1)
     const has2 = expandedSelectedQs.value.includes(idx2)
@@ -827,92 +1087,21 @@ const swapExpandedState = (idx1: number, idx2: number) => {
     }
 }
 
-// API Calls
-const fetchExams = async () => {
-    loading.value = true
-    try {
-        const response = await api.get('/exams/')
-        exams.value = response.data
-    } catch (error) {
-        ElMessage.error('Failed to fetch exams')
-    } finally {
-        loading.value = false
-    }
-}
-
-const fetchQuestions = async () => {
-    questionsLoading.value = true
-    try {
-        const response = await api.get('/questions/')
-        bankQuestions.value = response.data
-    } catch (error) {
-        ElMessage.error('Failed to fetch question bank')
-    } finally {
-        questionsLoading.value = false
-    }
-}
-
-// Handlers
 const handlePrint = async (mode: 'questions' | 'answers') => {
     currentPrintMode.value = mode
     await nextTick()
     window.print()
 }
 
-const openAddDialog = async () => {
-    dialogType.value = 'add'
-    isPreviewing.value = false
-    expandedBankQs.value = []
-    expandedSelectedQs.value = []
-
-    formData.value = { id: null, title: '', description: '', target_date: null }
-    selectedQuestions.value = []
-    searchKeyword.value = ''
-    dialogVisible.value = true
-    await fetchQuestions()
-}
-
-const openEditDialog = async (row: Exam) => {
-    dialogType.value = row.is_locked ? 'preview' : 'edit'
-    isPreviewing.value = false
-    expandedBankQs.value = []
-    expandedSelectedQs.value = []
-
-    formData.value = {
-        id: row.id,
-        title: row.title,
-        description: row.description || '',
-        target_date: row.target_date || null
-    }
-
-    const sortedExamQs = [...row.exam_questions].sort(
-        (a, b) => a.sort_order - b.sort_order
-    )
-    selectedQuestions.value = sortedExamQs.map((eq) => ({
-        ...eq.question,
-        score: eq.score
-    }))
-
-    searchKeyword.value = ''
-    dialogVisible.value = true
-
-    if (dialogType.value !== 'preview') {
-        await fetchQuestions()
-    }
-}
-
-// Editor actions
-const addQuestionToExam = (question: Question) => {
+const addQuestionToExam = (question: QuestionResponse) => {
     selectedQuestions.value.push({ ...question, score: 10 })
 }
 
 const removeQuestionFromExam = (index: number) => {
     selectedQuestions.value.splice(index, 1)
-
-    // Shift the expanded states down for items after the deleted one
     expandedSelectedQs.value = expandedSelectedQs.value
-        .filter((i) => i !== index) // Remove the deleted one
-        .map((i) => (i > index ? i - 1 : i)) // Shift others down
+        .filter((i) => i !== index)
+        .map((i) => (i > index ? i - 1 : i))
 }
 
 const moveUp = (index: number) => {
@@ -933,80 +1122,244 @@ const moveDown = (index: number) => {
     }
 }
 
-// Submit Form
-const submitForm = async () => {
-    if (!formData.value.title.trim()) {
-        ElMessage.warning('Exam title is required')
+// Submit Data
+const handleSubmit = async () => {
+    if (!formRef.value) {
         return
     }
 
-    submitLoading.value = true
-    try {
-        const payload = {
-            title: formData.value.title,
-            description: formData.value.description || null,
-            target_date: formData.value.target_date || null,
-            questions: selectedQuestions.value.map((q) => ({
-                question_id: q.id,
-                score: q.score || 10
-            }))
+    await formRef.value.validate(async (valid) => {
+        if (!valid) {
+            return
         }
 
-        if (dialogType.value === 'add') {
-            await api.post('/exams/', payload)
-            ElMessage.success('Exam created successfully')
-        } else {
-            await api.put(`/exams/${formData.value.id}`, payload)
-            ElMessage.success('Exam updated successfully')
+        if (selectedQuestions.value.length === 0) {
+            ElMessage.warning('Please select at least one question.')
+            return
         }
 
-        dialogVisible.value = false
-        fetchExams()
-    } catch (error: any) {
-        ElMessage.error(error.response?.data?.detail || 'Operation failed')
-    } finally {
-        submitLoading.value = false
-    }
+        submitLoading.value = true
+        try {
+            const { id, ...payloadBase } = formData
+
+            const payload: ExamCreate | ExamUpdate = {
+                title: payloadBase.title,
+                description: payloadBase.description || null,
+                target_date: payloadBase.target_date || null,
+                questions: selectedQuestions.value.map((q) => ({
+                    question_id: q.id,
+                    score: q.score || 10
+                }))
+            }
+
+            if (dialogType.value === 'add') {
+                await dataAPI.createExam(payload as ExamCreate)
+                ElMessage.success('Exam created successfully')
+            } else if (formData.id != null) {
+                await dataAPI.updateExam(formData.id, payload as ExamUpdate)
+                ElMessage.success('Exam updated successfully')
+            }
+
+            dialogVisible.value = false
+            fetchExams()
+        } catch (err: unknown) {
+            const error = err as ApiError
+            ElMessage.error(error.response?.data?.detail || 'Operation failed')
+        } finally {
+            submitLoading.value = false
+        }
+    })
 }
 
-// Delete Exam
-const handleDelete = (row: Exam) => {
+// Lock
+const handleLock = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to delete this exam?',
+        'Locking this exam means it is ready to be dispatched. It will become read-only and cannot be edited. Proceed?',
         'Warning',
         {
+            confirmButtonText: 'Lock',
+            cancelButtonText: 'Cancel',
             type: 'warning'
         }
     )
         .then(async () => {
             try {
-                await api.delete(`/exams/${row.id}`)
-                ElMessage.success('Exam deleted')
+                await dataAPI.lockExam(row.id)
+                ElMessage.success('Exam locked successfully')
                 fetchExams()
-            } catch (error) {
-                ElMessage.error('Failed to delete exam')
+            } catch (err: unknown) {
+                const error = err as ApiError
+                ElMessage.error(
+                    error.response?.data?.detail || 'Failed to lock exam'
+                )
             }
         })
-        .catch(() => {})
+        .catch(() => {
+            // Action cancelled by user
+        })
 }
 
-// Lock Exam
-const handleLock = (row: Exam) => {
+// Archive
+const handleArchive = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Locking this exam means it is ready to be dispatched. It will become read-only and cannot be edited or deleted. Proceed?',
-        'Lock Exam',
-        { type: 'warning' }
+        'Are you sure you want to archive this exam?',
+        'Warning',
+        {
+            confirmButtonText: 'Archive',
+            cancelButtonText: 'Cancel',
+            type: 'warning'
+        }
     )
         .then(async () => {
             try {
-                await api.put(`/exams/${row.id}`, { is_locked: true })
-                ElMessage.success('Exam locked successfully')
+                await dataAPI.archiveExam(row.id, true)
+                ElMessage.success('Exam archived successfully')
                 fetchExams()
-            } catch (error) {
-                ElMessage.error('Failed to lock exam')
+            } catch (err: unknown) {
+                const error = err as ApiError
+                ElMessage.error(
+                    error.response?.data?.detail || 'Failed to archive exam'
+                )
             }
         })
-        .catch(() => {})
+        .catch(() => {
+            // Action cancelled by user
+        })
+}
+
+// Unarchive
+const handleUnarchive = (row: ExamRow) => {
+    ElMessageBox.confirm(
+        'Are you sure you want to unarchive this exam?',
+        'Warning',
+        {
+            confirmButtonText: 'Unarchive',
+            cancelButtonText: 'Cancel',
+            type: 'warning'
+        }
+    )
+        .then(async () => {
+            try {
+                await dataAPI.archiveExam(row.id, false)
+                ElMessage.success('Exam unarchived successfully')
+                fetchExams()
+            } catch (err: unknown) {
+                const error = err as ApiError
+                ElMessage.error(
+                    error.response?.data?.detail || 'Failed to unarchive exam'
+                )
+            }
+        })
+        .catch(() => {
+            // Action cancelled by user
+        })
+}
+
+// Delete
+const handleDelete = (row: ExamRow) => {
+    ElMessageBox.confirm(
+        'Are you sure you want to delete this exam?',
+        'Warning',
+        {
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            type: 'warning'
+        }
+    )
+        .then(async () => {
+            try {
+                await dataAPI.deleteExam(row.id)
+                ElMessage.success('Exam deleted successfully')
+                fetchExams()
+            } catch (err: unknown) {
+                const error = err as ApiError
+                ElMessage.error(
+                    error.response?.data?.detail || 'Failed to delete exam'
+                )
+            }
+        })
+        .catch(() => {
+            // Action cancelled by user
+        })
+}
+
+// Restore
+const handleRestore = (row: ExamRow) => {
+    ElMessageBox.confirm(
+        'Are you sure you want to restore this exam?',
+        'Warning',
+        {
+            confirmButtonText: 'Restore',
+            cancelButtonText: 'Cancel',
+            type: 'warning'
+        }
+    )
+        .then(async () => {
+            try {
+                await dataAPI.restoreExam(row.id)
+                ElMessage.success('Exam restored successfully')
+                fetchExams()
+            } catch (err: unknown) {
+                const error = err as ApiError
+                ElMessage.error(
+                    error.response?.data?.detail || 'Failed to restore exam'
+                )
+            }
+        })
+        .catch(() => {
+            // Action cancelled by user
+        })
+}
+
+// Dialog Handlers
+const openAddDialog = async () => {
+    dialogType.value = 'add'
+    isPreviewing.value = false
+    resetForm()
+    dialogVisible.value = true
+    await fetchQuestions()
+}
+
+const openEditDialog = async (row: ExamRow) => {
+    dialogType.value =
+        row.is_locked || row.deleted_at != null ? 'preview' : 'edit'
+    isPreviewing.value = false
+    resetForm()
+
+    Object.assign(formData, {
+        id: row.id,
+        title: row.title,
+        description: row.description || '',
+        target_date: row.target_date || null
+    })
+
+    const sortedExamQs = [...row.exam_questions].sort(
+        (a, b) => a.sort_order - b.sort_order
+    )
+    selectedQuestions.value = sortedExamQs.map((eq) => ({
+        ...eq.question,
+        score: eq.score
+    }))
+
+    dialogVisible.value = true
+
+    if (dialogType.value !== 'preview') {
+        await fetchQuestions()
+    }
+}
+
+const resetForm = () => {
+    if (formRef.value) formRef.value.clearValidate()
+    Object.assign(formData, {
+        id: null,
+        title: '',
+        description: '',
+        target_date: null
+    })
+    selectedQuestions.value = []
+    searchKeyword.value = ''
+    expandedBankQs.value = []
+    expandedSelectedQs.value = []
 }
 
 onMounted(() => {
@@ -1024,6 +1377,12 @@ onMounted(() => {
     margin: 0;
     font-size: 1.2rem;
     color: #303133;
+}
+.filter-bar {
+    margin-bottom: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
 }
 .editor-layout {
     display: flex;
@@ -1093,7 +1452,7 @@ onMounted(() => {
 }
 
 /* ==========================================
-   展開視圖專用樣式 (Expanded View)
+   Expanded View
 ========================================== */
 .q-expanded-view {
     margin-top: 15px;
@@ -1107,7 +1466,7 @@ onMounted(() => {
 
 <style scoped>
 /* ==========================================
-   試卷預覽模式 (Test Paper View)
+   Test Paper View
 ========================================== */
 .right-panel.is-preview-mode {
     background-color: #f0f2f5;
@@ -1213,7 +1572,7 @@ onMounted(() => {
 
 <style>
 /* ==========================================
-   全域列印樣式 (Global Print CSS)
+   Global Print CSS
 ========================================== */
 @media print {
     body * {
