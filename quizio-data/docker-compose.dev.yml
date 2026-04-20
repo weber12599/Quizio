@@ -54,15 +54,15 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: prod
+      target: dev
     ports:
-      - "8088:80"
+      - "5174:5174"
     environment:
-      - SEAWEEDFS_VOLUME_URL=${SEAWEEDFS_VOLUME_URL}
+      - VITE_API_PROXY_BASE_URL=${VITE_API_PROXY_BASE_URL}
+      - VITE_MEDIA_PROXY_BASE_URL=${VITE_MEDIA_PROXY_BASE_URL}
     volumes:
-      - ./nginx/templates:/etc/nginx/templates:ro
-      - ./nginx/cache:/var/cache/nginx
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
-      - seaweedfs-volume
     restart: unless-stopped

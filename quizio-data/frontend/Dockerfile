@@ -1,27 +1,29 @@
 # ==========================================
-# Stage 1: Build the Vue frontend
+# Base Stage
 # ==========================================
-FROM node:20-slim AS builder
-
+FROM node:20-slim AS base
 WORKDIR /app
-
-# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the source code and build
+# ==========================================
+# Development Stage
+# ==========================================
+FROM base AS dev
+EXPOSE 5174
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+# ==========================================
+# Builder Stage
+# ==========================================
+FROM base AS builder
 COPY . .
 RUN npm run build
 
 # ==========================================
-# Stage 2: Serve with Nginx
+# Production Stage
 # ==========================================
-FROM nginx:alpine
-
+FROM nginx:alpine AS prod
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Expose port 80
 EXPOSE 80
-
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
