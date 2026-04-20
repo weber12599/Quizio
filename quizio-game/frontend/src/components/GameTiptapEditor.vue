@@ -132,7 +132,7 @@ const editor = useEditor({
         )
     },
     editorProps: {
-        handlePaste(view, event) {
+        handlePaste(_view, event) {
             const items = event.clipboardData?.items
             if (items) {
                 for (const item of items) {
