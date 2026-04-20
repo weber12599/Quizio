@@ -45,7 +45,6 @@ async def lifespan(app: FastAPI):
                 full_name='System Administrator',
                 hashed_password=get_password_hash(ADMIN_PASSWORD),
                 is_superuser=True,
-                is_active=True,
             )
 
             db.add(new_admin)
