@@ -156,11 +156,14 @@ const editor = useEditor({
     content: props.modelValue, // 初始化載入
     onUpdate: ({ editor }) => {
         // 編輯器更新時，取得 Markdown 字串並 emit 給外部的 v-model
-        emit('update:modelValue', editor.storage.markdown.getMarkdown())
+        emit(
+            'update:modelValue',
+            (editor.storage as any).markdown.getMarkdown()
+        )
     },
     editorProps: {
         // 攔截貼上 (Ctrl+V)
-        handlePaste(view, event) {
+        handlePaste(_view, event) {
             const items = event.clipboardData?.items
             if (items) {
                 for (const item of items) {
@@ -176,7 +179,7 @@ const editor = useEditor({
             return false
         },
         // 攔截拖曳 (Drag & Drop)
-        handleDrop(view, event, slice, moved) {
+        handleDrop(_view, event, _slice, moved) {
             if (
                 !moved &&
                 event.dataTransfer &&
@@ -199,9 +202,11 @@ watch(
     () => props.modelValue,
     (value) => {
         // 避免內部更新觸發循環
-        const currentMarkdown = editor.value?.storage.markdown.getMarkdown()
+        const currentMarkdown = (
+            editor.value?.storage as any
+        ).markdown.getMarkdown()
         if (currentMarkdown !== value) {
-            editor.value?.commands.setContent(value, false)
+            editor.value?.commands.setContent(value, false as any)
         }
     }
 )

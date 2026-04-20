@@ -451,7 +451,7 @@ const parseOptions = (
 }
 
 const formatDisplayAnswer = (
-    type: 'boolean' | 'single' | 'multiple' | 'short' | 'essay',
+    type?: 'boolean' | 'single' | 'multiple' | 'short' | 'essay' | string,
     val?: boolean | number | string | number[] | null
 ): string => {
     if (val === undefined || val === null || val === '') {
