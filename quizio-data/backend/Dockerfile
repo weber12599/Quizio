@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Expose port 8080 for the FastAPI application
-EXPOSE 8080
+# Expose port 18080 for the FastAPI application
+EXPOSE 18080
 
 # Use hot-reload for easy development
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "18080", "--reload"]

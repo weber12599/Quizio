@@ -6,7 +6,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -32,22 +32,10 @@ services:
     volumes:
       - ./seaweedfs/volume:/data
     restart: unless-stopped
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "8088:80"
-    environment:
-      - SEAWEEDFS_VOLUME_URL=${SEAWEEDFS_VOLUME_URL}
-    volumes:
-      - ./nginx/templates:/etc/nginx/templates:ro
-      - ./nginx/cache:/var/cache/nginx
-    depends_on:
-      - seaweedfs-volume
-    restart: unless-stopped
   backend:
     build:  ./backend
     ports:
-      - "8080:8080"
+      - "18080:18080"
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -62,18 +50,17 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8080 --reload"
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 18080 --reload"
   frontend:
     build: ./frontend
     ports:
-      - "5174:5174"
+      - "8088:80"
     environment:
-      - VITE_API_PROXY_BASE_URL=${VITE_API_PROXY_BASE_URL}
-      - VITE_MEDIA_PROXY_BASE_URL=${VITE_MEDIA_PROXY_BASE_URL}
+      - SEAWEEDFS_VOLUME_URL=${SEAWEEDFS_VOLUME_URL}
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    restart: unless-stopped
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/cache:/var/cache/nginx
     depends_on:
       - backend
+      - seaweedfs-volume
+    restart: unless-stopped

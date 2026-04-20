@@ -85,7 +85,7 @@ elif [ "$ACTION" == "up" ]; then
     cd ..
 
     echo "⏳ [2/4] Waiting for quizio-data API to be ready..."
-    until curl -s -f -o /dev/null "http://localhost:8080/docs"; do
+    until curl -s -f -o /dev/null "http://localhost:18080/docs"; do
         printf "."
         sleep 2
     done

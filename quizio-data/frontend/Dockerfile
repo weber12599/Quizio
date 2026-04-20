@@ -1,18 +1,27 @@
-# Use the official Node image
-FROM node:20-slim
+# ==========================================
+# Stage 1: Build the Vue frontend
+# ==========================================
+FROM node:20-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy frontend source code
+# Copy the rest of the source code and build
 COPY . .
+RUN npm run build
 
-# Expose Vite default port
-EXPOSE 5174
+# ==========================================
+# Stage 2: Serve with Nginx
+# ==========================================
+FROM nginx:alpine
 
-# Start Vite dev server and expose it to the network
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
