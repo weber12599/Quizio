@@ -1,0 +1,32 @@
+{
+    "name": "quizio-game-launcher",
+    "version": "0.1.0",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "dist": "electron-builder --mac"
+    },
+    "build": {
+        "appId": "com.weber12599.quizio",
+        "productName": "QuizioGame",
+        "directories": {
+            "output": "dist-electron"
+        },
+        "mac": {
+            "target": [
+                "dmg"
+            ],
+            "category": "public.app-category.education"
+        },
+        "extraResources": [
+            {
+                "from": "../docker-compose.yml",
+                "to": "docker-compose.yml"
+            }
+        ]
+    },
+    "devDependencies": {
+        "electron": "^29.0.0",
+        "electron-builder": "^24.13.3"
+    }
+}

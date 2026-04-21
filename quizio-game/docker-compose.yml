@@ -1,25 +1,20 @@
 services:
   backend:
-    build: ./backend
+    image: weber12599/quizio-game-backend:latest
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     environment:
       - PYTHONUNBUFFERED=1
       - DATA_SERVICE_BASE_URL=${DATA_SERVICE_BASE_URL}
-    volumes:
-      - ./backend:/app
     restart: unless-stopped
   frontend:
-    build: ./frontend
+    image: weber12599/quizio-game-frontend:latest
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     environment:
       - VITE_API_PROXY_BASE_URL=${VITE_API_PROXY_BASE_URL}
       - VITE_SOCKET_PROXY_BASE_URL=${VITE_SOCKET_PROXY_BASE_URL}
       - VITE_MEDIA_PROXY_BASE_URL=${VITE_MEDIA_PROXY_BASE_URL}
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     restart: unless-stopped
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:

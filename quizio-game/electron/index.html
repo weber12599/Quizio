@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Quizio Game Launcher</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 25px; background: #f8f9fa; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); max-width: 500px; margin: auto; position: relative; }
+        
+        /* Header Layout */
+        .header-container { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; position: relative; }
+        .logo-icon { width: 45px; height: 45px; margin-right: 10px; }
+        h2 { margin: 0; color: #007aff; }
+        .about-btn { position: absolute; right: 0; background: none; border: none; font-size: 20px; cursor: pointer; color: #666; transition: color 0.2s; }
+        .about-btn:hover { color: #007aff; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; transition: border 0.2s; }
+        input:focus { border-color: #007aff; outline: none; }
+        
+        .advanced-toggle { color: #666; font-size: 13px; cursor: pointer; text-decoration: underline; margin-bottom: 10px; display: block; }
+        #advanced-section { display: none; padding: 15px; background: #f1f1f1; border-radius: 8px; margin-bottom: 20px; }
+        
+        button.main-btn { width: 100%; padding: 14px; background: #007aff; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; }
+        button.main-btn:hover { background: #005bb5; filter: brightness(0.95); }
+        button.main-btn:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .action-btn { width: auto; padding: 5px 12px; font-size: 12px; margin-left: 10px; border-radius: 6px; cursor: pointer; border: none; background: #007aff; color: white;}
+        .quit-btn { background: #6c757d; }
+        .quit-btn:hover { background: #5a6268; }
+
+        /* Logs Section */
+        #status-wrapper { margin-top: 20px; display: none; }
+        .log-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
+        .export-btn { background: none; border: none; color: #007aff; cursor: pointer; font-size: 12px; text-decoration: underline; padding: 0; }
+        #status-box { padding: 12px; background: #1e1e1e; color: #4af626; font-family: 'Menlo', monospace; font-size: 12px; height: 120px; overflow-y: auto; border-radius: 6px; }
+        
+        .docker-warning { color: #d93025; font-size: 13px; text-align: center; margin-bottom: 15px; font-weight: 500; }
+        .docker-info { color: #28a745; font-size: 13px; text-align: center; margin-bottom: 15px; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header-container">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo-icon">
+                <defs>
+                    <mask id="q-mask">
+                        <rect width="100%" height="100%" fill="white" />
+                        <path d="M 40 55 L 65 80 L 95 30" fill="none" stroke="black" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+                    </mask>
+                    <linearGradient id="primary-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#66b1ff" />
+                        <stop offset="100%" stop-color="#409eff" />
+                    </linearGradient>
+                </defs>
+                <circle cx="48" cy="48" r="28" fill="none" stroke="#007aff" stroke-width="10" mask="url(#q-mask)" />
+                <path d="M 40 55 L 65 80 L 95 30" fill="none" stroke="url(#primary-grad)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <h2>Quizio Game Launcher</h2>
+        </div>
+
+        <div id="docker-warning"></div>
+
+        <div class="form-group">
+            <label>Database URL</label>
+            <input type="text" id="databaseUrl" placeholder="e.g., quiziodata.synology.me" value="quiziodata.taichunghomedrive.synology.me">
+        </div>
+
+        <span class="advanced-toggle" onclick="toggleAdvanced()">⚙️ Advanced Settings</span>
+        <div id="advanced-section">
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label>Frontend Port (default: 5173)</label>
+                <input type="number" id="frontendPort" value="5173">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Backend Port (default: 8000)</label>
+                <input type="number" id="backendPort" value="8000">
+            </div>
+        </div>
+
+        <button id="start-btn" class="main-btn" disabled="true" onclick="startServer()">Waiting for Docker...</button>
+
+        <div id="status-wrapper">
+            <div class="log-header">
+                <span>System Logs</span>
+                <div>
+                    <button class="export-btn" style="color: #dc3545; margin-right: 15px;" onclick="clearLogs()">🗑️ Clear Logs</button>
+                    <button class="export-btn" onclick="exportLogs()">📥 Export Logs</button>
+                </div>
+            </div>
+            <div id="status-box"></div>
+        </div>
+
+        <div id="result-area" style="margin-top: 20px; text-align: center; display: none;">
+            <h3 style="color: #28a745; margin-bottom: 15px;">✅ Service is online！</h3>
+            <button class="main-btn" style="background: #28a745; margin-bottom: 10px;" onclick="openUrl('host')">👨‍🏫 Host View</button>
+            <button class="main-btn" style="background: #17a2b8; margin-bottom: 10px;" onclick="openUrl('client')">🎮 Client View</button>
+            <button class="main-btn" style="background: #6f42c1; margin-bottom: 15px;" onclick="openUrl('screen')">📺 Screen View</button>
+            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 15px;">
+            <button class="main-btn" style="background: #dc3545;" id="stop-btn" onclick="stopServer()">🛑 Terminate</button>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let isServiceRunning = false;
+        let isDockerStarting = false;
+        let logHistory = [];
+
+        function toggleAdvanced() {
+            const section = document.getElementById('advanced-section');
+            section.style.display = section.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function exportLogs() {
+            if (logHistory.length === 0) return alert("No logs to export.");
+            const content = logHistory.join('\n');
+            const success = await ipcRenderer.invoke('export-logs', content);
+            if (success) alert("Logs exported successfully.");
+        }
+
+        function clearLogs() {
+            logHistory = [];
+            document.getElementById('status-box').innerHTML = "";
+        }
+
+        // Verify Docker state
+        async function checkDocker() {
+            const result = await ipcRenderer.invoke('check-docker');
+            const btn = document.getElementById('start-btn');
+            const warning = document.getElementById('docker-warning');
+            
+            if (result.status === 'running') {
+                isDockerStarting = false
+                if (!isServiceRunning) {
+                    warning.className = 'docker-info';
+                    warning.innerHTML = `🐳 Docker is ready`;
+                } else {
+                    warning.innerHTML = ""; // Hide warning area entirely when service is active
+                }
+                
+                btn.disabled = false;
+                if (!isServiceRunning) btn.innerText = "🚀 Launch Services";
+                setTimeout(checkDocker, 3000);
+
+            } else if (result.status === 'stopped') {
+                warning.className = 'docker-warning';
+                if (isDockerStarting) {
+                    warning.innerHTML = `⚠️ Docker is starting... <button class="action-btn" disabled>Starting...</button>`;
+                } else {
+                    warning.innerHTML = `⚠️ Docker is not running <button class="action-btn" onclick="startDockerApp(this)">Start Manually</button>`;
+                }
+
+                btn.disabled = true;
+                if (!isServiceRunning) btn.innerText = "Waiting for Docker...";
+                setTimeout(checkDocker, 3000);
+
+            } else if (result.status === 'missing') {
+                warning.className = 'docker-warning';
+                warning.innerHTML = `❌ Docker Desktop not detected <button class="action-btn" onclick="downloadDocker()">Download</button>`;
+                btn.disabled = true;
+                if (!isServiceRunning) btn.innerText = "Please install Docker Desktop";
+                setTimeout(checkDocker, 3000);
+            }
+        }
+        
+        function startDockerApp(btn) {
+            isDockerStarting = true;
+            btn.innerText = "Starting...";
+            btn.disabled = true;
+            ipcRenderer.send('start-docker-app');
+        }
+        
+        function downloadDocker() {
+            ipcRenderer.send('download-docker');
+        }
+
+        checkDocker();
+
+        function startServer() {
+            isServiceRunning = true;
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('start-btn').innerText = "Starting...";
+            document.getElementById('docker-warning').innerHTML = ""; // Clear warning when starting
+            document.getElementById('status-wrapper').style.display = 'block';
+            
+            logHistory = []; // Clear previous logs
+            document.getElementById('status-box').innerHTML = "";
+
+            const config = {
+                databaseUrl: document.getElementById('databaseUrl').value.trim(),
+                frontendPort: document.getElementById('frontendPort').value || 5173,
+                backendPort: document.getElementById('backendPort').value || 8000
+            };
+
+            ipcRenderer.send('start-server', config);
+        }
+        
+        function stopServer() {
+            document.getElementById('stop-btn').disabled = true;
+            document.getElementById('stop-btn').innerText = "Terminating...";
+            ipcRenderer.send('stop-server');
+        }
+
+        ipcRenderer.on('log', (event, message) => {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${message}`;
+            logHistory.push(logLine);
+            
+            const statusBox = document.getElementById('status-box');
+            statusBox.innerHTML += message.replace(/\n/g, '<br>') + '<br>';
+            statusBox.scrollTop = statusBox.scrollHeight;
+        });
+
+        let tunnelUrl = '';
+        
+        ipcRenderer.on('tunnel-url', (event, url) => {
+            tunnelUrl = url;
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('start-btn').style.display = 'none'; 
+        });
+        
+        ipcRenderer.on('server-stopped', () => {
+            isServiceRunning = false;
+            document.getElementById('result-area').style.display = 'none';
+            const startBtn = document.getElementById('start-btn');
+            startBtn.style.display = 'block';
+            startBtn.disabled = false;
+            startBtn.innerText = '🚀 Launch Services';
+            
+            const stopBtn = document.getElementById('stop-btn');
+            stopBtn.disabled = false;
+            stopBtn.innerText = '🛑 Terminate';
+            
+            tunnelUrl = '';
+        });
+
+        function openUrl(type) {
+            if (tunnelUrl) {
+                ipcRenderer.send('open-external', `${tunnelUrl}/#/${type}`);
+            }
+        }
+    </script>
+</body>
+</html>
