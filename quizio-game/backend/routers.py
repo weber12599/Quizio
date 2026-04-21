@@ -127,6 +127,12 @@ async def proxy_get_students(
 @router.get('/api/exams/')
 async def proxy_get_my_exams(
     is_locked: Optional[bool] = Query(None, description='Filter exams by lock status'),
+    is_archived: Optional[bool] = Query(
+        None, description='Filter exams by archive status'
+    ),
+    is_deleted: Optional[bool] = Query(
+        None, description='Filter exams by delete status'
+    ),
     token: str = Depends(oauth2_scheme),
 ):
     auth_header = f'Bearer {token}'
@@ -134,6 +140,10 @@ async def proxy_get_my_exams(
     params = {}
     if is_locked is not None:
         params['is_locked'] = str(is_locked).lower()
+    if is_archived is not None:
+        params['is_archived'] = str(is_archived).lower()
+    if is_deleted is not None:
+        params['is_deleted'] = str(is_deleted).lower()
 
     async with httpx.AsyncClient() as client:
         response = await client.get(

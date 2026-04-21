@@ -1195,7 +1195,7 @@ const verifyTeacher = async () => {
 
         const [classRes, examRes] = await Promise.all([
             api.get('/students/classes'),
-            api.get('/exams/?is_locked=true')
+            api.get('/exams/?is_locked=true&is_deleted=false')
         ])
 
         classes.value = classRes as unknown as string[]
@@ -1585,7 +1585,7 @@ onMounted(() => {
 
         Promise.all([
             api.get('/students/classes'),
-            api.get('/exams/?is_locked=true')
+            api.get('/exams/?is_locked=true&is_deleted=false')
         ]).then(([classRes, examRes]) => {
             classes.value = classRes as unknown as string[]
             exams.value = examRes as any

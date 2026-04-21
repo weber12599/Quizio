@@ -172,7 +172,7 @@ VITE_MEDIA_PROXY_BASE_URL=${url}
 
         const dockerProcess = spawn(
             'docker',
-            ['compose', 'up', '-d', '--build'],
+            ['compose', 'up', '-d', '--pull', 'always'],
             { cwd: gameRootDir }
         )
 
@@ -204,7 +204,7 @@ ipcMain.on('stop-server', (event) => {
     const gameRootDir = path.join(__dirname, '..')
     event.reply('log', '🛑 Stopping and removing containers. Please wait...')
 
-    const dockerProcess = spawn('docker', ['compose', 'down'], {
+    const dockerProcess = spawn('docker', ['compose', 'down', '-v'], {
         cwd: gameRootDir
     })
 

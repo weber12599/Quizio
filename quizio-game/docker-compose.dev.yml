@@ -24,6 +24,7 @@ services:
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:
       - backend
+    command: npm run dev -- --force
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --url ${GAME_BASE_URL} --protocol http2
