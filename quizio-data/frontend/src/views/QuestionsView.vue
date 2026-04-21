@@ -193,16 +193,18 @@
                     <template #default="scope">
                         <el-tooltip placement="top">
                             <template #content>
-                                <span>Edit</span>
+                                <span>{{
+                                    isEditable(scope.row) ? 'Edit' : 'Preview'
+                                }}</span>
                             </template>
                             <el-button
                                 link
                                 size="small"
                                 @click="openEditDialog(scope.row)"
-                                :disabled="!isEditable(scope.row)"
                             >
                                 <el-icon>
-                                    <Edit />
+                                    <Edit v-if="isEditable(scope.row)" />
+                                    <View v-else />
                                 </el-icon>
                             </el-button>
                         </el-tooltip>
@@ -314,6 +316,8 @@
                             return 'Adjust Question'
                         case 'edit':
                             return 'Edit Question'
+                        case 'preview':
+                            return 'Preview Question'
                         default:
                             break
                     }
@@ -327,6 +331,7 @@
                 ref="formRef"
                 :model="formData"
                 :rules="rules"
+                :disabled="dialogType === 'preview'"
                 label-width="140px"
             >
                 <el-form-item label="Type" prop="type" required>
@@ -353,6 +358,7 @@
                     <TiptapEditor
                         v-model="formData.content"
                         placeholder="Please enter the question text; pasting or dragging and dropping images is supported."
+                        :disabled="dialogType === 'preview'"
                     />
                 </el-form-item>
 
@@ -380,6 +386,7 @@
                                         v-model="formData.options[index]"
                                         minimal
                                         placeholder="Option text..."
+                                        :disabled="dialogType === 'preview'"
                                     />
                                 </div>
 
@@ -536,8 +543,11 @@
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="dialogVisible = false">Cancel</el-button>
+                    <el-button @click="dialogVisible = false">{{
+                        dialogType === 'preview' ? 'Close' : 'Cancel'
+                    }}</el-button>
                     <el-button
+                        v-if="dialogType !== 'preview'"
                         type="primary"
                         @click="handleSubmit"
                         :loading="submitLoading"
@@ -590,7 +600,7 @@ interface QuestionFormData {
 const rows = ref<QuestionRow[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
-const dialogType = ref<'add' | 'edit' | 'adjust'>('add')
+const dialogType = ref<'add' | 'edit' | 'adjust' | 'preview'>('add')
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const filterType = ref<string>('')
@@ -1018,7 +1028,7 @@ const openAdjustDialog = (row: QuestionRow) => {
 }
 
 const openEditDialog = (row: QuestionRow) => {
-    dialogType.value = 'edit'
+    dialogType.value = isEditable(row) ? 'edit' : 'preview'
     resetForm()
     Object.assign(formData, copyRowToForm(row))
     dialogVisible.value = true

@@ -1,6 +1,9 @@
 <template>
-    <div class="tiptap-wrapper" :class="{ 'is-minimal': minimal }">
-        <div class="toolbar" v-if="editor">
+    <div
+        class="tiptap-wrapper"
+        :class="{ 'is-minimal': minimal, 'is-disabled': disabled }"
+    >
+        <div class="toolbar" v-if="editor && !disabled">
             <el-button-group>
                 <el-button
                     size="small"
@@ -95,6 +98,11 @@ const props = defineProps({
     placeholder: {
         type: String,
         default: '輸入題目內容...'
+    },
+    // 新增 disabled 屬性，用來支援唯讀預覽模式
+    disabled: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -105,6 +113,8 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 // 核心：圖片壓縮與上傳流程
 const uploadAndInsertImage = async (file: File) => {
+    if (props.disabled) return // 雙重保護，禁用狀態不允許上傳
+
     isUploading.value = true
     try {
         // 1. 本機壓縮轉 WebP
@@ -136,11 +146,13 @@ const handleFileInput = (event: Event) => {
 }
 
 const triggerImageUpload = () => {
+    if (props.disabled) return
     fileInput.value?.click()
 }
 
 // 初始化 Tiptap 編輯器
 const editor = useEditor({
+    editable: !props.disabled, // 根據 prop 決定初始是否可編輯
     extensions: [
         StarterKit,
         Image.configure({
@@ -164,6 +176,8 @@ const editor = useEditor({
     editorProps: {
         // 攔截貼上 (Ctrl+V)
         handlePaste(_view, event) {
+            if (props.disabled) return false // 禁用時不處理貼上
+
             const items = event.clipboardData?.items
             if (items) {
                 for (const item of items) {
@@ -180,6 +194,8 @@ const editor = useEditor({
         },
         // 攔截拖曳 (Drag & Drop)
         handleDrop(_view, event, _slice, moved) {
+            if (props.disabled) return false // 禁用時不處理拖曳
+
             if (
                 !moved &&
                 event.dataTransfer &&
@@ -196,6 +212,14 @@ const editor = useEditor({
         }
     }
 })
+
+// 監聽外部傳入的 disabled 改變，動態鎖定/解鎖編輯器
+watch(
+    () => props.disabled,
+    (isDisabled) => {
+        editor.value?.setEditable(!isDisabled)
+    }
+)
 
 // 監聽外部傳入的 value 改變 (例如點擊編輯不同的題目時)
 watch(
@@ -225,6 +249,13 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     width: 100%;
+    transition: all 0.2s;
+}
+
+/* 當設定為禁用(disabled)時的樣式 */
+.tiptap-wrapper.is-disabled {
+    background-color: var(--el-fill-color-light);
+    border-color: var(--el-border-color-lighter);
 }
 
 .toolbar {
@@ -245,6 +276,10 @@ onBeforeUnmount(() => {
 
 .is-minimal .editor-content {
     min-height: 0px;
+}
+
+.is-disabled .editor-content {
+    cursor: default; /* 禁用時改為一般游標 */
 }
 
 /* 覆寫 Prosemirror 預設輪廓 */
