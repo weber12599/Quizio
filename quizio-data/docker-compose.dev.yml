@@ -66,3 +66,4 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    command: npm run dev -- --force
