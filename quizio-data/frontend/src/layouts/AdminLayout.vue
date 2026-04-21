@@ -1,58 +1,64 @@
 <template>
     <el-container class="layout-container">
         <el-aside :width="isCollapse ? '64px' : '250px'" class="aside">
-            <div class="logo">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 100 100"
-                    class="logo-icon"
-                >
-                    <defs>
-                        <mask id="q-mask">
-                            <rect width="100%" height="100%" fill="white" />
-                            <path
-                                d="M 40 55 L 65 80 L 95 30"
-                                fill="none"
-                                stroke="black"
-                                stroke-width="16"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </mask>
-                        <linearGradient
-                            id="primary-grad"
-                            x1="0%"
-                            y1="0%"
-                            x2="100%"
-                            y2="100%"
-                        >
-                            <stop offset="0%" stop-color="#66b1ff" />
-                            <stop offset="100%" stop-color="#409eff" />
-                        </linearGradient>
-                    </defs>
+            <el-tooltip
+                :content="`v${appVersion}`"
+                placement="right"
+                effect="dark"
+            >
+                <div class="logo">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 100 100"
+                        class="logo-icon"
+                    >
+                        <defs>
+                            <mask id="q-mask">
+                                <rect width="100%" height="100%" fill="white" />
+                                <path
+                                    d="M 40 55 L 65 80 L 95 30"
+                                    fill="none"
+                                    stroke="black"
+                                    stroke-width="16"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </mask>
+                            <linearGradient
+                                id="primary-grad"
+                                x1="0%"
+                                y1="0%"
+                                x2="100%"
+                                y2="100%"
+                            >
+                                <stop offset="0%" stop-color="#66b1ff" />
+                                <stop offset="100%" stop-color="#409eff" />
+                            </linearGradient>
+                        </defs>
 
-                    <circle
-                        cx="48"
-                        cy="48"
-                        r="28"
-                        fill="none"
-                        stroke="#ffffff"
-                        stroke-width="10"
-                        mask="url(#q-mask)"
-                    />
+                        <circle
+                            cx="48"
+                            cy="48"
+                            r="28"
+                            fill="none"
+                            stroke="#ffffff"
+                            stroke-width="10"
+                            mask="url(#q-mask)"
+                        />
 
-                    <path
-                        d="M 40 55 L 65 80 L 95 30"
-                        fill="none"
-                        stroke="url(#primary-grad)"
-                        stroke-width="10"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                </svg>
+                        <path
+                            d="M 40 55 L 65 80 L 95 30"
+                            fill="none"
+                            stroke="url(#primary-grad)"
+                            stroke-width="10"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
 
-                <h2 v-if="!isCollapse" class="logo-text">Quizio CMS</h2>
-            </div>
+                    <h2 v-if="!isCollapse" class="logo-text">Quizio CMS</h2>
+                </div>
+            </el-tooltip>
 
             <el-menu
                 :default-active="route.path"
@@ -148,13 +154,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { Fold, Expand } from '@element-plus/icons-vue'
+
 import { useAuthStore } from '../stores/auth'
-import { Fold, Expand } from '@element-plus/icons-vue' // 引入收合用的 Icon
+
+import packageJson from '../../package.json'
+
+const appVersion = packageJson.version
 
 const route = useRoute()
 const authStore = useAuthStore()
 
-// 控制側邊欄是否收起
 const isCollapse = ref(false)
 
 const toggleCollapse = () => {
