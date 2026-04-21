@@ -74,7 +74,12 @@ async def lifespan(app: FastAPI):
 
 
 # Initialize the FastAPI app and attach the lifespan context manager
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title='Quizio Data API',
+    description='API document for Quizio Data',
+    version='0.0.1',
+    lifespan=lifespan,
+)
 
 # Register all routers
 app.include_router(auth.router)
