@@ -7,6 +7,15 @@
                 <el-button
                     round
                     size="large"
+                    class="fab-item shadow-hover version-btn"
+                >
+                    <span style="font-size: 1.1rem; margin-right: 8px">🏷️</span>
+                    <span style="font-weight: bold">v{{ appVersion }}</span>
+                </el-button>
+
+                <el-button
+                    round
+                    size="large"
                     @click="toggleLanguage"
                     class="fab-item shadow-hover"
                 >
@@ -38,8 +47,14 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowDown, Close } from '@element-plus/icons-vue'
 
+// Import package.json to access the app version (adjust the relative path if your folder structure differs)
+import packageJson from '../../package.json'
+
 const { locale } = useI18n()
 const isOpen = ref(false)
+
+// Extract the version number
+const appVersion = packageJson.version
 
 const toggleMenu = () => {
     isOpen.value = !isOpen.value
@@ -54,14 +69,14 @@ const toggleLanguage = () => {
 </script>
 
 <style scoped>
-/* 遮罩：保留最簡單的 fixed 定位 */
+/* Overlay: Retains simple fixed positioning */
 .fab-overlay {
     position: fixed;
-    inset: 0; /* 等同於 top:0; left:0; right:0; bottom:0; */
+    inset: 0;
     z-index: 999;
 }
 
-/* 容器定位 */
+/* Container positioning */
 .fab-container {
     position: fixed;
     bottom: 30px;
@@ -73,7 +88,7 @@ const toggleLanguage = () => {
     gap: 16px;
 }
 
-/* 選單排列 */
+/* Menu layout */
 .fab-menu {
     display: flex;
     flex-direction: column;
@@ -82,7 +97,7 @@ const toggleLanguage = () => {
     margin-bottom: 8px;
 }
 
-/* 覆寫 Element Plus 按鈕樣式，加入浮空陰影與 Hover 放大效果 */
+/* Override Element Plus button styles for floating shadow and hover scale */
 .shadow-hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
     transition:
@@ -92,6 +107,11 @@ const toggleLanguage = () => {
 
 .shadow-hover:hover {
     transform: scale(1.08);
+}
+
+/* Specific style for the version button to indicate it's not clickable */
+.version-btn {
+    cursor: default;
 }
 
 .fab-main {
