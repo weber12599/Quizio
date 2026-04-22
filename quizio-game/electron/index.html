@@ -249,7 +249,7 @@
 
         function openUrl(type) {
             if (tunnelUrl) {
-                ipcRenderer.send('open-external', `${tunnelUrl}/#/${type}`);
+                ipcRenderer.send('open-external', `${tunnelUrl}/${type}`);
             }
         }
     </script>
