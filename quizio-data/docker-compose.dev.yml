@@ -66,4 +66,4 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-    command: npm run dev -- --force
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --force"
