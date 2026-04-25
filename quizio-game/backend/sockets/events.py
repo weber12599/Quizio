@@ -28,6 +28,8 @@ class SocketEvent(str, Enum):
     UNLIKE_ANSWER = 'unlike_answer'
     COMMENT_ANSWER = 'comment_answer'
     DELETE_COMMENT = 'delete_comment'
+    LIKE_COMMENT = 'like_comment'
+    UNLIKE_COMMENT = 'unlike_comment'
 
     # Interaction: Server -> Client
     PEER_ANSWERS = 'peer_answers'

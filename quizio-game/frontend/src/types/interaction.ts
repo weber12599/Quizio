@@ -17,6 +17,7 @@ export interface Comment {
     name: string
     content: string
     is_host?: boolean
+    likes: Like[]
 }
 
 export interface AnswerInteraction {

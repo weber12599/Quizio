@@ -397,6 +397,7 @@
                                                 <template v-else>
                                                     <el-button
                                                         type="success"
+                                                        class="mr-1"
                                                         plain
                                                         @click="
                                                             openPinAnswersDialog(
@@ -414,24 +415,38 @@
                                                             )
                                                         }}
                                                     </el-button>
-                                                    <el-button
-                                                        plain
-                                                        @click="
-                                                            openInteractionDialog(
-                                                                eq
+                                                    <el-badge
+                                                        :value="
+                                                            interactionBadge(
+                                                                eq.question_id
                                                             )
                                                         "
-                                                        size="large"
+                                                        :hidden="
+                                                            interactionBadge(
+                                                                eq.question_id
+                                                            ) === 0
+                                                        "
                                                     >
-                                                        <el-icon class="mr-1"
-                                                            ><ChatDotRound
-                                                        /></el-icon>
-                                                        {{
-                                                            $t(
-                                                                'interaction.view_discussion'
-                                                            )
-                                                        }}
-                                                    </el-button>
+                                                        <el-button
+                                                            plain
+                                                            @click="
+                                                                openInteractionDialog(
+                                                                    eq
+                                                                )
+                                                            "
+                                                            size="large"
+                                                        >
+                                                            <el-icon
+                                                                class="mr-1"
+                                                                ><ChatDotRound
+                                                            /></el-icon>
+                                                            {{
+                                                                $t(
+                                                                    'interaction.view_discussion'
+                                                                )
+                                                            }}
+                                                        </el-button>
+                                                    </el-badge>
                                                 </template>
                                             </div>
 
@@ -1003,7 +1018,8 @@
             @like="handleHostLike"
             @unlike="handleHostUnlike"
             @comment="handleHostComment"
-            @delete-comment="handleHostDeleteComment"
+            @like-comment="handleHostLikeComment"
+            @unlike-comment="handleHostUnlikeComment"
         />
     </div>
 </template>
@@ -1017,7 +1033,13 @@ import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import { formatQuestionType } from '../utils/locales'
 import { renderMarkdown } from '../utils/markdown'
-import { Position, Monitor, VideoPause, Refresh, ChatDotRound } from '@element-plus/icons-vue'
+import {
+    Position,
+    Monitor,
+    VideoPause,
+    Refresh,
+    ChatDotRound
+} from '@element-plus/icons-vue'
 import { SocketEvent } from '../types/socket'
 import InteractionDialog from '../components/InteractionDialog.vue'
 import type { PeerAnswer, QuestionInteractions } from '../types/interaction'
@@ -1120,6 +1142,7 @@ const interactionDialogVisible = ref(false)
 const currentInteractionQuestion = ref<Question | null>(null)
 const currentInteractionPeerAnswers = ref<PeerAnswer[]>([])
 const hostInteractions = ref<Record<number, QuestionInteractions>>({})
+const seenInteractionCount = ref<Record<number, number>>({})
 
 // --- Computeds ---
 const activeExam = computed(() => {
@@ -1596,6 +1619,20 @@ const unpinAnswer = () => {
     })
 }
 
+const interactionBadge = (qId: number): number => {
+    if (
+        interactionDialogVisible.value &&
+        currentInteractionQuestion.value?.id === qId
+    )
+        return 0
+    const ia = hostInteractions.value[qId] ?? {}
+    const total = Object.values(ia).reduce(
+        (sum, x) => sum + x.likes.length + x.comments.length,
+        0
+    )
+    return Math.max(0, total - (seenInteractionCount.value[qId] ?? 0))
+}
+
 const openInteractionDialog = (eq: ExamQuestion) => {
     currentInteractionQuestion.value = eq.question
     const answers = roomStats.value.answers?.[eq.question_id] || {}
@@ -1609,6 +1646,11 @@ const openInteractionDialog = (eq: ExamQuestion) => {
             question_id: eq.question_id
         })
     )
+    const ia = hostInteractions.value[eq.question_id] ?? {}
+    seenInteractionCount.value[eq.question_id] = Object.values(ia).reduce(
+        (sum, x) => sum + x.likes.length + x.comments.length,
+        0
+    )
     interactionDialogVisible.value = true
 }
 
@@ -1616,7 +1658,10 @@ const handleHostLike = (ownerId: string) => {
     const qId = currentInteractionQuestion.value?.id
     if (!qId) return
     if (!hostInteractions.value[qId]) hostInteractions.value[qId] = {}
-    const ia = hostInteractions.value[qId][ownerId] ?? { likes: [], comments: [] }
+    const ia = hostInteractions.value[qId][ownerId] ?? {
+        likes: [],
+        comments: []
+    }
     ia.likes.push({ from_id: '__host__', name: username.value })
     hostInteractions.value[qId][ownerId] = ia
     socket.emit(SocketEvent.LIKE_ANSWER, {
@@ -1642,13 +1687,17 @@ const handleHostComment = (ownerId: string, content: string) => {
     const qId = currentInteractionQuestion.value?.id
     if (!qId) return
     if (!hostInteractions.value[qId]) hostInteractions.value[qId] = {}
-    const ia = hostInteractions.value[qId][ownerId] ?? { likes: [], comments: [] }
+    const ia = hostInteractions.value[qId][ownerId] ?? {
+        likes: [],
+        comments: []
+    }
     ia.comments.push({
         id: `local-${Date.now()}`,
         from_id: '__host__',
         name: username.value,
         content,
-        is_host: true
+        is_host: true,
+        likes: []
     })
     hostInteractions.value[qId][ownerId] = ia
     socket.emit(SocketEvent.COMMENT_ANSWER, {
@@ -1659,12 +1708,34 @@ const handleHostComment = (ownerId: string, content: string) => {
     })
 }
 
-const handleHostDeleteComment = (ownerId: string, commentId: string) => {
+const handleHostLikeComment = (ownerId: string, commentId: string) => {
     const qId = currentInteractionQuestion.value?.id
     if (!qId) return
-    const ia = hostInteractions.value[qId]?.[ownerId]
-    if (ia) ia.comments = ia.comments.filter((c) => c.id !== commentId)
-    socket.emit(SocketEvent.DELETE_COMMENT, {
+    const comment = hostInteractions.value[qId]?.[ownerId]?.comments.find(
+        (c) => c.id === commentId
+    )
+    if (comment) {
+        if (!comment.likes) comment.likes = []
+        comment.likes.push({ from_id: '__host__', name: username.value })
+    }
+    socket.emit(SocketEvent.LIKE_COMMENT, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        comment_id: commentId
+    })
+}
+
+const handleHostUnlikeComment = (ownerId: string, commentId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const comment = hostInteractions.value[qId]?.[ownerId]?.comments.find(
+        (c) => c.id === commentId
+    )
+    if (comment?.likes) {
+        comment.likes = comment.likes.filter((l) => l.from_id !== '__host__')
+    }
+    socket.emit(SocketEvent.UNLIKE_COMMENT, {
         room_pin: roomPin.value,
         question_id: qId,
         answer_owner_id: ownerId,

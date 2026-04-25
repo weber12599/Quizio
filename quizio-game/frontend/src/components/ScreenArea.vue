@@ -65,11 +65,6 @@
                     >
                         {{ opt }}
                     </span>
-                    <span
-                        v-if="displayState === 'answer' && isCorrectOption(idx)"
-                        class="ml-3 text-xl"
-                        >✅</span
-                    >
                 </div>
 
                 <el-progress
@@ -77,7 +72,7 @@
                     :percentage="getStatPercentage(idx)"
                     :stroke-width="36"
                     text-inside
-                    :color="getProgressColor(idx)"
+                    color="#67C23A"
                 >
                     <span class="progress-text"
                         >{{ stats?.counts[idx] || 0 }} ({{
@@ -183,7 +178,6 @@ const props = defineProps<{
     stats: any
     isCorrectOption: (idx: number) => boolean
     getStatPercentage: (idx: number | string) => number
-    getProgressColor: (idx: number) => string
     pinnedAnswer?: any
 }>()
 

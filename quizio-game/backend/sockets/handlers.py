@@ -26,6 +26,7 @@ from .schemas import (
     HostPinAnswerPayload,
     HostShowLeaderboardPayload,
     LikeAnswerPayload,
+    LikeCommentPayload,
     ScreenJoinRoomPayload,
     SubmitAnswerPayload,
 )
@@ -759,6 +760,7 @@ async def comment_answer(sid: str, payload: CommentAnswerPayload):
         'name': caller_name,
         'content': payload.content,
         'is_host': is_host,
+        'likes': [],
     })
     await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
 
@@ -780,6 +782,65 @@ async def delete_comment(sid: str, payload: DeleteCommentPayload):
         c for c in answer_ia['comments'] if c['id'] != payload.comment_id
     ]
     await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
+
+
+@sio.on(SocketEvent.LIKE_COMMENT.value)
+@validate_payload(LikeCommentPayload)
+async def like_comment(sid: str, payload: LikeCommentPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+    caller_name = '老師' if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+
+    answer_ia = room.get('interactions', {}).get(payload.question_id, {}).get(payload.answer_owner_id)
+    if not answer_ia:
+        return
+
+    comment = next((c for c in answer_ia['comments'] if c['id'] == payload.comment_id), None)
+    if not comment:
+        return
+
+    if 'likes' not in comment:
+        comment['likes'] = []
+
+    if any(l['from_id'] == caller_id for l in comment['likes']):
+        return  # already liked — no-op
+
+    comment['likes'].append({'from_id': caller_id, 'name': caller_name})
+    await broadcast_interaction_update(payload.room_pin, payload.question_id, payload.answer_owner_id)
+
+
+@sio.on(SocketEvent.UNLIKE_COMMENT.value)
+@validate_payload(LikeCommentPayload)
+async def unlike_comment(sid: str, payload: LikeCommentPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+
+    answer_ia = room.get('interactions', {}).get(payload.question_id, {}).get(payload.answer_owner_id)
+    if not answer_ia:
+        return
+
+    comment = next((c for c in answer_ia['comments'] if c['id'] == payload.comment_id), None)
+    if not comment or 'likes' not in comment:
+        return
+
+    comment['likes'] = [l for l in comment['likes'] if l['from_id'] != caller_id]
+    await broadcast_interaction_update(payload.room_pin, payload.question_id, payload.answer_owner_id)
 
 
 @sio.on(SocketEvent.END_GAME.value)

@@ -186,17 +186,20 @@
                     >
                         <template #actions>
                             <div class="flex-between w-full">
-                                <el-button
+                                <el-badge
                                     v-if="submittedAnswers[q.id] !== undefined"
-                                    size="large"
-                                    plain
-                                    @click="openInteractionDialog(q)"
+                                    :value="interactionBadge(q.id)"
+                                    :hidden="interactionBadge(q.id) === 0"
                                 >
-                                    <el-icon class="mr-1"
-                                        ><ChatDotRound
-                                    /></el-icon>
-                                    {{ $t('interaction.view_discussion') }}
-                                </el-button>
+                                    <el-button
+                                        size="large"
+                                        plain
+                                        @click="openInteractionDialog(q)"
+                                    >
+                                        <el-icon class="mr-1"><ChatDotRound /></el-icon>
+                                        {{ $t('interaction.view_discussion') }}
+                                    </el-button>
+                                </el-badge>
                                 <span v-else />
                                 <el-button
                                     v-if="submittedAnswers[q.id] === undefined"
@@ -230,11 +233,13 @@
         @like="handleLike"
         @unlike="handleUnlike"
         @comment="handleComment"
+        @like-comment="handleLikeComment"
+        @unlike-comment="handleUnlikeComment"
     />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
@@ -282,6 +287,7 @@ const peerAnswers = ref<Record<number, PeerAnswer[]>>({})
 const interactions = ref<Record<number, QuestionInteractions>>({})
 const myPlayerId = ref<string>('')
 const myDisplayName = ref<string>('')
+const seenInteractionCount = ref<Record<number, number>>({})
 
 const canSubmit = (qId: number, type: string): boolean => {
     const ans = tempAnswers.value[qId]
@@ -292,8 +298,23 @@ const canSubmit = (qId: number, type: string): boolean => {
     return true
 }
 
+const interactionBadge = (qId: number): number => {
+    if (interactionDialogVisible.value && currentInteractionQuestion.value?.id === qId) return 0
+    const ia = interactions.value[qId] ?? {}
+    const total = Object.values(ia).reduce(
+        (sum, x) => sum + x.likes.length + x.comments.length,
+        0
+    )
+    return Math.max(0, total - (seenInteractionCount.value[qId] ?? 0))
+}
+
 const openInteractionDialog = (question: Question) => {
     currentInteractionQuestion.value = question
+    const ia = interactions.value[question.id] ?? {}
+    seenInteractionCount.value[question.id] = Object.values(ia).reduce(
+        (sum, x) => sum + x.likes.length + x.comments.length,
+        0
+    )
     interactionDialogVisible.value = true
 }
 
@@ -325,7 +346,8 @@ const handleComment = (ownerId: string, content: string) => {
         from_id: myPlayerId.value,
         name: myDisplayName.value,
         content,
-        is_host: false
+        is_host: false,
+        likes: [],
     })
     interactions.value[qId][ownerId] = ia
     socket.emit(SocketEvent.COMMENT_ANSWER, {
@@ -333,6 +355,37 @@ const handleComment = (ownerId: string, content: string) => {
         question_id: qId,
         answer_owner_id: ownerId,
         content
+    })
+}
+
+const handleLikeComment = (ownerId: string, commentId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const comment = interactions.value[qId]?.[ownerId]?.comments.find((c) => c.id === commentId)
+    if (comment) {
+        if (!comment.likes) comment.likes = []
+        comment.likes.push({ from_id: myPlayerId.value, name: myDisplayName.value })
+    }
+    socket.emit(SocketEvent.LIKE_COMMENT, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        comment_id: commentId,
+    })
+}
+
+const handleUnlikeComment = (ownerId: string, commentId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const comment = interactions.value[qId]?.[ownerId]?.comments.find((c) => c.id === commentId)
+    if (comment?.likes) {
+        comment.likes = comment.likes.filter((l) => l.from_id !== myPlayerId.value)
+    }
+    socket.emit(SocketEvent.UNLIKE_COMMENT, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        comment_id: commentId,
     })
 }
 

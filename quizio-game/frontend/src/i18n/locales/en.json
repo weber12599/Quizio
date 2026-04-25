@@ -104,13 +104,14 @@
         "responses_received": "Responses Received"
     },
     "interaction": {
-        "dialog_title": "💬 Discussion",
+        "dialog_title": "Discussion",
         "no_peer_answers": "No answers",
         "comment_placeholder": "Write a comment...",
         "send": "Send",
         "view_discussion": "Discussion",
         "from_teacher": "Teacher",
-        "delete": "Delete"
+        "delete": "Delete",
+        "be_first_to_comment": "Be the first to comment"
     },
     "client": {
         "title": "Join a Game",

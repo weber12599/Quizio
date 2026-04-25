@@ -121,3 +121,10 @@ class DeleteCommentPayload(BaseModel):
     question_id: int
     answer_owner_id: str
     comment_id: str
+
+
+class LikeCommentPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+    comment_id: str
