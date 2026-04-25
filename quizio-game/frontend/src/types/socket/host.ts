@@ -35,6 +35,13 @@ export interface EndGamePayload {
     room_pin: string
 }
 
+export interface HostDeleteCommentPayload {
+    room_pin: string
+    question_id: number
+    answer_owner_id: string
+    comment_id: string
+}
+
 // ---------------------------------------------------------
 // Payloads sent FROM Server TO Host
 // ---------------------------------------------------------

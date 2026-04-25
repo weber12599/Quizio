@@ -103,6 +103,15 @@
         "no_scores": "尚無分數紀錄。",
         "responses_received": "已收到作答數"
     },
+    "interaction": {
+        "dialog_title": "💬 互動討論",
+        "no_peer_answers": "尚未有同學繳交答案",
+        "comment_placeholder": "輸入留言...",
+        "send": "送出",
+        "view_discussion": "互動討論",
+        "from_teacher": "老師",
+        "delete": "刪除"
+    },
     "client": {
         "title": "加入遊戲",
         "subtitle": "請輸入房間 PIN 碼與學生登入資訊。",

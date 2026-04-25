@@ -91,3 +91,33 @@ class HostShowLeaderboardPayload(BaseModel):
 
 class EndGamePayload(BaseModel):
     room_pin: str
+
+
+# ---------------------------------------------------------
+# Interaction Payloads
+# ---------------------------------------------------------
+
+
+class LikeAnswerPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+
+
+class CommentAnswerPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+    content: str
+
+    @field_validator('content')
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        return sanitize_rich_text(v)
+
+
+class DeleteCommentPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+    comment_id: str

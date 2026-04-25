@@ -394,24 +394,45 @@
                                                     }}
                                                 </el-button>
 
-                                                <el-button
-                                                    v-else
-                                                    type="success"
-                                                    plain
-                                                    @click="
-                                                        openPinAnswersDialog(eq)
-                                                    "
-                                                    size="large"
-                                                >
-                                                    <el-icon class="mr-1"
-                                                        ><View
-                                                    /></el-icon>
-                                                    {{
-                                                        $t(
-                                                            'host.preview_answers'
-                                                        )
-                                                    }}
-                                                </el-button>
+                                                <template v-else>
+                                                    <el-button
+                                                        type="success"
+                                                        plain
+                                                        @click="
+                                                            openPinAnswersDialog(
+                                                                eq
+                                                            )
+                                                        "
+                                                        size="large"
+                                                    >
+                                                        <el-icon class="mr-1"
+                                                            ><View
+                                                        /></el-icon>
+                                                        {{
+                                                            $t(
+                                                                'host.preview_answers'
+                                                            )
+                                                        }}
+                                                    </el-button>
+                                                    <el-button
+                                                        plain
+                                                        @click="
+                                                            openInteractionDialog(
+                                                                eq
+                                                            )
+                                                        "
+                                                        size="large"
+                                                    >
+                                                        <el-icon class="mr-1"
+                                                            ><ChatDotRound
+                                                        /></el-icon>
+                                                        {{
+                                                            $t(
+                                                                'interaction.view_discussion'
+                                                            )
+                                                        }}
+                                                    </el-button>
+                                                </template>
                                             </div>
 
                                             <div>
@@ -969,6 +990,21 @@
                 </el-tab-pane>
             </el-tabs>
         </el-dialog>
+
+        <InteractionDialog
+            v-model:visible="interactionDialogVisible"
+            :question="currentInteractionQuestion"
+            :peer-answers="currentInteractionPeerAnswers"
+            :interactions="
+                hostInteractions[currentInteractionQuestion?.id ?? 0] ?? {}
+            "
+            my-player-id="__host__"
+            :is-host="true"
+            @like="handleHostLike"
+            @unlike="handleHostUnlike"
+            @comment="handleHostComment"
+            @delete-comment="handleHostDeleteComment"
+        />
     </div>
 </template>
 
@@ -981,7 +1017,10 @@ import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import { formatQuestionType } from '../utils/locales'
 import { renderMarkdown } from '../utils/markdown'
-import { Position, Monitor, VideoPause, Refresh } from '@element-plus/icons-vue'
+import { Position, Monitor, VideoPause, Refresh, ChatDotRound } from '@element-plus/icons-vue'
+import { SocketEvent } from '../types/socket'
+import InteractionDialog from '../components/InteractionDialog.vue'
+import type { PeerAnswer, QuestionInteractions } from '../types/interaction'
 
 interface Exam {
     id: number
@@ -1075,6 +1114,12 @@ const isLoading = ref(false)
 const isReconnecting = ref(false)
 const isLeaderboardDisplayed = ref(false)
 const recoveredDisplayedId = ref<number | null>(null)
+
+// ── Interaction state ─────────────────────────────────────────────────────
+const interactionDialogVisible = ref(false)
+const currentInteractionQuestion = ref<Question | null>(null)
+const currentInteractionPeerAnswers = ref<PeerAnswer[]>([])
+const hostInteractions = ref<Record<number, QuestionInteractions>>({})
 
 // --- Computeds ---
 const activeExam = computed(() => {
@@ -1551,6 +1596,82 @@ const unpinAnswer = () => {
     })
 }
 
+const openInteractionDialog = (eq: ExamQuestion) => {
+    currentInteractionQuestion.value = eq.question
+    const answers = roomStats.value.answers?.[eq.question_id] || {}
+    const clients = roomStats.value.clients_info || {}
+    currentInteractionPeerAnswers.value = Object.entries(answers).map(
+        ([playerId, answer]) => ({
+            player_id: playerId,
+            name: clients[playerId]?.name || 'Unknown',
+            is_guest: clients[playerId]?.is_guest || false,
+            answer,
+            question_id: eq.question_id
+        })
+    )
+    interactionDialogVisible.value = true
+}
+
+const handleHostLike = (ownerId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    if (!hostInteractions.value[qId]) hostInteractions.value[qId] = {}
+    const ia = hostInteractions.value[qId][ownerId] ?? { likes: [], comments: [] }
+    ia.likes.push({ from_id: '__host__', name: username.value })
+    hostInteractions.value[qId][ownerId] = ia
+    socket.emit(SocketEvent.LIKE_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId
+    })
+}
+
+const handleHostUnlike = (ownerId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const ia = hostInteractions.value[qId]?.[ownerId]
+    if (ia) ia.likes = ia.likes.filter((l) => l.from_id !== '__host__')
+    socket.emit(SocketEvent.UNLIKE_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId
+    })
+}
+
+const handleHostComment = (ownerId: string, content: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    if (!hostInteractions.value[qId]) hostInteractions.value[qId] = {}
+    const ia = hostInteractions.value[qId][ownerId] ?? { likes: [], comments: [] }
+    ia.comments.push({
+        id: `local-${Date.now()}`,
+        from_id: '__host__',
+        name: username.value,
+        content,
+        is_host: true
+    })
+    hostInteractions.value[qId][ownerId] = ia
+    socket.emit(SocketEvent.COMMENT_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        content
+    })
+}
+
+const handleHostDeleteComment = (ownerId: string, commentId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const ia = hostInteractions.value[qId]?.[ownerId]
+    if (ia) ia.comments = ia.comments.filter((c) => c.id !== commentId)
+    socket.emit(SocketEvent.DELETE_COMMENT, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        comment_id: commentId
+    })
+}
+
 const getStudentProgress = (playerId: string) => {
     if (broadcastedIds.value.length === 0) return '0 / 0'
     let answered = 0
@@ -1602,6 +1723,13 @@ onMounted(() => {
         roomStats.value = data
     })
 
+    socket.on(SocketEvent.INTERACTION_UPDATE, (data) => {
+        if (!hostInteractions.value[data.question_id])
+            hostInteractions.value[data.question_id] = {}
+        hostInteractions.value[data.question_id][data.answer_owner_id] =
+            data.answer_interactions
+    })
+
     socket.on('host_recovered_state', (data) => {
         broadcastedIds.value = data.broadcasted_ids
         isLeaderboardDisplayed.value = data.is_leaderboard_displayed
@@ -1629,6 +1757,7 @@ onUnmounted(() => {
     socket.off('host_recovered_state')
     socket.off('connect')
     socket.off('disconnect')
+    socket.off(SocketEvent.INTERACTION_UPDATE)
 })
 </script>
 
