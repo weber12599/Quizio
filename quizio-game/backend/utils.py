@@ -111,23 +111,49 @@ async def submit_student_submission(token: str, payload: dict):
             print(f'Network error while submitting data: {e}')
 
 
-async def submit_batch_submissions(token: str, payload: list):
+async def submit_batch_submissions(token: str, payload: list) -> dict:
     """
     Send all student submissions as a single batch to the Data Backend.
+    Returns the parsed JSON response (includes answer_ids for interaction linking).
     """
     url = f'{DATA_SERVICE_BASE_URL}/api/submissions/batch'
     headers = {'Authorization': f'Bearer {token}'}
 
     async with httpx.AsyncClient() as client:
         try:
-            # Increased timeout slightly for batch processing
             response = await client.post(
                 url, json=payload, headers=headers, timeout=15.0
             )
             if response.status_code not in (200, 201):
                 print(f'Error submitting batch data to data-backend: {response.text}')
+                return {}
+            return response.json()
         except Exception as e:
             print(f'Network error while submitting batch data: {e}')
+            return {}
+
+
+async def submit_batch_interactions(token: str, payload: dict) -> None:
+    """
+    Send all in-game interaction records (likes/comments) to the Data Backend.
+    Payload shape: {session_anchor_submission_id, answer_interactions, option_interactions}.
+    Best-effort: errors are logged but do not fail the game.
+    """
+    if not payload:
+        return
+
+    url = f'{DATA_SERVICE_BASE_URL}/api/submissions/batch-interactions'
+    headers = {'Authorization': f'Bearer {token}'}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                url, json=payload, headers=headers, timeout=15.0
+            )
+            if response.status_code not in (200, 201):
+                print(f'Error submitting interactions to data-backend: {response.text}')
+        except Exception as e:
+            print(f'Network error while submitting interactions: {e}')
 
 
 def grade_answer(q_type: str, student_answer: any, correct_answer: any) -> bool:

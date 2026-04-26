@@ -77,7 +77,11 @@ async def create_new_submission(
     return await crud_submissions.create_student_submission(db, submission)
 
 
-@router.post('/batch', status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/batch',
+    response_model=schemas.BatchSubmissionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_new_submission_batch(
     submissions: List[schemas.StudentSubmissionCreate],
     db: AsyncSession = Depends(get_db),
@@ -103,6 +107,30 @@ async def create_new_submission_batch(
             )
 
     return await crud_submissions.create_submissions_batch(db, submissions)
+
+
+@router.post('/batch-interactions', status_code=status.HTTP_201_CREATED)
+async def create_batch_interactions(
+    payload: schemas.InteractionBatchPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    await crud_submissions.create_batch_interactions(db, current_user.id, payload)
+    return {'status': 'success'}
+
+
+@router.get(
+    '/session-interactions',
+    response_model=List[schemas.QuestionInteractionRead],
+)
+async def read_session_interactions(
+    submission_id: int = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return await crud_submissions.get_session_interactions(
+        db, submission_id, current_user.id
+    )
 
 
 @router.put('/answers/{answer_db_id}/grade', response_model=schemas.StudentAnswer)
@@ -136,6 +164,25 @@ async def read_submissions_report(
         date_end=date_end,
         exam_ids=exam_ids,
     )
+
+
+@router.patch('/{submission_db_id}/discussion-score', response_model=schemas.StudentSubmission)
+async def update_discussion_score(
+    submission_db_id: int,
+    body: schemas.DiscussionScoreUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_sub = await crud_submissions.get_student_submission_details(db, submission_db_id)
+    if not db_sub:
+        raise HTTPException(status_code=404, detail='Submission not found')
+    if not current_user.is_superuser and db_sub.exam.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You do not have permission to grade this submission.',
+        )
+    updated = await crud_submissions.update_discussion_score(db, submission_db_id, body.score)
+    return updated
 
 
 @router.get('/{submission_db_id}', response_model=schemas.StudentSubmission)

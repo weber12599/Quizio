@@ -6,7 +6,7 @@ import models
 import schemas
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, contains_eager
 
 
 async def get_manual_grading_question_ids(db: AsyncSession, question_ids: set) -> set:
@@ -44,8 +44,9 @@ async def create_student_submission(
         'exam_id': submission_in.exam_id,
         'student_id': submission_in.student_id,
         'guest_name': submission_in.guest_name,
-        'record_at': submission_in.record_at,
     }
+    if submission_in.record_at is not None:
+        sub_data['record_at'] = submission_in.record_at
 
     db_submission = models.StudentSubmission(**sub_data)
     db.add(db_submission)
@@ -98,6 +99,7 @@ async def create_submissions_batch(
     manual_q_ids = await get_manual_grading_question_ids(db, all_q_ids)
 
     # 3. Add all related answers applying manual grading rules
+    all_db_answers: List[tuple[models.StudentAnswer, models.StudentSubmission]] = []
     for db_sub, answers_in in new_submissions:
         for ans_in in answers_in:
             is_manual = ans_in.question_id in manual_q_ids
@@ -110,9 +112,28 @@ async def create_submissions_batch(
                 score=None if is_manual else ans_in.score,
             )
             db.add(db_ans)
+            all_db_answers.append((db_ans, db_sub))
+
+    # Flush so all answer IDs are populated before commit
+    await db.flush()
+
+    answer_ids = [
+        {
+            'student_id': db_sub.student_id,
+            'guest_name': db_sub.guest_name,
+            'question_id': db_ans.question_id,
+            'answer_id': db_ans.id,
+            'submission_id': db_sub.id,
+        }
+        for db_ans, db_sub in all_db_answers
+    ]
 
     await db.commit()
-    return {'status': 'success', 'processed_count': len(submissions_in)}
+    return {
+        'status': 'success',
+        'processed_count': len(submissions_in),
+        'answer_ids': answer_ids,
+    }
 
 
 async def grade_student_answer(
@@ -263,6 +284,300 @@ async def get_grade_report(
         )
 
     return {'exams': exams_data, 'students': student_entries}
+
+
+async def create_batch_interactions(
+    db: AsyncSession,
+    host_user_id: int,
+    payload: schemas.InteractionBatchPayload,
+) -> None:
+    def resolve_author(author: schemas.InteractionAuthor) -> dict:
+        if author.is_host:
+            return {'user_id': host_user_id, 'student_id': None, 'guest_name': None}
+        if author.student_id is not None:
+            return {'student_id': author.student_id, 'user_id': None, 'guest_name': None}
+        return {'guest_name': author.guest_name, 'student_id': None, 'user_id': None}
+
+    # Per-answer interactions (short / essay)
+    for item in payload.answer_interactions:
+        db_comments: List[tuple[models.InteractionComment, schemas.CommentCreate]] = []
+        for comment_in in item.comments:
+            db_comment = models.InteractionComment(
+                answer_id=item.answer_id,
+                content=comment_in.content,
+                **resolve_author(comment_in.author),
+            )
+            db.add(db_comment)
+            db_comments.append((db_comment, comment_in))
+
+        if db_comments:
+            await db.flush()
+
+        for db_comment, comment_in in db_comments:
+            for like_in in comment_in.comment_likes:
+                db.add(models.InteractionLike(
+                    comment_id=db_comment.id,
+                    **resolve_author(like_in.author),
+                ))
+
+        for like_author in item.answer_likes:
+            db.add(models.InteractionLike(
+                answer_id=item.answer_id,
+                **resolve_author(like_author),
+            ))
+
+    # Per-option interactions (single / multiple / boolean)
+    # All option-level rows share the session anchor submission_id so the
+    # read endpoint can scope them to a specific game session.
+    anchor = payload.session_anchor_submission_id
+    for item in payload.option_interactions:
+        if anchor is None:
+            # Without an anchor, option interactions cannot be scoped to a
+            # session — skip them rather than orphan the rows.
+            continue
+
+        db_comments = []
+        for comment_in in item.comments:
+            db_comment = models.InteractionComment(
+                question_id=item.question_id,
+                option_index=item.option_index,
+                submission_id=anchor,
+                content=comment_in.content,
+                **resolve_author(comment_in.author),
+            )
+            db.add(db_comment)
+            db_comments.append((db_comment, comment_in))
+
+        if db_comments:
+            await db.flush()
+
+        for db_comment, comment_in in db_comments:
+            for like_in in comment_in.comment_likes:
+                db.add(models.InteractionLike(
+                    comment_id=db_comment.id,
+                    **resolve_author(like_in.author),
+                ))
+
+        for like_author in item.option_likes:
+            db.add(models.InteractionLike(
+                question_id=item.question_id,
+                option_index=item.option_index,
+                submission_id=anchor,
+                **resolve_author(like_author),
+            ))
+
+    await db.commit()
+
+
+async def get_session_interactions(
+    db: AsyncSession,
+    submission_id: int,
+    teacher_id: int,
+) -> List[schemas.QuestionInteractionRead]:
+    # Load the target submission to get exam_id and record_at
+    sub_result = await db.execute(
+        select(models.StudentSubmission).where(
+            models.StudentSubmission.id == submission_id
+        )
+    )
+    target_sub = sub_result.scalar_one_or_none()
+    if not target_sub:
+        return []
+
+    # Load all submissions in this session with answer-level interaction data
+    result = await db.execute(
+        select(models.StudentSubmission)
+        .options(
+            selectinload(models.StudentSubmission.student),
+            selectinload(models.StudentSubmission.answers).options(
+                selectinload(models.StudentAnswer.question),
+                selectinload(models.StudentAnswer.comments).options(
+                    selectinload(models.InteractionComment.student),
+                    selectinload(models.InteractionComment.user),
+                    selectinload(models.InteractionComment.likes).options(
+                        selectinload(models.InteractionLike.student),
+                        selectinload(models.InteractionLike.user),
+                    ),
+                ),
+                selectinload(models.StudentAnswer.likes).options(
+                    selectinload(models.InteractionLike.student),
+                    selectinload(models.InteractionLike.user),
+                ),
+            ),
+        )
+        .where(models.StudentSubmission.exam_id == target_sub.exam_id)
+        .where(models.StudentSubmission.record_at == target_sub.record_at)
+    )
+    submissions = result.scalars().all()
+    session_submission_ids = [s.id for s in submissions]
+
+    # Build per-question entry: meta (type/options/title) + answers list
+    question_map: dict = {}
+    for sub in submissions:
+        if sub.student_id:
+            sub_author = {'role': 'student', 'id': str(sub.student_id), 'name': sub.student.name if sub.student else 'Unknown'}
+        else:
+            sub_author = {'role': 'guest', 'id': sub.guest_name or '', 'name': sub.guest_name or ''}
+
+        for ans in sub.answers:
+            if ans.question_id not in question_map:
+                q = ans.question
+                question_map[ans.question_id] = {
+                    'question_id': ans.question_id,
+                    'question_title': q.content if q else '',
+                    'question_type': q.type if q else '',
+                    'question_options': q.options if q else None,
+                    'answers': [],
+                    'options': [],
+                }
+
+            answer_likes = [
+                {'id': like.id, 'author': like.author_info}
+                for like in ans.likes
+                if like.deleted_at is None
+            ]
+            comments = []
+            for comment in ans.comments:
+                if comment.deleted_at is not None:
+                    continue
+                comment_likes = [
+                    {'id': cl.id, 'author': cl.author_info}
+                    for cl in comment.likes
+                    if cl.deleted_at is None
+                ]
+                comments.append({
+                    'id': comment.id,
+                    'content': comment.content,
+                    'author': comment.author_info,
+                    'created_at': comment.created_at,
+                    'comment_likes': comment_likes,
+                })
+
+            question_map[ans.question_id]['answers'].append({
+                'answer_id': ans.id,
+                'submission_id': sub.id,
+                'answer_content': ans.answer_content,
+                'author': sub_author,
+                'answer_likes': answer_likes,
+                'comments': comments,
+            })
+
+    # Load option-level comments for this session, with author and like data
+    if session_submission_ids:
+        opt_comments_result = await db.execute(
+            select(models.InteractionComment)
+            .options(
+                selectinload(models.InteractionComment.student),
+                selectinload(models.InteractionComment.user),
+                selectinload(models.InteractionComment.likes).options(
+                    selectinload(models.InteractionLike.student),
+                    selectinload(models.InteractionLike.user),
+                ),
+            )
+            .where(models.InteractionComment.submission_id.in_(session_submission_ids))
+            .where(models.InteractionComment.option_index.is_not(None))
+            .where(models.InteractionComment.deleted_at.is_(None))
+        )
+        opt_comments = opt_comments_result.scalars().all()
+
+        opt_likes_result = await db.execute(
+            select(models.InteractionLike)
+            .options(
+                selectinload(models.InteractionLike.student),
+                selectinload(models.InteractionLike.user),
+            )
+            .where(models.InteractionLike.submission_id.in_(session_submission_ids))
+            .where(models.InteractionLike.option_index.is_not(None))
+            .where(models.InteractionLike.deleted_at.is_(None))
+        )
+        opt_likes = opt_likes_result.scalars().all()
+
+        # Group by (question_id, option_index)
+        opt_map: dict = {}
+
+        def get_opt_entry(q_id: int, idx: int) -> dict:
+            key = (q_id, idx)
+            if key not in opt_map:
+                # Fetch option text from question entry if available
+                opt_text = ''
+                q_entry = question_map.get(q_id)
+                if q_entry and q_entry.get('question_options'):
+                    opts = q_entry['question_options']
+                    if isinstance(opts, list) and 0 <= idx < len(opts):
+                        opt_text = opts[idx]
+                opt_map[key] = {
+                    'option_index': idx,
+                    'option_text': opt_text,
+                    'option_likes': [],
+                    'comments': [],
+                }
+            return opt_map[key]
+
+        for c in opt_comments:
+            entry = get_opt_entry(c.question_id, c.option_index)
+            comment_likes = [
+                {'id': cl.id, 'author': cl.author_info}
+                for cl in c.likes
+                if cl.deleted_at is None
+            ]
+            entry['comments'].append({
+                'id': c.id,
+                'content': c.content,
+                'author': c.author_info,
+                'created_at': c.created_at,
+                'comment_likes': comment_likes,
+            })
+
+        for like in opt_likes:
+            entry = get_opt_entry(like.question_id, like.option_index)
+            entry['option_likes'].append({'id': like.id, 'author': like.author_info})
+
+        # Attach option entries to their question_map entries (creating an
+        # entry for questions that have only option-level activity).
+        for (q_id, idx), entry in opt_map.items():
+            if q_id not in question_map:
+                # Question wasn't covered by any answers in the session
+                # (rare — happens if no student answered it). Load it lazily.
+                q_result = await db.execute(
+                    select(models.Question).where(models.Question.id == q_id)
+                )
+                q = q_result.scalar_one_or_none()
+                question_map[q_id] = {
+                    'question_id': q_id,
+                    'question_title': q.content if q else '',
+                    'question_type': q.type if q else '',
+                    'question_options': q.options if q else None,
+                    'answers': [],
+                    'options': [],
+                }
+                if q and q.options and 0 <= idx < len(q.options):
+                    entry['option_text'] = q.options[idx]
+            question_map[q_id]['options'].append(entry)
+
+        # Sort each question's options by option_index for stable rendering
+        for entry in question_map.values():
+            entry['options'].sort(key=lambda o: o['option_index'])
+
+    return list(question_map.values())
+
+
+async def update_discussion_score(
+    db: AsyncSession,
+    submission_id: int,
+    score: Optional[int],
+) -> Optional[models.StudentSubmission]:
+    result = await db.execute(
+        select(models.StudentSubmission).where(
+            models.StudentSubmission.id == submission_id
+        )
+    )
+    db_sub = result.scalar_one_or_none()
+    if not db_sub:
+        return None
+    db_sub.discussion_score = score
+    await db.commit()
+    await db.refresh(db_sub)
+    return db_sub
 
 
 async def get_student_submission_details(db: AsyncSession, submission_id: int):

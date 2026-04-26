@@ -202,115 +202,282 @@
         <el-dialog
             v-model="gradingDialogVisible"
             :title="`Grading: ${currentStudentName} - ${currentExamTitle}`"
-            width="800px"
+            width="860px"
             destroy-on-close
         >
-            <div v-loading="submissionLoading" class="grading-container">
-                <el-empty
-                    v-if="!currentSubmission"
-                    description="No submission found."
-                />
+            <el-tabs v-model="activeTab" @tab-click="onTabClick">
+                <el-tab-pane label="答案評分" name="grading">
+                    <div v-loading="submissionLoading" class="grading-container">
+                        <el-empty
+                            v-if="!currentSubmission"
+                            description="No submission found."
+                        />
 
-                <div v-else>
-                    <el-card
-                        v-for="(ans, index) in currentSubmission.answers"
-                        :key="ans.id"
-                        class="grading-card"
-                        shadow="hover"
-                    >
-                        <div class="q-header">
-                            <el-tag
-                                :type="
-                                    ans.question?.needs_manual_grading
-                                        ? 'danger'
-                                        : 'info'
-                                "
-                                size="small"
+                        <div v-else>
+                            <el-card
+                                v-for="(ans, index) in currentSubmission.answers"
+                                :key="ans.id"
+                                class="grading-card"
+                                shadow="hover"
                             >
-                                Q{{ index + 1 }} -
-                                {{ ans.question?.type }}
-                                {{
-                                    ans.question?.needs_manual_grading
-                                        ? '(Needs Manual Grading)'
-                                        : ''
-                                }}
-                            </el-tag>
-                        </div>
+                                <div class="q-header">
+                                    <el-tag
+                                        :type="
+                                            ans.question?.needs_manual_grading
+                                                ? 'danger'
+                                                : 'info'
+                                        "
+                                        size="small"
+                                    >
+                                        Q{{ index + 1 }} -
+                                        {{ ans.question?.type }}
+                                        {{
+                                            ans.question?.needs_manual_grading
+                                                ? '(Needs Manual Grading)'
+                                                : ''
+                                        }}
+                                    </el-tag>
+                                </div>
 
-                        <div
-                            class="q-content"
-                            v-html="renderMarkdown(ans.question?.content)"
-                        ></div>
+                                <div
+                                    class="q-content"
+                                    v-html="renderMarkdown(ans.question?.content)"
+                                ></div>
 
-                        <div
-                            v-if="
-                                ans.question?.type === 'single' ||
-                                ans.question?.type === 'multiple'
-                            "
-                            class="options-display"
-                        >
-                            <div
-                                v-for="(opt, oIdx) in parseOptions(
-                                    ans.question.options
-                                )"
-                                :key="oIdx"
-                                class="option-item"
-                            >
-                                <span class="option-label"
-                                    >{{ String.fromCharCode(65 + oIdx) }}.</span
+                                <div
+                                    v-if="
+                                        ans.question?.type === 'single' ||
+                                        ans.question?.type === 'multiple'
+                                    "
+                                    class="options-display"
                                 >
-                                <span class="option-text">{{ opt }}</span>
-                            </div>
-                        </div>
+                                    <div
+                                        v-for="(opt, oIdx) in parseOptions(
+                                            ans.question.options
+                                        )"
+                                        :key="oIdx"
+                                        class="option-item"
+                                    >
+                                        <span class="option-label"
+                                            >{{ String.fromCharCode(65 + oIdx) }}.</span
+                                        >
+                                        <span class="option-text">{{ opt }}</span>
+                                    </div>
+                                </div>
 
-                        <div class="ref-answer-box">
-                            <span class="label">Reference Answer:</span>
-                            <div class="ans-text">
-                                {{
-                                    formatDisplayAnswer(
-                                        ans.question?.type,
-                                        ans.question?.reference_answer
-                                    )
-                                }}
-                            </div>
-                        </div>
+                                <div class="ref-answer-box">
+                                    <span class="label">Reference Answer:</span>
+                                    <div class="ans-text">
+                                        {{
+                                            formatDisplayAnswer(
+                                                ans.question?.type,
+                                                ans.question?.reference_answer
+                                            )
+                                        }}
+                                    </div>
+                                </div>
 
-                        <div class="student-answer-box">
-                            <span class="label">Student's Answer:</span>
-                            <div class="ans-text">
-                                {{
-                                    formatDisplayAnswer(
-                                        ans.question?.type,
-                                        ans.answer_content
-                                    )
-                                }}
-                            </div>
-                        </div>
+                                <div class="student-answer-box">
+                                    <span class="label">Student's Answer:</span>
+                                    <div class="ans-text">
+                                        {{
+                                            formatDisplayAnswer(
+                                                ans.question?.type,
+                                                ans.answer_content
+                                            )
+                                        }}
+                                    </div>
+                                </div>
 
-                        <div class="grading-controls">
-                            <span style="margin-right: 10px; font-weight: bold"
-                                >Score:</span
-                            >
+                                <div class="grading-controls">
+                                    <span style="margin-right: 10px; font-weight: bold"
+                                        >Score:</span
+                                    >
+                                    <el-input-number
+                                        v-model="ans.score"
+                                        :min="0"
+                                        :max="100"
+                                        size="small"
+                                        style="width: 130px; margin-right: 10px"
+                                    />
+                                    <el-button
+                                        type="success"
+                                        plain
+                                        size="small"
+                                        @click="submitGrade(ans)"
+                                        :loading="savingAnswerId === ans.id"
+                                    >
+                                        <el-icon><Check /></el-icon> Save Score
+                                    </el-button>
+                                </div>
+                            </el-card>
+                        </div>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane label="互動紀錄" name="interactions">
+                    <div class="grading-container">
+                        <!-- Discussion Score row -->
+                        <div class="discussion-score-bar" v-if="currentSubmission">
+                            <span class="discussion-score-label">討論互動分數：</span>
                             <el-input-number
-                                v-model="ans.score"
+                                v-model="discussionScore"
                                 :min="0"
                                 :max="100"
                                 size="small"
                                 style="width: 130px; margin-right: 10px"
+                                placeholder="未評分"
                             />
                             <el-button
-                                type="success"
+                                type="primary"
                                 plain
                                 size="small"
-                                @click="submitGrade(ans)"
-                                :loading="savingAnswerId === ans.id"
+                                @click="saveDiscussionScore"
+                                :loading="savingDiscussionScore"
                             >
-                                <el-icon><Check /></el-icon> Save Score
+                                <el-icon><Check /></el-icon> 儲存
                             </el-button>
                         </div>
-                    </el-card>
-                </div>
-            </div>
+
+                        <el-divider />
+
+                        <div v-loading="interactionsLoading">
+                            <el-empty
+                                v-if="!interactionsLoading && sessionInteractions.length === 0"
+                                description="此次考試沒有互動紀錄。"
+                            />
+
+                            <div
+                                v-for="qSection in sessionInteractions"
+                                :key="qSection.question_id"
+                                class="interaction-question-section"
+                            >
+                                <div class="interaction-q-title" v-html="renderMarkdown(qSection.question_title)"></div>
+
+                                <!-- Closed-choice questions: discussion is per-OPTION -->
+                                <template v-if="isChoiceType(qSection.question_type)">
+                                    <div
+                                        v-for="opt in qSection.options"
+                                        :key="opt.option_index"
+                                        class="interaction-answer-block"
+                                    >
+                                        <div class="ia-answer-header">
+                                            <el-tag size="small" type="info">
+                                                {{ optionLabel(qSection, opt.option_index) }}
+                                            </el-tag>
+                                            <span class="ia-answer-content">{{ opt.option_text }}</span>
+                                            <span class="ia-likes-count" v-if="opt.option_likes.length > 0">
+                                                ♥ {{ opt.option_likes.length }}
+                                                <el-tooltip
+                                                    :content="opt.option_likes.map(l => l.author.name).join('、')"
+                                                    placement="top"
+                                                >
+                                                    <span
+                                                        v-for="like in opt.option_likes"
+                                                        :key="like.id"
+                                                        class="ia-like-dot"
+                                                        :class="{ 'ia-like-dot-me': isCurrentStudent(like.author) }"
+                                                    ></span>
+                                                </el-tooltip>
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-for="comment in opt.comments"
+                                            :key="comment.id"
+                                            class="ia-comment"
+                                            :class="{ 'ia-highlight-me': isCurrentStudent(comment.author) }"
+                                        >
+                                            <el-tag
+                                                size="small"
+                                                :type="comment.author.role === 'teacher' ? 'warning' : isCurrentStudent(comment.author) ? 'success' : ''"
+                                            >
+                                                {{ comment.author.name }}
+                                            </el-tag>
+                                            <span class="ia-comment-text">{{ comment.content }}</span>
+                                            <span class="ia-likes-count" v-if="comment.comment_likes.length > 0">
+                                                ♥ {{ comment.comment_likes.length }}
+                                                <span
+                                                    v-for="cl in comment.comment_likes"
+                                                    :key="cl.id"
+                                                    class="ia-like-dot"
+                                                    :class="{ 'ia-like-dot-me': isCurrentStudent(cl.author) }"
+                                                ></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div
+                                        v-if="qSection.options.length === 0"
+                                        class="ia-empty-hint"
+                                    >
+                                        此題沒有選項討論紀錄。
+                                    </div>
+                                </template>
+
+                                <!-- Open-ended questions: discussion is per-ANSWER -->
+                                <template v-else>
+                                    <div
+                                        v-for="ans in qSection.answers"
+                                        :key="ans.answer_id"
+                                        class="interaction-answer-block"
+                                        :class="{ 'ia-highlight-owner': isCurrentStudent(ans.author) }"
+                                    >
+                                        <div class="ia-answer-header">
+                                            <el-tag
+                                                size="small"
+                                                :type="isCurrentStudent(ans.author) ? 'success' : 'info'"
+                                            >
+                                                {{ ans.author.name }}
+                                                <span v-if="isCurrentStudent(ans.author)"> (此學生)</span>
+                                            </el-tag>
+                                            <span class="ia-answer-content">{{ ans.answer_content || '*(無作答)*' }}</span>
+                                            <span class="ia-likes-count" v-if="ans.answer_likes.length > 0">
+                                                ♥ {{ ans.answer_likes.length }}
+                                                <el-tooltip
+                                                    :content="ans.answer_likes.map(l => l.author.name).join('、')"
+                                                    placement="top"
+                                                >
+                                                    <span
+                                                        v-for="like in ans.answer_likes"
+                                                        :key="like.id"
+                                                        class="ia-like-dot"
+                                                        :class="{ 'ia-like-dot-me': isCurrentStudent(like.author) }"
+                                                    ></span>
+                                                </el-tooltip>
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-for="comment in ans.comments"
+                                            :key="comment.id"
+                                            class="ia-comment"
+                                            :class="{ 'ia-highlight-me': isCurrentStudent(comment.author) }"
+                                        >
+                                            <el-tag
+                                                size="small"
+                                                :type="comment.author.role === 'teacher' ? 'warning' : isCurrentStudent(comment.author) ? 'success' : ''"
+                                            >
+                                                {{ comment.author.name }}
+                                            </el-tag>
+                                            <span class="ia-comment-text">{{ comment.content }}</span>
+                                            <span class="ia-likes-count" v-if="comment.comment_likes.length > 0">
+                                                ♥ {{ comment.comment_likes.length }}
+                                                <span
+                                                    v-for="cl in comment.comment_likes"
+                                                    :key="cl.id"
+                                                    class="ia-like-dot"
+                                                    :class="{ 'ia-like-dot-me': isCurrentStudent(cl.author) }"
+                                                ></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+
             <template #footer>
                 <el-button @click="closeGradingDialog">Close</el-button>
             </template>
@@ -329,7 +496,9 @@ import type {
     GradeReportResponse,
     StudentSubmissionResponse,
     StudentAnswerResponse,
-    GetGradeReport
+    GetGradeReport,
+    QuestionInteractionRead,
+    InteractionAuthor
 } from '../api/types/submissions'
 
 import { renderMarkdown } from '../utils/markdown'
@@ -360,6 +529,13 @@ const currentSubmission = ref<StudentSubmissionResponse | null>(null)
 const currentStudentName = ref('')
 const currentExamTitle = ref('')
 const savingAnswerId = ref<number | null>(null)
+const activeTab = ref('grading')
+
+// --- State: Interactions Tab ---
+const interactionsLoading = ref(false)
+const sessionInteractions = ref<QuestionInteractionRead[]>([])
+const discussionScore = ref<number | null>(null)
+const savingDiscussionScore = ref(false)
 
 // --- Initialization ---
 onMounted(async () => {
@@ -515,15 +691,73 @@ const openGradingDialog = async (
     gradingDialogVisible.value = true
     submissionLoading.value = true
     currentSubmission.value = null
+    activeTab.value = 'grading'
+    sessionInteractions.value = []
+    discussionScore.value = null
 
     try {
         const response = await dataAPI.getSubmissionDetails(submissionId)
         currentSubmission.value = response.data
+        discussionScore.value = response.data.discussion_score ?? null
     } catch (error) {
         ElMessage.error('Failed to fetch submission details')
     } finally {
         submissionLoading.value = false
     }
+}
+
+const loadInteractions = async () => {
+    if (!currentSubmission.value) return
+    interactionsLoading.value = true
+    try {
+        const res = await dataAPI.getSessionInteractions(currentSubmission.value.id)
+        sessionInteractions.value = res.data
+    } catch (error) {
+        ElMessage.error('Failed to fetch interaction records')
+    } finally {
+        interactionsLoading.value = false
+    }
+}
+
+const onTabClick = (tab: { paneName: string }) => {
+    if (tab.paneName === 'interactions' && sessionInteractions.value.length === 0) {
+        loadInteractions()
+    }
+}
+
+const saveDiscussionScore = async () => {
+    if (!currentSubmission.value) return
+    savingDiscussionScore.value = true
+    try {
+        await dataAPI.updateDiscussionScore(currentSubmission.value.id, discussionScore.value)
+        ElMessage.success('討論互動分數已儲存')
+    } catch (error) {
+        ElMessage.error('儲存失敗')
+    } finally {
+        savingDiscussionScore.value = false
+    }
+}
+
+const isCurrentStudent = (author: InteractionAuthor): boolean => {
+    if (!currentSubmission.value) return false
+    if (currentSubmission.value.student_id) {
+        return author.role === 'student' && author.id === String(currentSubmission.value.student_id)
+    }
+    if (currentSubmission.value.guest_name) {
+        return author.role === 'guest' && author.name === currentSubmission.value.guest_name
+    }
+    return false
+}
+
+const isChoiceType = (type: string): boolean => {
+    return type === 'single' || type === 'multiple' || type === 'boolean'
+}
+
+const optionLabel = (qSection: QuestionInteractionRead, idx: number): string => {
+    if (qSection.question_type === 'boolean') {
+        return idx === 0 ? 'O (True)' : 'X (False)'
+    }
+    return String.fromCharCode(65 + idx)
 }
 
 const submitGrade = async (answer: StudentAnswerResponse) => {
@@ -701,5 +935,100 @@ const closeGradingDialog = () => {
     justify-content: flex-end;
     border-top: 1px dashed #ebeef5;
     padding-top: 15px;
+}
+
+/* --- Interactions Tab Styles --- */
+.discussion-score-bar {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+}
+.discussion-score-label {
+    font-weight: bold;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+.interaction-question-section {
+    margin-bottom: 24px;
+}
+.interaction-q-title {
+    font-weight: bold;
+    font-size: 0.95rem;
+    background-color: var(--el-fill-color-light);
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+.interaction-q-title :deep(p) {
+    margin: 0;
+}
+
+.interaction-answer-block {
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    background: #fff;
+}
+.ia-highlight-owner {
+    border-color: var(--el-color-success-light-5);
+    background-color: var(--el-color-success-light-9);
+}
+
+.ia-answer-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+.ia-answer-content {
+    font-size: 0.9rem;
+    color: var(--el-text-color-regular);
+    flex: 1;
+}
+.ia-likes-count {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.82rem;
+    color: #e65a8a;
+}
+.ia-like-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: #e65a8a;
+    opacity: 0.5;
+}
+.ia-like-dot-me {
+    opacity: 1;
+    background-color: var(--el-color-success);
+}
+
+.ia-comment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+    background: var(--el-fill-color-blank);
+    flex-wrap: wrap;
+}
+.ia-highlight-me {
+    background-color: var(--el-color-success-light-9);
+}
+.ia-comment-text {
+    font-size: 0.88rem;
+    color: var(--el-text-color-primary);
+    flex: 1;
+}
+.ia-empty-hint {
+    color: var(--el-text-color-placeholder);
+    font-size: 0.85rem;
+    padding: 8px 4px;
 }
 </style>

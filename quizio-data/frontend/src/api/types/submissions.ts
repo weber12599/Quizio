@@ -19,6 +19,7 @@ export interface StudentSubmissionResponse {
     guest_name?: string | null
     record_at: string
     created_at: string
+    discussion_score?: number | null
     answers: StudentAnswerResponse[]
 }
 
@@ -63,4 +64,48 @@ export interface AnswerGradingHistoryResponse {
     new_score?: number | null
     teacher_id?: number | null
     created_at: string
+}
+
+export interface InteractionAuthor {
+    role: 'student' | 'teacher' | 'guest'
+    id: string
+    name: string
+}
+
+export interface InteractionLikeRead {
+    id: number
+    author: InteractionAuthor
+}
+
+export interface InteractionCommentRead {
+    id: number
+    content: string
+    author: InteractionAuthor
+    created_at: string
+    comment_likes: InteractionLikeRead[]
+}
+
+export interface AnswerInteractionRead {
+    answer_id: number
+    submission_id: number
+    answer_content?: string | null
+    author: InteractionAuthor
+    answer_likes: InteractionLikeRead[]
+    comments: InteractionCommentRead[]
+}
+
+export interface OptionInteractionRead {
+    option_index: number
+    option_text: string
+    option_likes: InteractionLikeRead[]
+    comments: InteractionCommentRead[]
+}
+
+export interface QuestionInteractionRead {
+    question_id: number
+    question_title: string
+    question_type: string
+    question_options?: string[] | null
+    answers: AnswerInteractionRead[]
+    options: OptionInteractionRead[]
 }

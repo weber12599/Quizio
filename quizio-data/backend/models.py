@@ -260,6 +260,7 @@ class StudentSubmission(SoftDeleteMixin, Base):
     record_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    discussion_score = Column(Integer, nullable=True)
 
     exam = relationship('Exam')
     student = relationship('Student')
@@ -320,12 +321,53 @@ class InteractionComment(SoftDeleteMixin, InteractiveMixin, Base):
 
     id = Column(Integer, primary_key=True, index=True)
     answer_id = Column(
-        Integer, ForeignKey('student_answers.id', ondelete='RESTRICT'), nullable=False
+        Integer, ForeignKey('student_answers.id', ondelete='RESTRICT'), nullable=True
+    )
+    question_id = Column(
+        Integer, ForeignKey('questions.id', ondelete='RESTRICT'), nullable=True
+    )
+    option_index = Column(Integer, nullable=True)
+    # Session anchor for option-level comments (NULL for answer-level since
+    # the link is implicit via answer.submission_id)
+    submission_id = Column(
+        Integer, ForeignKey('student_submissions.id', ondelete='RESTRICT'), nullable=True
     )
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     answer = relationship('StudentAnswer', backref='comments')
+    question = relationship('Question')
+    submission = relationship('StudentSubmission')
+
+    @declared_attr
+    def __table_args__(cls):
+        mixin_args = cls._get_author_checks()
+        target_args = (
+            CheckConstraint(
+                '(CASE WHEN answer_id IS NOT NULL THEN 1 ELSE 0 END + '
+                'CASE WHEN (question_id IS NOT NULL AND option_index IS NOT NULL) '
+                'THEN 1 ELSE 0 END) = 1',
+                name=f'{cls.__tablename__}_single_target_check',
+            ),
+        )
+        return mixin_args + target_args
+
+    @validates('answer_id', 'question_id')
+    def validate_single_target(self, key, value):
+        """
+        Ensure a comment targets strictly one answer OR one question option.
+        """
+        current_values = {
+            'answer_id': self.answer_id,
+            'question_id': self.question_id,
+        }
+        current_values[key] = value
+        non_null_count = sum(1 for v in current_values.values() if v is not None)
+        if non_null_count > 1:
+            raise ValueError(
+                'A comment can only target one item (either answer or question option).'
+            )
+        return value
 
 
 class InteractionLike(SoftDeleteMixin, InteractiveMixin, Base):
@@ -340,40 +382,56 @@ class InteractionLike(SoftDeleteMixin, InteractiveMixin, Base):
         ForeignKey('interaction_comments.id', ondelete='RESTRICT'),
         nullable=True,
     )
+    question_id = Column(
+        Integer, ForeignKey('questions.id', ondelete='RESTRICT'), nullable=True
+    )
+    option_index = Column(Integer, nullable=True)
+    # Session anchor for option-level likes (NULL for answer/comment likes since
+    # those link via answer.submission_id or comment.answer/comment.submission_id)
+    submission_id = Column(
+        Integer, ForeignKey('student_submissions.id', ondelete='RESTRICT'), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     answer = relationship('StudentAnswer', backref='likes')
     comment = relationship('InteractionComment', backref='likes')
+    question = relationship('Question')
+    submission = relationship('StudentSubmission')
 
     @declared_attr
     def __table_args__(cls):
         # Fetch the author constraints from the Mixin
         mixin_args = cls._get_author_checks()
 
-        # Define the specific target constraint for InteractionLike
+        # Like can target exactly one of: answer / comment / question option
         target_args = (
             CheckConstraint(
                 '(CASE WHEN answer_id IS NOT NULL THEN 1 ELSE 0 END + '
-                'CASE WHEN comment_id IS NOT NULL THEN 1 ELSE 0 END) = 1',
+                'CASE WHEN comment_id IS NOT NULL THEN 1 ELSE 0 END + '
+                'CASE WHEN (question_id IS NOT NULL AND option_index IS NOT NULL) '
+                'THEN 1 ELSE 0 END) = 1',
                 name=f'{cls.__tablename__}_single_target_check',
             ),
         )
 
-        # Combine and return both constraints
         return mixin_args + target_args
 
-    @validates('answer_id', 'comment_id')
+    @validates('answer_id', 'comment_id', 'question_id')
     def validate_single_target(self, key, value):
         """
-        Ensure a like targets strictly one answer OR one comment.
+        Ensure a like targets strictly one of: answer / comment / question option.
         """
-        current_values = {'answer_id': self.answer_id, 'comment_id': self.comment_id}
+        current_values = {
+            'answer_id': self.answer_id,
+            'comment_id': self.comment_id,
+            'question_id': self.question_id,
+        }
         current_values[key] = value
 
         non_null_count = sum(1 for v in current_values.values() if v is not None)
         if non_null_count > 1:
             raise ValueError(
-                'A like can only target one item (either answer or comment).'
+                'A like can only target one item (answer, comment, or question option).'
             )
 
         return value

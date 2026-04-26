@@ -11,6 +11,7 @@ from utils import (
     compute_stats,
     generate_leaderboard,
     grade_answer,
+    submit_batch_interactions,
     submit_batch_submissions,
 )
 
@@ -853,6 +854,128 @@ async def unlike_comment(sid: str, payload: LikeCommentPayload):
     await broadcast_interaction_update(payload.room_pin, payload.question_id, payload.answer_owner_id)
 
 
+async def _submit_interactions(room: dict, token: str, answer_ids: list) -> None:
+    """
+    Build and submit all in-memory interaction records to quizio-data.
+
+    Two interaction shapes coexist:
+      - answer-level (short / essay): owner_player_id is a real player_id;
+        keyed to a StudentAnswer.id created during batch submission.
+      - option-level (single / multiple / boolean): owner_player_id is
+        'opt_{index}'; keyed to (question_id, option_index). All option-level
+        rows share the session anchor submission_id (any submission from the
+        batch) so the read endpoint can scope them to this session.
+
+    Best-effort: errors are caught and logged.
+    """
+    if not answer_ids:
+        return
+
+    clients = room.get('clients', {})
+    interactions = room.get('interactions', {})
+
+    # answer_lookup: (student_id, guest_name, q_id) → answer_db_id
+    answer_lookup: Dict[tuple, int] = {}
+    for mapping in answer_ids:
+        key = (mapping.get('student_id'), mapping.get('guest_name'), mapping.get('question_id'))
+        answer_lookup[key] = mapping['answer_id']
+
+    # session anchor: any submission_id from this batch
+    session_anchor: int | None = next(
+        (m.get('submission_id') for m in answer_ids if m.get('submission_id')),
+        None,
+    )
+
+    def resolve_from_id(from_id: str) -> dict | None:
+        if from_id == '__host__':
+            return {'is_host': True}
+        client_data = clients.get(from_id)
+        if not client_data:
+            return None
+        if client_data.get('student_db_id'):
+            return {'student_id': client_data['student_db_id']}
+        return {'guest_name': client_data['name']}
+
+    def build_likes(ia_likes: list) -> list:
+        out = []
+        for like in ia_likes:
+            author = resolve_from_id(like['from_id'])
+            if author:
+                out.append(author)
+        return out
+
+    def build_comments(ia_comments: list) -> list:
+        out = []
+        for comment in ia_comments:
+            author = resolve_from_id(comment['from_id'])
+            if not author:
+                continue
+            comment_likes = []
+            for cl in comment.get('likes', []):
+                cl_author = resolve_from_id(cl['from_id'])
+                if cl_author:
+                    comment_likes.append({'author': cl_author})
+            out.append({
+                'content': comment['content'],
+                'author': author,
+                'comment_likes': comment_likes,
+            })
+        return out
+
+    answer_interactions = []
+    option_interactions = []
+
+    for q_id, owner_map in interactions.items():
+        for owner_player_id, ia_data in owner_map.items():
+            likes_payload = build_likes(ia_data.get('likes', []))
+            comments_payload = build_comments(ia_data.get('comments', []))
+
+            if not likes_payload and not comments_payload:
+                continue
+
+            if isinstance(owner_player_id, str) and owner_player_id.startswith('opt_'):
+                # Option-level interaction (single / multiple / boolean)
+                try:
+                    option_index = int(owner_player_id[len('opt_'):])
+                except ValueError:
+                    continue
+                option_interactions.append({
+                    'question_id': q_id,
+                    'option_index': option_index,
+                    'option_likes': likes_payload,
+                    'comments': comments_payload,
+                })
+            else:
+                # Answer-level interaction (short / essay)
+                client_data = clients.get(owner_player_id)
+                if not client_data:
+                    continue
+                student_db_id = client_data.get('student_db_id')
+                guest_name = client_data['name'] if not student_db_id else None
+                answer_db_id = answer_lookup.get((student_db_id, guest_name, q_id))
+                if not answer_db_id:
+                    continue
+                answer_interactions.append({
+                    'answer_id': answer_db_id,
+                    'answer_likes': likes_payload,
+                    'comments': comments_payload,
+                })
+
+    if not answer_interactions and not option_interactions:
+        return
+
+    payload = {
+        'session_anchor_submission_id': session_anchor,
+        'answer_interactions': answer_interactions,
+        'option_interactions': option_interactions,
+    }
+
+    try:
+        await submit_batch_interactions(token, payload)
+    except Exception as e:
+        print(f'Error submitting interactions: {e}')
+
+
 @sio.on(SocketEvent.END_GAME.value)
 @validate_payload(EndGamePayload)
 async def end_game(sid: str, payload: EndGamePayload):
@@ -907,10 +1030,11 @@ async def end_game(sid: str, payload: EndGamePayload):
                 )
 
         if batch_payload:
-            await submit_batch_submissions(token, batch_payload)
+            batch_result = await submit_batch_submissions(token, batch_payload)
+            await _submit_interactions(room, token, batch_result.get('answer_ids', []))
 
-    # Disconnect all active clients
-    for client in room.get('clients', {}).values():
+    # Disconnect all active clients (snapshot to avoid mutation during iteration)
+    for client in list(room.get('clients', {}).values()):
         if client.get('is_online') and client.get('sid'):
             await sio.emit(
                 'error',
@@ -919,8 +1043,8 @@ async def end_game(sid: str, payload: EndGamePayload):
             )
             await sio.disconnect(client['sid'])
 
-    # Disconnect all screens
-    for screen_sid in room.get('screen_sids', set()):
+    # Disconnect all screens (snapshot to avoid mutation during iteration)
+    for screen_sid in list(room.get('screen_sids', set())):
         await sio.emit(
             'error',
             {'message': 'The host has ended the game. Disconnecting...'},

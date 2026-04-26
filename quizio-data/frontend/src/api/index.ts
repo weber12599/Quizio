@@ -24,6 +24,7 @@ import type {
 import type {
     GetGradeReport,
     GradeReportResponse,
+    QuestionInteractionRead,
     StudentAnswerResponse,
     StudentSubmissionResponse
 } from './types/submissions'
@@ -218,6 +219,18 @@ const dataAPI = {
             {
                 score
             }
+        )
+    },
+    getSessionInteractions: async (submissionId: number) => {
+        return await instance.get<QuestionInteractionRead[]>(
+            '/submissions/session-interactions',
+            { params: { submission_id: submissionId } }
+        )
+    },
+    updateDiscussionScore: async (submissionId: number, score: number | null) => {
+        return await instance.patch<StudentSubmissionResponse>(
+            `/submissions/${submissionId}/discussion-score`,
+            { score }
         )
     }
 }
