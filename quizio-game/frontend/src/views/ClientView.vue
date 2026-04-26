@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
@@ -249,7 +249,7 @@ import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import InteractionDialog from '../components/InteractionDialog.vue'
 import { ChatDotRound } from '@element-plus/icons-vue'
-import type { PeerAnswer, QuestionInteractions, AnswerInteraction } from '../types/interaction'
+import type { PeerAnswer, QuestionInteractions } from '../types/interaction'
 
 interface Question {
     id: number

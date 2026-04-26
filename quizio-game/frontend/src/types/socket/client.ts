@@ -40,6 +40,13 @@ export interface CommentAnswerPayload {
     content: string
 }
 
+export interface LikeCommentPayload {
+    room_pin: string
+    question_id: number
+    answer_owner_id: string
+    comment_id: string
+}
+
 // ---------------------------------------------------------
 // Interaction payloads (Server -> Client)
 // ---------------------------------------------------------
@@ -65,6 +72,7 @@ export interface InteractionUpdatePayload {
             name: string
             content: string
             is_host?: boolean
+            likes: Array<{ from_id: string; name: string }>
         }>
     }
 }
