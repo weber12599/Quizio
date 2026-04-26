@@ -155,9 +155,6 @@
                                     >
                                         <span
                                             class="score-val"
-                                            :class="{
-                                                'no-score-val': sub.score === 0
-                                            }"
                                             @click="
                                                 openGradingDialog(
                                                     sub.submission_id,
@@ -207,7 +204,10 @@
         >
             <el-tabs v-model="activeTab" @tab-click="onTabClick">
                 <el-tab-pane label="答案評分" name="grading">
-                    <div v-loading="submissionLoading" class="grading-container">
+                    <div
+                        v-loading="submissionLoading"
+                        class="grading-container"
+                    >
                         <el-empty
                             v-if="!currentSubmission"
                             description="No submission found."
@@ -215,7 +215,9 @@
 
                         <div v-else>
                             <el-card
-                                v-for="(ans, index) in currentSubmission.answers"
+                                v-for="(
+                                    ans, index
+                                ) in currentSubmission.answers"
                                 :key="ans.id"
                                 class="grading-card"
                                 shadow="hover"
@@ -241,7 +243,9 @@
 
                                 <div
                                     class="q-content"
-                                    v-html="renderMarkdown(ans.question?.content)"
+                                    v-html="
+                                        renderMarkdown(ans.question?.content)
+                                    "
                                 ></div>
 
                                 <div
@@ -259,9 +263,13 @@
                                         class="option-item"
                                     >
                                         <span class="option-label"
-                                            >{{ String.fromCharCode(65 + oIdx) }}.</span
+                                            >{{
+                                                String.fromCharCode(65 + oIdx)
+                                            }}.</span
                                         >
-                                        <span class="option-text">{{ opt }}</span>
+                                        <span class="option-text">{{
+                                            opt
+                                        }}</span>
                                     </div>
                                 </div>
 
@@ -290,7 +298,11 @@
                                 </div>
 
                                 <div class="grading-controls">
-                                    <span style="margin-right: 10px; font-weight: bold"
+                                    <span
+                                        style="
+                                            margin-right: 10px;
+                                            font-weight: bold;
+                                        "
                                         >Score:</span
                                     >
                                     <el-input-number
@@ -318,8 +330,13 @@
                 <el-tab-pane label="互動紀錄" name="interactions">
                     <div class="grading-container">
                         <!-- Discussion Score row -->
-                        <div class="discussion-score-bar" v-if="currentSubmission">
-                            <span class="discussion-score-label">討論互動分數：</span>
+                        <div
+                            class="discussion-score-bar"
+                            v-if="currentSubmission"
+                        >
+                            <span class="discussion-score-label"
+                                >討論互動分數：</span
+                            >
                             <el-input-number
                                 v-model="discussionScore"
                                 :min="0"
@@ -343,7 +360,10 @@
 
                         <div v-loading="interactionsLoading">
                             <el-empty
-                                v-if="!interactionsLoading && sessionInteractions.length === 0"
+                                v-if="
+                                    !interactionsLoading &&
+                                    sessionInteractions.length === 0
+                                "
                                 description="此次考試沒有互動紀錄。"
                             />
 
@@ -352,10 +372,17 @@
                                 :key="qSection.question_id"
                                 class="interaction-question-section"
                             >
-                                <div class="interaction-q-title" v-html="renderMarkdown(qSection.question_title)"></div>
+                                <div
+                                    class="interaction-q-title"
+                                    v-html="
+                                        renderMarkdown(qSection.question_title)
+                                    "
+                                ></div>
 
                                 <!-- Closed-choice questions: discussion is per-OPTION -->
-                                <template v-if="isChoiceType(qSection.question_type)">
+                                <template
+                                    v-if="isChoiceType(qSection.question_type)"
+                                >
                                     <div
                                         v-for="opt in qSection.options"
                                         :key="opt.option_index"
@@ -363,20 +390,45 @@
                                     >
                                         <div class="ia-answer-header">
                                             <el-tag size="small" type="info">
-                                                {{ optionLabel(qSection, opt.option_index) }}
+                                                {{
+                                                    optionLabel(
+                                                        qSection,
+                                                        opt.option_index
+                                                    )
+                                                }}
                                             </el-tag>
-                                            <span class="ia-answer-content">{{ opt.option_text }}</span>
-                                            <span class="ia-likes-count" v-if="opt.option_likes.length > 0">
+                                            <span class="ia-answer-content">{{
+                                                opt.option_text
+                                            }}</span>
+                                            <span
+                                                class="ia-likes-count"
+                                                v-if="
+                                                    opt.option_likes.length > 0
+                                                "
+                                            >
                                                 ♥ {{ opt.option_likes.length }}
                                                 <el-tooltip
-                                                    :content="opt.option_likes.map(l => l.author.name).join('、')"
+                                                    :content="
+                                                        opt.option_likes
+                                                            .map(
+                                                                (l) =>
+                                                                    l.author
+                                                                        .name
+                                                            )
+                                                            .join('、')
+                                                    "
                                                     placement="top"
                                                 >
                                                     <span
                                                         v-for="like in opt.option_likes"
                                                         :key="like.id"
                                                         class="ia-like-dot"
-                                                        :class="{ 'ia-like-dot-me': isCurrentStudent(like.author) }"
+                                                        :class="{
+                                                            'ia-like-dot-me':
+                                                                isCurrentStudent(
+                                                                    like.author
+                                                                )
+                                                        }"
                                                     ></span>
                                                 </el-tooltip>
                                             </span>
@@ -386,22 +438,52 @@
                                             v-for="comment in opt.comments"
                                             :key="comment.id"
                                             class="ia-comment"
-                                            :class="{ 'ia-highlight-me': isCurrentStudent(comment.author) }"
+                                            :class="{
+                                                'ia-highlight-me':
+                                                    isCurrentStudent(
+                                                        comment.author
+                                                    )
+                                            }"
                                         >
                                             <el-tag
                                                 size="small"
-                                                :type="comment.author.role === 'teacher' ? 'warning' : isCurrentStudent(comment.author) ? 'success' : ''"
+                                                :type="
+                                                    comment.author.role ===
+                                                    'teacher'
+                                                        ? 'warning'
+                                                        : isCurrentStudent(
+                                                                comment.author
+                                                            )
+                                                          ? 'success'
+                                                          : ''
+                                                "
                                             >
                                                 {{ comment.author.name }}
                                             </el-tag>
-                                            <span class="ia-comment-text">{{ comment.content }}</span>
-                                            <span class="ia-likes-count" v-if="comment.comment_likes.length > 0">
-                                                ♥ {{ comment.comment_likes.length }}
+                                            <span class="ia-comment-text">{{
+                                                comment.content
+                                            }}</span>
+                                            <span
+                                                class="ia-likes-count"
+                                                v-if="
+                                                    comment.comment_likes
+                                                        .length > 0
+                                                "
+                                            >
+                                                ♥
+                                                {{
+                                                    comment.comment_likes.length
+                                                }}
                                                 <span
                                                     v-for="cl in comment.comment_likes"
                                                     :key="cl.id"
                                                     class="ia-like-dot"
-                                                    :class="{ 'ia-like-dot-me': isCurrentStudent(cl.author) }"
+                                                    :class="{
+                                                        'ia-like-dot-me':
+                                                            isCurrentStudent(
+                                                                cl.author
+                                                            )
+                                                    }"
                                                 ></span>
                                             </span>
                                         </div>
@@ -420,28 +502,64 @@
                                         v-for="ans in qSection.answers"
                                         :key="ans.answer_id"
                                         class="interaction-answer-block"
-                                        :class="{ 'ia-highlight-owner': isCurrentStudent(ans.author) }"
+                                        :class="{
+                                            'ia-highlight-owner':
+                                                isCurrentStudent(ans.author)
+                                        }"
                                     >
                                         <div class="ia-answer-header">
                                             <el-tag
                                                 size="small"
-                                                :type="isCurrentStudent(ans.author) ? 'success' : 'info'"
+                                                :type="
+                                                    isCurrentStudent(ans.author)
+                                                        ? 'success'
+                                                        : 'info'
+                                                "
                                             >
                                                 {{ ans.author.name }}
-                                                <span v-if="isCurrentStudent(ans.author)"> (此學生)</span>
+                                                <span
+                                                    v-if="
+                                                        isCurrentStudent(
+                                                            ans.author
+                                                        )
+                                                    "
+                                                >
+                                                    (此學生)</span
+                                                >
                                             </el-tag>
-                                            <span class="ia-answer-content">{{ ans.answer_content || '*(無作答)*' }}</span>
-                                            <span class="ia-likes-count" v-if="ans.answer_likes.length > 0">
+                                            <span class="ia-answer-content">{{
+                                                ans.answer_content ||
+                                                '*(無作答)*'
+                                            }}</span>
+                                            <span
+                                                class="ia-likes-count"
+                                                v-if="
+                                                    ans.answer_likes.length > 0
+                                                "
+                                            >
                                                 ♥ {{ ans.answer_likes.length }}
                                                 <el-tooltip
-                                                    :content="ans.answer_likes.map(l => l.author.name).join('、')"
+                                                    :content="
+                                                        ans.answer_likes
+                                                            .map(
+                                                                (l) =>
+                                                                    l.author
+                                                                        .name
+                                                            )
+                                                            .join('、')
+                                                    "
                                                     placement="top"
                                                 >
                                                     <span
                                                         v-for="like in ans.answer_likes"
                                                         :key="like.id"
                                                         class="ia-like-dot"
-                                                        :class="{ 'ia-like-dot-me': isCurrentStudent(like.author) }"
+                                                        :class="{
+                                                            'ia-like-dot-me':
+                                                                isCurrentStudent(
+                                                                    like.author
+                                                                )
+                                                        }"
                                                     ></span>
                                                 </el-tooltip>
                                             </span>
@@ -451,22 +569,52 @@
                                             v-for="comment in ans.comments"
                                             :key="comment.id"
                                             class="ia-comment"
-                                            :class="{ 'ia-highlight-me': isCurrentStudent(comment.author) }"
+                                            :class="{
+                                                'ia-highlight-me':
+                                                    isCurrentStudent(
+                                                        comment.author
+                                                    )
+                                            }"
                                         >
                                             <el-tag
                                                 size="small"
-                                                :type="comment.author.role === 'teacher' ? 'warning' : isCurrentStudent(comment.author) ? 'success' : ''"
+                                                :type="
+                                                    comment.author.role ===
+                                                    'teacher'
+                                                        ? 'warning'
+                                                        : isCurrentStudent(
+                                                                comment.author
+                                                            )
+                                                          ? 'success'
+                                                          : ''
+                                                "
                                             >
                                                 {{ comment.author.name }}
                                             </el-tag>
-                                            <span class="ia-comment-text">{{ comment.content }}</span>
-                                            <span class="ia-likes-count" v-if="comment.comment_likes.length > 0">
-                                                ♥ {{ comment.comment_likes.length }}
+                                            <span class="ia-comment-text">{{
+                                                comment.content
+                                            }}</span>
+                                            <span
+                                                class="ia-likes-count"
+                                                v-if="
+                                                    comment.comment_likes
+                                                        .length > 0
+                                                "
+                                            >
+                                                ♥
+                                                {{
+                                                    comment.comment_likes.length
+                                                }}
                                                 <span
                                                     v-for="cl in comment.comment_likes"
                                                     :key="cl.id"
                                                     class="ia-like-dot"
-                                                    :class="{ 'ia-like-dot-me': isCurrentStudent(cl.author) }"
+                                                    :class="{
+                                                        'ia-like-dot-me':
+                                                            isCurrentStudent(
+                                                                cl.author
+                                                            )
+                                                    }"
                                                 ></span>
                                             </span>
                                         </div>
@@ -710,7 +858,9 @@ const loadInteractions = async () => {
     if (!currentSubmission.value) return
     interactionsLoading.value = true
     try {
-        const res = await dataAPI.getSessionInteractions(currentSubmission.value.id)
+        const res = await dataAPI.getSessionInteractions(
+            currentSubmission.value.id
+        )
         sessionInteractions.value = res.data
     } catch (error) {
         ElMessage.error('Failed to fetch interaction records')
@@ -720,7 +870,10 @@ const loadInteractions = async () => {
 }
 
 const onTabClick = (tab: { paneName: string }) => {
-    if (tab.paneName === 'interactions' && sessionInteractions.value.length === 0) {
+    if (
+        tab.paneName === 'interactions' &&
+        sessionInteractions.value.length === 0
+    ) {
         loadInteractions()
     }
 }
@@ -729,7 +882,10 @@ const saveDiscussionScore = async () => {
     if (!currentSubmission.value) return
     savingDiscussionScore.value = true
     try {
-        await dataAPI.updateDiscussionScore(currentSubmission.value.id, discussionScore.value)
+        await dataAPI.updateDiscussionScore(
+            currentSubmission.value.id,
+            discussionScore.value
+        )
         ElMessage.success('討論互動分數已儲存')
     } catch (error) {
         ElMessage.error('儲存失敗')
@@ -741,10 +897,16 @@ const saveDiscussionScore = async () => {
 const isCurrentStudent = (author: InteractionAuthor): boolean => {
     if (!currentSubmission.value) return false
     if (currentSubmission.value.student_id) {
-        return author.role === 'student' && author.id === String(currentSubmission.value.student_id)
+        return (
+            author.role === 'student' &&
+            author.id === String(currentSubmission.value.student_id)
+        )
     }
     if (currentSubmission.value.guest_name) {
-        return author.role === 'guest' && author.name === currentSubmission.value.guest_name
+        return (
+            author.role === 'guest' &&
+            author.name === currentSubmission.value.guest_name
+        )
     }
     return false
 }
@@ -753,7 +915,10 @@ const isChoiceType = (type: string): boolean => {
     return type === 'single' || type === 'multiple' || type === 'boolean'
 }
 
-const optionLabel = (qSection: QuestionInteractionRead, idx: number): string => {
+const optionLabel = (
+    qSection: QuestionInteractionRead,
+    idx: number
+): string => {
     if (qSection.question_type === 'boolean') {
         return idx === 0 ? 'O (True)' : 'X (False)'
     }
