@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, field_validator, model_validator
@@ -22,12 +23,20 @@ class ClientJoinRoomPayload(BaseModel):
     guest_name: Optional[str] = None
     student_id: Optional[str] = None
     password: Optional[str] = None
+    player_id: Optional[str] = None
 
     @model_validator(mode='after')
     def validate_guest_or_student(self) -> 'ClientJoinRoomPayload':
         if self.is_guest:
-            if not isinstance(self.guest_name, str) or not self.guest_name.strip():
-                raise ValueError('guest_name is required when is_guest is True')
+            if not reduce(
+                lambda acc, s: acc or (isinstance(s, str) and bool(s.strip())),
+                [self.player_id, self.guest_name],
+                False,
+            ):
+                raise ValueError(
+                    'player_id or guest_name is required when is_guest is True'
+                )
+
         else:
             if (
                 not isinstance(self.student_id, str)

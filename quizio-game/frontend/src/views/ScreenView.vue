@@ -293,10 +293,14 @@ const joinUrl = computed(() => {
 })
 
 // --- Methods ---
-const joinAsScreen = () => {
+const joinAsScreen = (isAuto = false) => {
     if (!roomPin.value) {
         errorMessage.value = t('student.error_fill_fields')
         return
+    }
+
+    if (!isAuto) {
+        localStorage.removeItem('quizio_screen_pin')
     }
 
     isLoading.value = true
@@ -340,7 +344,7 @@ onMounted(() => {
     const savedPin = localStorage.getItem('quizio_screen_pin')
     if (savedPin && !isConnected.value) {
         roomPin.value = savedPin
-        joinAsScreen()
+        joinAsScreen(true)
     }
 
     socket.on('room_state', async (data) => {

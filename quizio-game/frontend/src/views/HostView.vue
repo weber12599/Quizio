@@ -1249,6 +1249,8 @@ const verifyTeacher = async () => {
     }
     isLoading.value = true
     errorMessage.value = ''
+    localStorage.removeItem('host_token')
+    localStorage.removeItem('setup_data')
     try {
         const formData = new URLSearchParams()
         formData.append('username', username.value)

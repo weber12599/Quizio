@@ -395,7 +395,8 @@ const performJoin = (
     pwd: string,
     gname: string,
     isGuest: boolean,
-    isAuto = false
+    isAuto = false,
+    savedPlayerId: string | null = null
 ) => {
     if (!isAuto) errorMessage.value = ''
     isLoading.value = true
@@ -409,7 +410,8 @@ const performJoin = (
             is_guest: isGuest,
             guest_name: isGuest ? gname : null,
             student_id: !isGuest ? sid : null,
-            password: !isGuest ? pwd : null
+            password: !isGuest ? pwd : null,
+            player_id: isAuto && isGuest ? savedPlayerId : null
         })
         localStorage.setItem(
             'quizio_student_creds',
@@ -431,6 +433,8 @@ const joinRoom = () => {
         return
     }
 
+    localStorage.removeItem('quizio_student_creds')
+    localStorage.removeItem('quizio_upload_token')
     performJoin(
         roomPin.value,
         studentId.value,
@@ -468,14 +472,14 @@ onMounted(() => {
     if (route.query.pin) roomPin.value = route.query.pin as string
     const saved = localStorage.getItem('quizio_student_creds')
     if (saved && !isConnected.value) {
-        const { pin, sid, pwd, gname, isGuest } = JSON.parse(saved)
+        const { pin, sid, pwd, gname, isGuest, player_id: savedPlayerId } = JSON.parse(saved)
         roomPin.value = pin
         studentId.value = sid
         password.value = pwd
         guestName.value = gname
         joinMode.value = isGuest ? 'guest' : 'student'
 
-        performJoin(pin, sid, pwd, gname, isGuest, true)
+        performJoin(pin, sid, pwd, gname, isGuest, true, savedPlayerId ?? null)
     }
 
     socket.on('room_state', (data) => {
@@ -488,7 +492,17 @@ onMounted(() => {
     socket.on('auth_success', (data) => {
         if (data.upload_token)
             localStorage.setItem('quizio_upload_token', data.upload_token)
-        if (data.player_id) myPlayerId.value = data.player_id as string
+        if (data.player_id) {
+            myPlayerId.value = data.player_id as string
+            const saved = localStorage.getItem('quizio_student_creds')
+            if (saved) {
+                try {
+                    const creds = JSON.parse(saved)
+                    creds.player_id = data.player_id
+                    localStorage.setItem('quizio_student_creds', JSON.stringify(creds))
+                } catch {}
+            }
+        }
     })
     socket.on('error', (data) => {
         errorMessage.value = data.message

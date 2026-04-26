@@ -260,18 +260,28 @@ async def client_join_room(sid: str, payload: ClientJoinRoomPayload):
             return
 
         token = room.get('token')
-        guest_info = await check_guest_credentials(payload.guest_name, token)
 
-        if not guest_info:
-            await sio.emit('error', {'message': 'Invalid credentials.'}, to=sid)
-            await sio.disconnect(sid)
-            return
+        existing = room['clients'].get(payload.player_id) if payload.player_id else None
+        if existing and existing.get('is_guest'):
+            player_id = payload.player_id
+            player_name = existing['name']
+            guest_info = await check_guest_credentials(player_name, token)
+            if not guest_info:
+                await sio.emit('error', {'message': 'Invalid credentials.'}, to=sid)
+                await sio.disconnect(sid)
+                return
+            upload_token = guest_info.get('upload_token')
+        else:
+            guest_info = await check_guest_credentials(payload.guest_name, token)
+            if not guest_info:
+                await sio.emit('error', {'message': 'Invalid credentials.'}, to=sid)
+                await sio.disconnect(sid)
+                return
+            player_id = guest_info.get('guest_id')
+            player_name = payload.guest_name
+            upload_token = guest_info.get('upload_token')
 
-        player_id = guest_info.get('guest_id')
-        player_name = payload.guest_name
-        upload_token = guest_info.get('upload_token')
-
-    await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
+    await sio.emit('auth_success', {'upload_token': upload_token, 'player_id': player_id}, to=sid)
 
     # 2. Register or Update client state (O(1) & Reconnection support)
     is_reconnect = player_id in room['clients']

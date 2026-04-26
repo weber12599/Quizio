@@ -5,6 +5,7 @@ export interface ClientJoinRoomPayload {
     room_pin: string
     is_guest?: boolean
     guest_name?: string | null
+    player_id?: string | null
     student_id?: string | null
     password?: string | null
 }
