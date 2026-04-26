@@ -257,6 +257,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
+import { storage } from '../utils/storage'
 import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import VueQrcode from 'vue-qrcode'
@@ -300,7 +301,7 @@ const joinAsScreen = (isAuto = false) => {
     }
 
     if (!isAuto) {
-        localStorage.removeItem('quizio_screen_pin')
+        storage.screenPin.clear()
     }
 
     isLoading.value = true
@@ -312,12 +313,12 @@ const joinAsScreen = (isAuto = false) => {
 
     if (socket.connected) {
         socket.emit('screen_join_room', joinPayload)
-        localStorage.setItem('quizio_screen_pin', roomPin.value)
+        storage.screenPin.set(roomPin.value)
     } else {
         socket.off('connect')
         socket.on('connect', () => {
             socket.emit('screen_join_room', joinPayload)
-            localStorage.setItem('quizio_screen_pin', roomPin.value)
+            storage.screenPin.set(roomPin.value)
         })
         socket.connect()
     }
@@ -325,7 +326,7 @@ const joinAsScreen = (isAuto = false) => {
 
 const leaveRoom = () => {
     socket.disconnect()
-    localStorage.removeItem('quizio_screen_pin')
+    storage.screenPin.clear()
 
     isJoined.value = false
     isConnected.value = false
@@ -341,7 +342,7 @@ const leaveRoom = () => {
 
 // --- Lifecycle ---
 onMounted(() => {
-    const savedPin = localStorage.getItem('quizio_screen_pin')
+    const savedPin = storage.screenPin.get()
     if (savedPin && !isConnected.value) {
         roomPin.value = savedPin
         joinAsScreen(true)
@@ -396,7 +397,7 @@ onMounted(() => {
         errorMessage.value = data.message
         isLoading.value = false
 
-        localStorage.removeItem('quizio_screen_pin')
+        storage.screenPin.clear()
         socket.disconnect()
         isJoined.value = false
         isConnected.value = false

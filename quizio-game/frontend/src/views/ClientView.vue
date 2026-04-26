@@ -243,6 +243,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
+import { storage } from '../utils/storage'
 import { SocketEvent } from '../types/socket'
 import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
@@ -413,10 +414,7 @@ const performJoin = (
             password: !isGuest ? pwd : null,
             player_id: isAuto && isGuest ? savedPlayerId : null
         })
-        localStorage.setItem(
-            'quizio_student_creds',
-            JSON.stringify({ pin, sid, pwd, gname, isGuest })
-        )
+        storage.studentCreds.set({ pin, sid, pwd, gname, isGuest })
     })
 }
 
@@ -433,8 +431,8 @@ const joinRoom = () => {
         return
     }
 
-    localStorage.removeItem('quizio_student_creds')
-    localStorage.removeItem('quizio_upload_token')
+    storage.studentCreds.clear()
+    storage.uploadToken.clear()
     performJoin(
         roomPin.value,
         studentId.value,
@@ -458,8 +456,8 @@ const submitAnswer = (questionId: number, answer: any) => {
 
 const leaveRoom = () => {
     socket.disconnect()
-    localStorage.removeItem('quizio_student_creds')
-    localStorage.removeItem('quizio_upload_token')
+    storage.studentCreds.clear()
+    storage.uploadToken.clear()
     isJoined.value = false
     isConnected.value = false
     questionsFeed.value = []
@@ -470,9 +468,9 @@ const leaveRoom = () => {
 
 onMounted(() => {
     if (route.query.pin) roomPin.value = route.query.pin as string
-    const saved = localStorage.getItem('quizio_student_creds')
+    const saved = storage.studentCreds.get()
     if (saved && !isConnected.value) {
-        const { pin, sid, pwd, gname, isGuest, player_id: savedPlayerId } = JSON.parse(saved)
+        const { pin, sid, pwd, gname, isGuest, player_id: savedPlayerId } = saved
         roomPin.value = pin
         studentId.value = sid
         password.value = pwd
@@ -491,16 +489,13 @@ onMounted(() => {
     })
     socket.on('auth_success', (data) => {
         if (data.upload_token)
-            localStorage.setItem('quizio_upload_token', data.upload_token)
+            storage.uploadToken.set(data.upload_token)
         if (data.player_id) {
             myPlayerId.value = data.player_id as string
-            const saved = localStorage.getItem('quizio_student_creds')
-            if (saved) {
-                try {
-                    const creds = JSON.parse(saved)
-                    creds.player_id = data.player_id
-                    localStorage.setItem('quizio_student_creds', JSON.stringify(creds))
-                } catch {}
+            const creds = storage.studentCreds.get()
+            if (creds) {
+                creds.player_id = data.player_id
+                storage.studentCreds.set(creds)
             }
         }
     })
@@ -510,7 +505,7 @@ onMounted(() => {
         socket.disconnect()
         isJoined.value = false
         isConnected.value = false
-        localStorage.removeItem('quizio_student_creds')
+        storage.studentCreds.clear()
     })
     socket.on('new_questions', (data) => {
         data.questions.forEach((incomingQ: any) => {

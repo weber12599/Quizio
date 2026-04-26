@@ -46,6 +46,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowDown, Close } from '@element-plus/icons-vue'
+import { storage } from '../utils/storage'
 
 // Import package.json to access the app version (adjust the relative path if your folder structure differs)
 import packageJson from '../../package.json'
@@ -63,7 +64,7 @@ const toggleMenu = () => {
 const toggleLanguage = () => {
     const newLang = locale.value === 'zh' ? 'en' : 'zh'
     locale.value = newLang
-    localStorage.setItem('app_lang', newLang)
+    storage.appLang.set(newLang)
     isOpen.value = false
 }
 </script>

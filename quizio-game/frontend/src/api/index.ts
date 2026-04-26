@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { storage } from '../utils/storage'
 
 // Create an Axios instance
 const api = axios.create({
@@ -9,7 +10,7 @@ const api = axios.create({
 // Request Interceptor: Attach token automatically
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('host_token')
+        const token = storage.hostToken.get()
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`
         }
@@ -29,8 +30,7 @@ api.interceptors.response.use(
     (error) => {
         if (error.response && error.response.status === 401) {
             console.warn('Unauthorized. Token might be invalid or expired.')
-            // Future: You can emit an event here to trigger a logout UI flow
-            localStorage.removeItem('host_token')
+            storage.hostToken.clear()
         }
         return Promise.reject(error)
     }

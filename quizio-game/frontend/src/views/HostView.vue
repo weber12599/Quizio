@@ -1029,6 +1029,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import api from '../api'
+import { storage } from '../utils/storage'
 import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import { formatQuestionType } from '../utils/locales'
@@ -1249,8 +1250,8 @@ const verifyTeacher = async () => {
     }
     isLoading.value = true
     errorMessage.value = ''
-    localStorage.removeItem('host_token')
-    localStorage.removeItem('setup_data')
+    storage.hostToken.clear()
+    storage.setupData.clear()
     try {
         const formData = new URLSearchParams()
         formData.append('username', username.value)
@@ -1261,7 +1262,7 @@ const verifyTeacher = async () => {
         })
 
         authToken.value = data.access_token
-        localStorage.setItem('host_token', data.access_token)
+        storage.hostToken.set(data.access_token)
 
         const [classRes, examRes] = await Promise.all([
             api.get('/students/classes'),
@@ -1317,17 +1318,14 @@ const startRoom = () => {
         isLoading.value = false
         step.value = 'room'
         isReconnecting.value = false
-        localStorage.setItem(
-            'setup_data',
-            JSON.stringify({
-                room_pin: roomPin.value,
-                exam_id: selectedExam.value,
-                target_class: selectedClass.value,
-                allow_guests: allowGuests.value,
-                expected_students: expectedStudents.value,
-                expected_student_info: expectedStudentInfo.value
-            })
-        )
+        storage.setupData.set({
+            room_pin: roomPin.value,
+            exam_id: selectedExam.value,
+            target_class: selectedClass.value,
+            allow_guests: allowGuests.value,
+            expected_students: expectedStudents.value,
+            expected_student_info: expectedStudentInfo.value
+        })
     })
 
     socket.off('disconnect')
@@ -1350,8 +1348,8 @@ const leaveRoom = () => {
         socket.emit('end_game', {
             room_pin: roomPin.value
         })
-    localStorage.removeItem('setup_data')
-    localStorage.removeItem('host_token')
+    storage.setupData.clear()
+    storage.hostToken.clear()
     isConnected.value = false
     isReconnecting.value = false
     authToken.value = ''
@@ -1761,12 +1759,8 @@ const getStudentProgress = (playerId: string) => {
 
 // --- Lifecycle ---
 onMounted(() => {
-    const savedToken = localStorage.getItem('host_token')
-    let savedSetupData = undefined
-    try {
-        const jsonStr = localStorage.getItem('setup_data')
-        if (jsonStr) savedSetupData = JSON.parse(jsonStr)
-    } catch {}
+    const savedToken = storage.hostToken.get()
+    const savedSetupData = storage.setupData.get()
 
     if (savedToken && savedSetupData && !isConnected.value) {
         authToken.value = savedToken
