@@ -8,18 +8,12 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useTheme } from './composables/useTheme'
+
+const { initTheme } = useTheme()
 
 onMounted(() => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
-    const toggleDark = (e: MediaQueryListEvent | MediaQueryList) => {
-        if (e.matches) {
-            document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
-    }
-    toggleDark(prefersDark)
-    prefersDark.addEventListener('change', toggleDark)
+    initTheme()
 })
 </script>
 

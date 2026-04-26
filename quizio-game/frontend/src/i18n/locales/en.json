@@ -113,6 +113,16 @@
         "delete": "Delete",
         "be_first_to_comment": "Be the first to comment"
     },
+    "fab": {
+        "theme_light": "Light",
+        "theme_dark": "Dark",
+        "theme_system": "Auto",
+        "fullscreen": "Fullscreen",
+        "exit_fullscreen": "Exit Fullscreen",
+        "font_normal": "Font: Normal",
+        "font_large": "Font: Large",
+        "font_xlarge": "Font: X-Large"
+    },
     "client": {
         "title": "Join a Game",
         "btn_join": "Join Room",

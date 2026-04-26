@@ -52,6 +52,43 @@
     }
 }
 
+/* Class-based theme overrides — higher specificity than @media :root */
+html.dark {
+    --bg-color: #111827;
+    --bg-card: #1f2937;
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --border-color: #374151;
+    --input-bg: #374151;
+    --input-bg-focus: #1f2937;
+    --input-border: #4b5563;
+    --input-text: #f9fafb;
+    --hover-bg: #374151;
+    --highlight-bg: rgba(79, 70, 229, 0.15);
+    --chip-bg: rgba(99, 102, 241, 0.2);
+    --chip-border: rgba(99, 102, 241, 0.4);
+}
+
+html.light {
+    --bg-color: #f3f4f6;
+    --bg-card: #ffffff;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --input-bg: #f9fafb;
+    --input-bg-focus: #ffffff;
+    --input-border: #d1d5db;
+    --input-text: #1f2937;
+    --hover-bg: #f3f4f6;
+    --highlight-bg: #eef2ff;
+    --chip-bg: #eef2ff;
+    --chip-border: #c7d2fe;
+}
+
+/* Font size scaler for screen/projector view */
+html[data-fontsize='large'] { font-size: 112.5%; }
+html[data-fontsize='xlarge'] { font-size: 125%; }
+
 /* Global Resets & Base Styles */
 *,
 *::before,

@@ -1,5 +1,7 @@
 const KEYS = {
     APP_LANG:      'app_lang',
+    APP_THEME:     'app_theme',
+    APP_FONT_SIZE: 'app_font_size',
     HOST_TOKEN:    'host_token',
     SETUP_DATA:    'setup_data',
     STUDENT_CREDS: 'quizio_student_creds',
@@ -36,6 +38,18 @@ export const storage = {
         get: (): 'zh' | 'en' | null => localStorage.getItem(KEYS.APP_LANG) as 'zh' | 'en' | null,
         set: (v: 'zh' | 'en') => localStorage.setItem(KEYS.APP_LANG, v),
         clear: () => localStorage.removeItem(KEYS.APP_LANG),
+    },
+    appTheme: {
+        get: (): 'light' | 'dark' | 'system' | null =>
+            localStorage.getItem(KEYS.APP_THEME) as 'light' | 'dark' | 'system' | null,
+        set: (v: 'light' | 'dark' | 'system') => localStorage.setItem(KEYS.APP_THEME, v),
+        clear: () => localStorage.removeItem(KEYS.APP_THEME),
+    },
+    appFontSize: {
+        get: (): 'normal' | 'large' | 'xlarge' | null =>
+            localStorage.getItem(KEYS.APP_FONT_SIZE) as 'normal' | 'large' | 'xlarge' | null,
+        set: (v: 'normal' | 'large' | 'xlarge') => localStorage.setItem(KEYS.APP_FONT_SIZE, v),
+        clear: () => localStorage.removeItem(KEYS.APP_FONT_SIZE),
     },
     hostToken: {
         get: (): string | null => localStorage.getItem(KEYS.HOST_TOKEN),

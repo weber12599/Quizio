@@ -24,6 +24,47 @@
                         {{ locale === 'zh' ? 'English' : '中文' }}
                     </span>
                 </el-button>
+
+                <el-button
+                    round
+                    size="large"
+                    @click="cycleTheme"
+                    class="fab-item shadow-hover"
+                >
+                    <el-icon :size="18" style="margin-right: 8px">
+                        <component :is="themeIcon" />
+                    </el-icon>
+                    <span style="font-weight: bold">{{ themeLabel }}</span>
+                </el-button>
+
+                <el-button
+                    v-if="isScreenRoute"
+                    round
+                    size="large"
+                    @click="toggleFullscreen"
+                    class="fab-item shadow-hover"
+                >
+                    <el-icon :size="18" style="margin-right: 8px">
+                        <ScaleToOriginal v-if="isFullscreen" />
+                        <FullScreen v-else />
+                    </el-icon>
+                    <span style="font-weight: bold">
+                        {{ isFullscreen ? t('fab.exit_fullscreen') : t('fab.fullscreen') }}
+                    </span>
+                </el-button>
+
+                <el-button
+                    v-if="isScreenRoute"
+                    round
+                    size="large"
+                    @click="cycleFontSize"
+                    class="fab-item shadow-hover"
+                >
+                    <el-icon :size="18" style="margin-right: 8px">
+                        <Rank />
+                    </el-icon>
+                    <span style="font-weight: bold">{{ fontSizeLabel }}</span>
+                </el-button>
             </div>
         </transition>
 
@@ -43,19 +84,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, Close } from '@element-plus/icons-vue'
+import { useRoute } from 'vue-router'
+import {
+    ArrowDown,
+    Close,
+    Sunny,
+    Moon,
+    Monitor,
+    FullScreen,
+    ScaleToOriginal,
+    Rank,
+} from '@element-plus/icons-vue'
 import { storage } from '../utils/storage'
-
-// Import package.json to access the app version (adjust the relative path if your folder structure differs)
+import { useTheme } from '../composables/useTheme'
+import { useFullscreen } from '../composables/useFullscreen'
 import packageJson from '../../package.json'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
+const route = useRoute()
 const isOpen = ref(false)
-
-// Extract the version number
 const appVersion = packageJson.version
+
+const isScreenRoute = computed(() => route.name === 'screen')
+
+// Theme
+const { themeMode, cycleTheme } = useTheme()
+const themeIcon = computed(() => ({ light: Sunny, dark: Moon, system: Monitor }[themeMode.value]))
+const themeLabel = computed(() => t(`fab.theme_${themeMode.value}`))
+
+// Fullscreen
+const { isFullscreen, toggleFullscreen } = useFullscreen()
+
+// Font size
+const fontSizes = ['normal', 'large', 'xlarge'] as const
+type FontSize = (typeof fontSizes)[number]
+const fontSize = ref<FontSize>(storage.appFontSize.get() ?? 'normal')
+
+function cycleFontSize(): void {
+    const next = fontSizes[(fontSizes.indexOf(fontSize.value) + 1) % fontSizes.length]
+    fontSize.value = next
+    storage.appFontSize.set(next)
+    if (next === 'normal') {
+        document.documentElement.removeAttribute('data-fontsize')
+    } else {
+        document.documentElement.setAttribute('data-fontsize', next)
+    }
+}
+
+const fontSizeLabel = computed(() => t(`fab.font_${fontSize.value}`))
 
 const toggleMenu = () => {
     isOpen.value = !isOpen.value

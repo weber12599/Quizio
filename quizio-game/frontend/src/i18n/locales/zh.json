@@ -113,6 +113,16 @@
         "delete": "刪除",
         "be_first_to_comment": "成為第一個留言的人"
     },
+    "fab": {
+        "theme_light": "淺色",
+        "theme_dark": "深色",
+        "theme_system": "跟隨系統",
+        "fullscreen": "全螢幕",
+        "exit_fullscreen": "退出全螢幕",
+        "font_normal": "字體：正常",
+        "font_large": "字體：大",
+        "font_xlarge": "字體：超大"
+    },
     "client": {
         "title": "加入遊戲",
         "subtitle": "請輸入房間 PIN 碼與學生登入資訊。",
