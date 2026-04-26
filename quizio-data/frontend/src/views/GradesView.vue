@@ -963,6 +963,11 @@ const closeGradingDialog = () => {
 .interaction-q-title :deep(p) {
     margin: 0;
 }
+.interaction-q-title :deep(img),
+.interaction-q-title :deep(video) {
+    max-width: 100%;
+    height: auto;
+}
 
 .interaction-answer-block {
     border: 1px solid var(--el-border-color-lighter);
