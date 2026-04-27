@@ -122,7 +122,7 @@
                             />
                         </el-select>
                         <span v-if="!columnMap.student_id" class="error-text"
-                            >Required</span
+                            >{{ $t('common.error_required') }}</span
                         >
                     </div>
 
@@ -144,7 +144,7 @@
                             />
                         </el-select>
                         <span v-if="!columnMap.name" class="error-text"
-                            >Required</span
+                            >{{ $t('common.error_required') }}</span
                         >
                     </div>
 
@@ -296,7 +296,7 @@
                 <div class="preview-count">
                     {{
                         $t('students.import.preview_count', {
-                            count: buildPayload().length
+                            count: fullPayload.length
                         })
                     }}
                 </div>
@@ -514,9 +514,8 @@ const importing = ref(false)
 const importResult = ref<ImportResult>({ created: [], updated: [], failed: [] })
 
 // Computed properties
-const previewPayload = computed(() => {
-    return buildPayload().slice(0, 10)
-})
+const fullPayload = computed(() => buildPayload())
+const previewPayload = computed(() => fullPayload.value.slice(0, 10))
 const selectedRowCount = computed(() => {
     if (rowStart.value > rowEnd.value) return 0
     return rowEnd.value - rowStart.value + 1
@@ -540,11 +539,7 @@ const columnOptions = computed(() => {
     const maxCols = Math.max(...colLengths)
     if (maxCols <= 0 || !isFinite(maxCols)) return []
 
-    const cols: string[] = []
-    for (let i = 0; i < maxCols; i++) {
-        cols.push(String.fromCharCode(65 + i))
-    }
-    return cols
+    return Array.from({ length: maxCols }, (_, i) => indexToColLabel(i))
 })
 
 // Validate year column
@@ -679,9 +674,26 @@ const getPassword = (studentId: string): string => {
     return String(Math.floor(1000 + Math.random() * 9000))
 }
 
+// Converts 0-based index to Excel column label: 0→A, 25→Z, 26→AA, 27→AB
+const indexToColLabel = (i: number): string => {
+    let result = ''
+    let n = i + 1
+    while (n > 0) {
+        const rem = (n - 1) % 26
+        result = String.fromCharCode(65 + rem) + result
+        n = Math.floor((n - 1) / 26)
+    }
+    return result
+}
+
+// Inverse: 'A'→0, 'Z'→25, 'AA'→26, 'AB'→27
 const columnCodeToIndex = (code: string): number => {
     if (!code) return -1
-    return code.charCodeAt(0) - 65
+    let result = 0
+    for (let i = 0; i < code.length; i++) {
+        result = result * 26 + (code.charCodeAt(i) - 64)
+    }
+    return result - 1
 }
 
 const buildPayload = (): StudentCreate[] => {
@@ -785,6 +797,7 @@ const handleClose = () => {
     fileName.value = ''
     headers.value = []
     allRows.value = []
+    workbook.value = null
     columnMap.value = {
         student_id: '',
         name: '',

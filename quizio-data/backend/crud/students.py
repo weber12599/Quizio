@@ -1,9 +1,12 @@
+import logging
 from typing import Optional
 
 import models
 import schemas
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 # Get a single student by ID (primary key) with data isolation
@@ -171,7 +174,8 @@ async def upsert_students_batch(
                     db.add(models.Student(**d))
                     await db.flush()
                     created.append({'student_id': s.student_id, 'name': s.name})
-        except Exception:
+        except Exception as e:
+            logger.exception("upsert_students_batch failed for student_id %s", s.student_id)
             failed.append({'student_id': s.student_id, 'name': s.name, 'reason': 'error'})
     await db.commit()
     return created, updated, failed
@@ -196,7 +200,8 @@ async def batch_update_students(
                     student.class_name = item.class_name
                 await db.flush()
             updated_ids.append(item.id)
-        except Exception:
+        except Exception as e:
+            logger.exception("batch_update_students failed for student id %s", item.id)
             failed_ids.append(item.id)
     await db.commit()
     return updated_ids, failed_ids

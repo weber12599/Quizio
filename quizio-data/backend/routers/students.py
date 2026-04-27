@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import models
 import schemas
@@ -6,6 +6,7 @@ from core.deps import get_current_user
 from crud import students as crud_students
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,7 +85,7 @@ async def create_new_student(
 
 @router.post('/bulk', response_model=schemas.StudentBulkUpsertResponse)
 async def bulk_upsert_students(
-    students: List[schemas.StudentCreate],
+    students: Annotated[List[schemas.StudentCreate], Field(max_length=500)],
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

@@ -53,6 +53,7 @@
             </el-form>
 
             <el-table
+                ref="tableRef"
                 :data="rows"
                 v-loading="loading"
                 border
@@ -243,7 +244,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTable } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Upload } from '@element-plus/icons-vue'
 
@@ -278,6 +279,7 @@ const dialogVisible = ref(false)
 const dialogType = ref<'add' | 'edit'>('add')
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
+const tableRef = ref<InstanceType<typeof ElTable>>()
 const filterYear = ref<number | null>(null)
 const filterClass = ref<string | null>(null)
 const filterStatus = ref<boolean | null>(true)
@@ -507,7 +509,7 @@ const resetForm = () => {
 // Batch Edit
 const handleBatchEdit = async () => {
     if (batchEditYear.value === null && !batchEditClass.value) {
-        ElMessage.warning(t('common.error'))
+        ElMessage.warning(t('students.batch_edit_no_fields'))
         return
     }
 
@@ -523,6 +525,7 @@ const handleBatchEdit = async () => {
         await dataAPI.batchUpdateStudents(payload)
         ElMessage.success(t('common.success'))
         batchEditVisible.value = false
+        tableRef.value?.clearSelection()
         selectedRows.value = []
         batchEditYear.value = null
         batchEditClass.value = null

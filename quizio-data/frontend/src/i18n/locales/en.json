@@ -174,7 +174,8 @@
     "batch_edit_year": "Admission Year",
     "batch_edit_year_placeholder": "Leave blank to skip",
     "batch_edit_class": "Class",
-    "batch_edit_class_placeholder": "Leave blank to skip"
+    "batch_edit_class_placeholder": "Leave blank to skip",
+    "batch_edit_no_fields": "Please fill in at least one field to update"
   },
   "questions": {
     "title": "Question Management",

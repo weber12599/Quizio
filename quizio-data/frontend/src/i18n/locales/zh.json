@@ -174,7 +174,8 @@
     "batch_edit_year": "入學年份",
     "batch_edit_year_placeholder": "留空略過",
     "batch_edit_class": "班級",
-    "batch_edit_class_placeholder": "留空略過"
+    "batch_edit_class_placeholder": "留空略過",
+    "batch_edit_no_fields": "請至少填寫一個欄位進行更新"
   },
   "questions": {
     "title": "題目管理",
