@@ -1,12 +1,13 @@
 from collections import defaultdict
 from datetime import date
 from typing import List, Optional
+import uuid
 
 import models
 import schemas
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, contains_eager
+from sqlalchemy.orm import selectinload
 
 
 async def get_manual_grading_question_ids(db: AsyncSession, question_ids: set) -> set:
@@ -79,6 +80,9 @@ async def create_submissions_batch(
 ) -> dict:
     new_submissions = []
 
+    # Generate one session_id for all submissions in this batch
+    session_id = str(uuid.uuid4())
+
     # 1. Add all submission records to the session
     for sub_in in submissions_in:
         sub_data = {
@@ -86,6 +90,7 @@ async def create_submissions_batch(
             'student_id': sub_in.student_id,
             'guest_name': sub_in.guest_name,
             'record_at': sub_in.record_at,
+            'session_id': session_id,
         }
 
         db_sub = models.StudentSubmission(**sub_data)
@@ -384,30 +389,34 @@ async def get_session_interactions(
     if not target_sub:
         return []
 
-    # Load all submissions in this session with answer-level interaction data
-    result = await db.execute(
-        select(models.StudentSubmission)
-        .options(
-            selectinload(models.StudentSubmission.student),
-            selectinload(models.StudentSubmission.answers).options(
-                selectinload(models.StudentAnswer.question),
-                selectinload(models.StudentAnswer.comments).options(
-                    selectinload(models.InteractionComment.student),
-                    selectinload(models.InteractionComment.user),
-                    selectinload(models.InteractionComment.likes).options(
-                        selectinload(models.InteractionLike.student),
-                        selectinload(models.InteractionLike.user),
-                    ),
-                ),
-                selectinload(models.StudentAnswer.likes).options(
+    # Load all submissions in this session with answer-level interaction data.
+    # Group by session_id if available, otherwise fall back to record_at for legacy rows.
+    query = select(models.StudentSubmission).options(
+        selectinload(models.StudentSubmission.student),
+        selectinload(models.StudentSubmission.answers).options(
+            selectinload(models.StudentAnswer.question),
+            selectinload(models.StudentAnswer.comments).options(
+                selectinload(models.InteractionComment.student),
+                selectinload(models.InteractionComment.user),
+                selectinload(models.InteractionComment.likes).options(
                     selectinload(models.InteractionLike.student),
                     selectinload(models.InteractionLike.user),
                 ),
             ),
-        )
-        .where(models.StudentSubmission.exam_id == target_sub.exam_id)
-        .where(models.StudentSubmission.record_at == target_sub.record_at)
-    )
+            selectinload(models.StudentAnswer.likes).options(
+                selectinload(models.InteractionLike.student),
+                selectinload(models.InteractionLike.user),
+            ),
+        ),
+    ).where(models.StudentSubmission.exam_id == target_sub.exam_id)
+
+    if target_sub.session_id:
+        query = query.where(models.StudentSubmission.session_id == target_sub.session_id)
+    else:
+        # Fallback for legacy rows without session_id
+        query = query.where(models.StudentSubmission.record_at == target_sub.record_at)
+
+    result = await db.execute(query)
     submissions = result.scalars().all()
     session_submission_ids = [s.id for s in submissions]
 
@@ -532,27 +541,31 @@ async def get_session_interactions(
             entry = get_opt_entry(like.question_id, like.option_index)
             entry['option_likes'].append({'id': like.id, 'author': like.author_info})
 
-        # Attach option entries to their question_map entries (creating an
-        # entry for questions that have only option-level activity).
-        for (q_id, idx), entry in opt_map.items():
-            if q_id not in question_map:
-                # Question wasn't covered by any answers in the session
-                # (rare — happens if no student answered it). Load it lazily.
-                q_result = await db.execute(
-                    select(models.Question).where(models.Question.id == q_id)
-                )
-                q = q_result.scalar_one_or_none()
-                question_map[q_id] = {
-                    'question_id': q_id,
-                    'question_title': q.content if q else '',
-                    'question_type': q.type if q else '',
-                    'question_options': q.options if q else None,
+        # Bulk load any questions not yet in question_map (O(1) instead of O(N))
+        missing_q_ids = [q_id for (q_id, _) in opt_map if q_id not in question_map]
+        if missing_q_ids:
+            q_rows = await db.execute(
+                select(models.Question).where(models.Question.id.in_(missing_q_ids))
+            )
+            for q in q_rows.scalars().all():
+                question_map[q.id] = {
+                    'question_id': q.id,
+                    'question_title': q.content or '',
+                    'question_type': q.type or '',
+                    'question_options': q.options,
                     'answers': [],
                     'options': [],
                 }
-                if q and q.options and 0 <= idx < len(q.options):
-                    entry['option_text'] = q.options[idx]
-            question_map[q_id]['options'].append(entry)
+
+        # Attach option entries to their question_map entries
+        for (q_id, idx), entry in opt_map.items():
+            if q_id in question_map:
+                # Fix option_text if it was initially empty
+                if not entry['option_text']:
+                    opts = question_map[q_id].get('question_options') or []
+                    if 0 <= idx < len(opts):
+                        entry['option_text'] = opts[idx]
+                question_map[q_id]['options'].append(entry)
 
         # Sort each question's options by option_index for stable rendering
         for entry in question_map.values():

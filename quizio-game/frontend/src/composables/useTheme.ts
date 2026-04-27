@@ -22,6 +22,8 @@ function handleOsChange(e: MediaQueryListEvent): void {
         : document.documentElement.classList.add('light')
 }
 
+mql.addEventListener('change', handleOsChange)
+
 export function useTheme() {
     function setTheme(mode: ThemeMode): void {
         themeMode.value = mode
@@ -36,7 +38,6 @@ export function useTheme() {
 
     function initTheme(): void {
         applyTheme(themeMode.value)
-        mql.addEventListener('change', handleOsChange)
     }
 
     return { themeMode: readonly(themeMode), cycleTheme, initTheme }

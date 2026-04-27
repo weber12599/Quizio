@@ -27,3 +27,6 @@ export interface AnswerInteraction {
 
 // Record<answer_owner_player_id, AnswerInteraction>
 export type QuestionInteractions = Record<string, AnswerInteraction>
+
+// Prefix for option-level interaction owner IDs (e.g., 'opt_0', 'opt_1')
+export const OPTION_OWNER_PREFIX = 'opt_'

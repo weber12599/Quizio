@@ -36,6 +36,9 @@ from .server import sio
 # In-memory room state management (O(1) Optimized Structure)
 room_states: Dict[str, dict] = {}
 
+# Prefix for option-level interaction owner IDs (e.g., 'opt_0', 'opt_1')
+OPTION_OWNER_PREFIX = 'opt_'
+
 
 def validate_payload(schema_class):
     """
@@ -933,10 +936,10 @@ async def _submit_interactions(room: dict, token: str, answer_ids: list) -> None
             if not likes_payload and not comments_payload:
                 continue
 
-            if isinstance(owner_player_id, str) and owner_player_id.startswith('opt_'):
+            if isinstance(owner_player_id, str) and owner_player_id.startswith(OPTION_OWNER_PREFIX):
                 # Option-level interaction (single / multiple / boolean)
                 try:
-                    option_index = int(owner_player_id[len('opt_'):])
+                    option_index = int(owner_player_id[len(OPTION_OWNER_PREFIX):])
                 except ValueError:
                     continue
                 option_interactions.append({
@@ -1031,7 +1034,10 @@ async def end_game(sid: str, payload: EndGamePayload):
 
         if batch_payload:
             batch_result = await submit_batch_submissions(token, batch_payload)
-            await _submit_interactions(room, token, batch_result.get('answer_ids', []))
+            answer_ids = batch_result.get('answer_ids', [])
+            if batch_payload and not answer_ids:
+                print(f'[warn] end_game: batch submission returned no answer_ids for room {payload.room_pin}')
+            await _submit_interactions(room, token, answer_ids)
 
     # Disconnect all active clients (snapshot to avoid mutation during iteration)
     for client in list(room.get('clients', {}).values()):

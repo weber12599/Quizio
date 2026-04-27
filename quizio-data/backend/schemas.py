@@ -259,6 +259,7 @@ class StudentSubmission(StudentSubmissionBase):
     id: int
     created_at: datetime
     discussion_score: Optional[int] = None
+    session_id: Optional[str] = None
     answers: List[StudentAnswer] = []
 
     model_config = ConfigDict(from_attributes=True)

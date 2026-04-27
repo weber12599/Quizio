@@ -261,6 +261,7 @@ class StudentSubmission(SoftDeleteMixin, Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     discussion_score = Column(Integer, nullable=True)
+    session_id = Column(String(36), nullable=True, index=True)
 
     exam = relationship('Exam')
     student = relationship('Student')
@@ -367,6 +368,10 @@ class InteractionComment(SoftDeleteMixin, InteractiveMixin, Base):
             raise ValueError(
                 'A comment can only target one item (either answer or question option).'
             )
+        if non_null_count == 0 and value is None:
+            raise ValueError(
+                'A comment must target either an answer or a question option.'
+            )
         return value
 
 
@@ -432,6 +437,10 @@ class InteractionLike(SoftDeleteMixin, InteractiveMixin, Base):
         if non_null_count > 1:
             raise ValueError(
                 'A like can only target one item (answer, comment, or question option).'
+            )
+        if non_null_count == 0 and value is None:
+            raise ValueError(
+                'A like must target exactly one item (answer, comment, or question option).'
             )
 
         return value
