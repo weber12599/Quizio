@@ -7,7 +7,10 @@ import type {
     StudentCreate,
     StudentResponse,
     StudentsGet,
-    StudentUpdate
+    StudentUpdate,
+    StudentBulkUpsertResponse,
+    StudentBatchUpdateItem,
+    StudentBatchUpdateResponse
 } from './types/students'
 import type {
     QuestionCreate,
@@ -142,6 +145,18 @@ const dataAPI = {
     },
     deleteStudent: async (id: number) => {
         return await instance.delete(`/students/${id}`)
+    },
+    bulkUpsertStudents: async (data: StudentCreate[]) => {
+        return await instance.post<StudentBulkUpsertResponse>(
+            '/students/bulk',
+            data
+        )
+    },
+    batchUpdateStudents: async (data: StudentBatchUpdateItem[]) => {
+        return await instance.patch<StudentBatchUpdateResponse>(
+            '/students/batch',
+            data
+        )
     },
     // Question
     getQuestions: async (params: QuestionsGet) => {

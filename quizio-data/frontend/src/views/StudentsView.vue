@@ -4,9 +4,17 @@
             <template #header>
                 <div class="card-header">
                     <h2>{{ $t('students.title') }}</h2>
-                    <el-button type="primary" @click="openAddDialog">
-                        <el-icon><Plus /></el-icon> {{ $t('students.add_student') }}
-                    </el-button>
+                    <div class="header-buttons">
+                        <el-button v-if="selectedRows.length > 0" @click="batchEditVisible = true">
+                            {{ $t('students.batch_edit', { count: selectedRows.length }) }}
+                        </el-button>
+                        <el-button @click="importDialogVisible = true">
+                            <el-icon><Upload /></el-icon> {{ $t('students.import_students') }}
+                        </el-button>
+                        <el-button type="primary" @click="openAddDialog">
+                            <el-icon><Plus /></el-icon> {{ $t('students.add_student') }}
+                        </el-button>
+                    </div>
                 </div>
             </template>
 
@@ -49,7 +57,9 @@
                 v-loading="loading"
                 border
                 style="width: 100%"
+                @selection-change="(rows) => selectedRows = rows"
             >
+                <el-table-column type="selection" width="40" />
                 <el-table-column
                     prop="student_id"
                     :label="$t('students.columns.student_id')"
@@ -182,6 +192,51 @@
                 </span>
             </template>
         </el-dialog>
+
+        <el-dialog
+            v-model="batchEditVisible"
+            :title="$t('students.batch_edit_title')"
+            width="400px"
+        >
+            <el-form label-width="120px">
+                <el-form-item :label="$t('students.batch_edit_year')">
+                    <el-input-number
+                        v-model="batchEditYear"
+                        align="left"
+                        :controls="false"
+                        clearable
+                        :placeholder="$t('students.batch_edit_year_placeholder')"
+                        :style="{ width: '100%' }"
+                    />
+                </el-form-item>
+
+                <el-form-item :label="$t('students.batch_edit_class')">
+                    <el-input
+                        v-model="batchEditClass"
+                        clearable
+                        :placeholder="$t('students.batch_edit_class_placeholder')"
+                    />
+                </el-form-item>
+            </el-form>
+
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="batchEditVisible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button
+                        type="primary"
+                        :loading="batchEditLoading"
+                        @click="handleBatchEdit"
+                    >
+                        {{ $t('common.confirm') }}
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <StudentImportDialog
+            v-model="importDialogVisible"
+            @imported="fetchStudents"
+        />
     </div>
 </template>
 
@@ -190,14 +245,17 @@ import { ref, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Plus, Upload } from '@element-plus/icons-vue'
 
 import dataAPI, { type ApiError } from '../api'
 import type {
     StudentCreate,
     StudentResponse,
     StudentsGet,
-    StudentUpdate
+    StudentUpdate,
+    StudentBatchUpdateItem
 } from '../api/types/students'
+import StudentImportDialog from '../components/StudentImportDialog.vue'
 
 const { t } = useI18n()
 
@@ -223,6 +281,12 @@ const formRef = ref<FormInstance>()
 const filterYear = ref<number | null>(null)
 const filterClass = ref<string | null>(null)
 const filterStatus = ref<boolean | null>(true)
+const importDialogVisible = ref(false)
+const selectedRows = ref<StudentRow[]>([])
+const batchEditVisible = ref(false)
+const batchEditYear = ref<number | null>(null)
+const batchEditClass = ref<string | null>(null)
+const batchEditLoading = ref(false)
 
 // Form Data
 const formData = reactive<StudentFormData>({
@@ -440,6 +504,37 @@ const resetForm = () => {
     })
 }
 
+// Batch Edit
+const handleBatchEdit = async () => {
+    if (batchEditYear.value === null && !batchEditClass.value) {
+        ElMessage.warning(t('common.error'))
+        return
+    }
+
+    batchEditLoading.value = true
+    try {
+        const payload = selectedRows.value
+            .map((row) => ({
+                id: row.id,
+                ...(batchEditYear.value !== null ? { admission_year: batchEditYear.value } : {}),
+                ...(batchEditClass.value ? { class_name: batchEditClass.value } : {})
+            }))
+
+        await dataAPI.batchUpdateStudents(payload)
+        ElMessage.success(t('common.success'))
+        batchEditVisible.value = false
+        selectedRows.value = []
+        batchEditYear.value = null
+        batchEditClass.value = null
+        fetchStudents()
+    } catch (err: unknown) {
+        const error = err as ApiError
+        ElMessage.error(error.response?.data?.detail || t('common.error'))
+    } finally {
+        batchEditLoading.value = false
+    }
+}
+
 onMounted(() => {
     fetchStudents()
 })
@@ -455,6 +550,10 @@ onMounted(() => {
     margin: 0;
     font-size: 1.2rem;
     color: var(--el-text-color-primary);
+}
+.header-buttons {
+    display: flex;
+    gap: 8px;
 }
 .filter-bar {
     margin-bottom: 20px;

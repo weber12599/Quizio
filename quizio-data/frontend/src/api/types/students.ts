@@ -32,3 +32,31 @@ export interface StudentUpdate {
     admission_year?: number | null
     class_name?: string | null
 }
+
+export interface StudentBulkResultItem {
+    student_id: string
+    name: string
+}
+
+export interface StudentBulkFailureItem {
+    student_id: string
+    name: string
+    reason: string
+}
+
+export interface StudentBulkUpsertResponse {
+    created: StudentBulkResultItem[]
+    updated: StudentBulkResultItem[]
+    failed: StudentBulkFailureItem[]
+}
+
+export interface StudentBatchUpdateItem {
+    id: number
+    admission_year?: number | null
+    class_name?: string | null
+}
+
+export interface StudentBatchUpdateResponse {
+    updated: number[]
+    failed: number[]
+}

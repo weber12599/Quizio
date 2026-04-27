@@ -112,6 +112,34 @@ class StudentResponse(StudentBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class StudentBulkResultItem(BaseModel):
+    student_id: str
+    name: str
+
+
+class StudentBulkFailureItem(BaseModel):
+    student_id: str
+    name: str
+    reason: str
+
+
+class StudentBulkUpsertResponse(BaseModel):
+    created: List[StudentBulkResultItem]
+    updated: List[StudentBulkResultItem]
+    failed: List[StudentBulkFailureItem]
+
+
+class StudentBatchUpdateItem(BaseModel):
+    id: int
+    admission_year: Optional[int] = None
+    class_name: Optional[str] = None
+
+
+class StudentBatchUpdateResponse(BaseModel):
+    updated: List[int]
+    failed: List[int]
+
+
 class QuestionBase(BaseModel):
     type: str
     difficulty: Optional[int] = 1
