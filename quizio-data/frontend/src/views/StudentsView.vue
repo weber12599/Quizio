@@ -3,44 +3,44 @@
         <el-card>
             <template #header>
                 <div class="card-header">
-                    <h2>Student Management</h2>
+                    <h2>{{ $t('students.title') }}</h2>
                     <el-button type="primary" @click="openAddDialog">
-                        <el-icon><Plus /></el-icon> Add Student
+                        <el-icon><Plus /></el-icon> {{ $t('students.add_student') }}
                     </el-button>
                 </div>
             </template>
 
             <el-form class="filter-bar" inline>
-                <el-form-item label="Admission Year">
+                <el-form-item :label="$t('students.filter.by_year')">
                     <el-input-number
                         v-model="filterYear"
-                        :placeholder="`e.g., ${new Date().getFullYear() - 1911}`"
+                        :placeholder="$t('students.placeholder.admission_year', { year: new Date().getFullYear() - 1911 })"
                         align="left"
                         :controls="false"
                     />
                 </el-form-item>
-                <el-form-item label="Class Name">
+                <el-form-item :label="$t('students.filter.by_class')">
                     <el-input
                         v-model="filterClass"
-                        placeholder="e.g., 701"
+                        :placeholder="$t('students.placeholder.class')"
                         clearable
                     />
                 </el-form-item>
-                <el-form-item label="Status">
+                <el-form-item :label="$t('students.filter.by_status')">
                     <el-select
                         v-model="filterStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Active" :value="true" />
-                        <el-option label="Deleted" :value="false" />
+                        <el-option :label="$t('students.status_active')" :value="true" />
+                        <el-option :label="$t('students.status_deleted')" :value="false" />
                     </el-select>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="handleSearch">
-                        <el-icon><Search /></el-icon> Search
+                        <el-icon><Search /></el-icon> {{ $t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">Reset</el-button>
+                    <el-button @click="resetFilters">{{ $t('common.cancel') }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -52,24 +52,24 @@
             >
                 <el-table-column
                     prop="student_id"
-                    label="Student ID"
+                    :label="$t('students.columns.student_id')"
                     width="120"
                 />
-                <el-table-column prop="name" label="Name" width="120" />
-                <el-table-column prop="email" label="Email" min-width="180" />
+                <el-table-column prop="name" :label="$t('students.columns.full_name')" width="120" />
+                <el-table-column prop="email" :label="$t('students.columns.email')" min-width="180" />
                 <el-table-column
                     prop="admission_year"
-                    label="Admission Year"
+                    :label="$t('students.columns.admission_year')"
                     width="150"
                 />
-                <el-table-column prop="class_name" label="Class" width="100" />
-                <el-table-column label="Actions" min-width="180" fixed="right">
+                <el-table-column prop="class_name" :label="$t('students.columns.class')" width="100" />
+                <el-table-column :label="$t('common.edit')" min-width="180" fixed="right">
                     <template #default="scope">
                         <el-button
                             size="small"
                             @click="openEditDialog(scope.row)"
                         >
-                            <el-icon><Edit /></el-icon> Edit
+                            <el-icon><Edit /></el-icon> {{ $t('common.edit') }}
                         </el-button>
                         <el-button
                             v-if="!scope.row.deleted_at"
@@ -77,7 +77,7 @@
                             type="danger"
                             @click="handleDelete(scope.row)"
                         >
-                            <el-icon><Delete /></el-icon> Delete
+                            <el-icon><Delete /></el-icon> {{ $t('common.delete') }}
                         </el-button>
                         <el-button
                             v-if="scope.row.deleted_at"
@@ -85,7 +85,7 @@
                             type="warning"
                             @click="handleRestore(scope.row)"
                         >
-                            <el-icon><RefreshLeft /></el-icon> Restore
+                            <el-icon><RefreshLeft /></el-icon> {{ $t('common.restore') }}
                         </el-button>
                     </template>
                 </el-table-column>
@@ -94,7 +94,7 @@
 
         <el-dialog
             v-model="dialogVisible"
-            :title="dialogType === 'add' ? 'Add Student' : 'Edit Student'"
+            :title="dialogType === 'add' ? $t('students.add_student') : $t('students.edit_student')"
             width="500px"
         >
             <el-form
@@ -103,23 +103,23 @@
                 :rules="rules"
                 label-width="120px"
             >
-                <el-form-item label="Student ID" prop="student_id" required>
+                <el-form-item :label="$t('students.form.student_id')" prop="student_id" required>
                     <el-input
                         v-model="formData.student_id"
                         :disabled="dialogType === 'edit'"
-                        placeholder="Please enter student ID"
+                        :placeholder="$t('students.placeholder.student_id')"
                     />
                 </el-form-item>
 
-                <el-form-item label="Name" required>
+                <el-form-item :label="$t('students.form.full_name')" required>
                     <el-input
                         v-model="formData.name"
-                        placeholder="Please enter student name"
+                        :placeholder="$t('students.placeholder.full_name')"
                     />
                 </el-form-item>
 
                 <el-form-item
-                    label="Password"
+                    :label="$t('students.form.password')"
                     prop="password"
                     :required="dialogType === 'add'"
                     :rules="
@@ -128,7 +128,7 @@
                             : [
                                   {
                                       required: true,
-                                      message: 'Password is required',
+                                      message: $t('common.error_required'),
                                       trigger: 'blur'
                                   }
                               ]
@@ -140,45 +140,44 @@
                         show-password
                         :placeholder="
                             dialogType === 'edit'
-                                ? 'Leave blank to keep current password'
-                                : 'Please enter password'
+                                ? $t('students.placeholder.student_id')
+                                : $t('students.placeholder.student_id')
                         "
                     />
                 </el-form-item>
 
-                <el-form-item label="Email" prop="email">
+                <el-form-item :label="$t('students.form.email')" prop="email">
                     <el-input
                         v-model="formData.email"
-                        placeholder="Please enter valid email"
+                        :placeholder="$t('students.placeholder.email')"
                     />
                 </el-form-item>
 
-                <el-form-item label="Admission Year" prop="admission_year">
+                <el-form-item :label="$t('students.form.admission_year')" prop="admission_year">
                     <el-input-number
                         v-model="formData.admission_year"
-                        placeholder="Please enter admission year"
                         align="left"
                         :controls="false"
                         :style="{ width: '100%' }"
                     />
                 </el-form-item>
 
-                <el-form-item label="Class Name" prop="class_name">
+                <el-form-item :label="$t('students.form.class')" prop="class_name">
                     <el-input
                         v-model="formData.class_name"
-                        placeholder="Please enter class name"
+                        :placeholder="$t('students.placeholder.class')"
                     />
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="dialogVisible = false">Cancel</el-button>
+                    <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
                     <el-button
                         type="primary"
                         @click="handleSubmit"
                         :loading="submitLoading"
-                        >Confirm</el-button
+                        >{{ $t('common.confirm') }}</el-button
                     >
                 </span>
             </template>
@@ -188,6 +187,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -198,6 +198,8 @@ import type {
     StudentsGet,
     StudentUpdate
 } from '../api/types/students'
+
+const { t } = useI18n()
 
 type StudentRow = StudentResponse
 
@@ -236,15 +238,15 @@ const formData = reactive<StudentFormData>({
 // Validation Rules
 const rules = reactive<FormRules>({
     student_id: [
-        { required: true, message: 'Student ID is required', trigger: 'blur' }
+        { required: true, message: t('common.error_required'), trigger: 'blur' }
     ],
     name: [
-        { required: true, message: 'Student name is required', trigger: 'blur' }
+        { required: true, message: t('common.error_required'), trigger: 'blur' }
     ],
     email: [
         {
             type: 'email',
-            message: 'Please enter a valid email',
+            message: t('common.error_required'),
             trigger: 'blur'
         }
     ]
@@ -270,10 +272,10 @@ const fetchStudents = async () => {
     } catch (err: unknown) {
         const error = err as ApiError
         if (error.response?.status === 401) {
-            ElMessage.error('Session expired. Please login again.')
+            ElMessage.error(t('common.error'))
             // Optional: Handle redirect to login here via router
         } else {
-            ElMessage.error('Failed to fetch students.')
+            ElMessage.error(t('common.error'))
         }
     } finally {
         loading.value = false
@@ -313,7 +315,7 @@ const handleSubmit = async () => {
                     class_name: formData.class_name || null
                 }
                 await dataAPI.createStudent(payload)
-                ElMessage.success('Student added successfully')
+                ElMessage.success(t('common.success'))
             } else if (formData.id !== null && formData.id !== undefined) {
                 const payload: StudentUpdate = {
                     name: formData.name,
@@ -326,7 +328,7 @@ const handleSubmit = async () => {
                 }
 
                 await dataAPI.updateStudent(formData.id, payload)
-                ElMessage.success('Student updated successfully')
+                ElMessage.success(t('common.success'))
             }
             dialogVisible.value = false
             fetchStudents()
@@ -351,24 +353,22 @@ const handleSubmit = async () => {
 // Delete
 const handleDelete = (row: StudentRow) => {
     ElMessageBox.confirm(
-        `Are you sure you want to delete student: ${row.name}?`,
-        'Warning',
+        `${t('common.delete_confirm')}`,
+        t('common.warning'),
         {
-            confirmButtonText: 'Delete',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.delete'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
         .then(async () => {
             try {
                 await dataAPI.deleteStudent(row.id)
-                ElMessage.success('Student deleted successfully')
+                ElMessage.success(t('common.success'))
                 fetchStudents()
             } catch (err: unknown) {
                 const error = err as ApiError
-                ElMessage.error(
-                    error.response?.data?.detail || 'Failed to delete student'
-                )
+                ElMessage.error(error.response?.data?.detail || t('common.error'))
             }
         })
         .catch(() => {
@@ -379,24 +379,22 @@ const handleDelete = (row: StudentRow) => {
 // Restore
 const handleRestore = (row: StudentRow) => {
     ElMessageBox.confirm(
-        `Are you sure you want to restore student: ${row.name}?`,
-        'Warning',
+        t('common.restore_confirm'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Restore',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.restore'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
         .then(async () => {
             try {
                 await dataAPI.restoreStudent(row.id)
-                ElMessage.success('Student restored successfully')
+                ElMessage.success(t('common.success'))
                 fetchStudents()
             } catch (err: unknown) {
                 const error = err as ApiError
-                ElMessage.error(
-                    error.response?.data?.detail || 'Failed to restore student'
-                )
+                ElMessage.error(error.response?.data?.detail || t('common.error'))
             }
         })
         .catch(() => {
@@ -456,11 +454,11 @@ onMounted(() => {
 .card-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 .filter-bar {
     margin-bottom: 20px;
-    background-color: #f8f9fa;
+    background-color: var(--el-fill-color-light);
     padding: 15px;
     border-radius: 4px;
 }

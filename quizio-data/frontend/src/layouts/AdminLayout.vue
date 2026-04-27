@@ -74,27 +74,27 @@
                     index="/admin/teachers"
                 >
                     <el-icon><Avatar /></el-icon>
-                    <template #title>Teacher Management</template>
+                    <template #title>{{ $t('layout.nav.teachers') }}</template>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/students">
                     <el-icon><User /></el-icon>
-                    <template #title>Student Management</template>
+                    <template #title>{{ $t('layout.nav.students') }}</template>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/questions">
                     <el-icon><Collection /></el-icon>
-                    <template #title>Question Management</template>
+                    <template #title>{{ $t('layout.nav.questions') }}</template>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/exams">
                     <el-icon><MessageBox /></el-icon>
-                    <template #title>Exam Management</template>
+                    <template #title>{{ $t('layout.nav.exams') }}</template>
                 </el-menu-item>
 
                 <el-menu-item index="/admin/grades">
                     <el-icon><EditPen /></el-icon>
-                    <template #title>Grade Management</template>
+                    <template #title>{{ $t('layout.nav.grades') }}</template>
                 </el-menu-item>
             </el-menu>
         </el-aside>
@@ -109,34 +109,102 @@
 
                     <el-breadcrumb separator="/">
                         <el-breadcrumb-item :to="{ path: '/admin' }"
-                            >CMS</el-breadcrumb-item
+                            >{{ $t('layout.breadcrumb_root') }}</el-breadcrumb-item
                         >
-                        <el-breadcrumb-item>{{
-                            currentRouteName
-                        }}</el-breadcrumb-item>
+                        <el-breadcrumb-item>{{ breadcrumbRouteName }}</el-breadcrumb-item>
                     </el-breadcrumb>
                 </div>
 
                 <div class="header-right">
                     <span class="welcome-text">
-                        Welcome,
-                        <strong>{{
-                            authStore.user?.full_name ||
-                            authStore.user?.username ||
-                            'Teacher'
-                        }}</strong>
+                        {{ $t('layout.welcome', { name: authStore.user?.full_name || authStore.user?.username || $t('common.loading') }) }}
                     </span>
-                    <el-button
-                        type="danger"
-                        plain
-                        size="small"
-                        @click="handleLogout"
+
+                    <el-popover
+                        placement="bottom"
+                        :width="220"
+                        trigger="click"
+                        popper-class="settings-popover"
                     >
-                        <el-icon class="el-icon--left"
-                            ><SwitchButton
-                        /></el-icon>
-                        Logout
-                    </el-button>
+                        <template #reference>
+                            <el-button text class="toggle-btn">
+                                <el-icon><MoreFilled /></el-icon>
+                            </el-button>
+                        </template>
+                        <div class="settings-menu-content">
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
+                                    <span style="margin-right: 8px">🌐</span>
+                                    <span>{{ $t('layout.language') }}</span>
+                                </div>
+                                <div class="settings-menu-items">
+                                    <div
+                                        class="settings-menu-item"
+                                        :class="{ active: locale === 'zh' }"
+                                        @click="setLang('zh')"
+                                    >
+                                        <el-icon v-if="locale === 'zh'"><Check /></el-icon>
+                                        <span v-else style="width: 18px"></span>
+                                        {{ $t('lang.zh') }}
+                                    </div>
+                                    <div
+                                        class="settings-menu-item"
+                                        :class="{ active: locale === 'en' }"
+                                        @click="setLang('en')"
+                                    >
+                                        <el-icon v-if="locale === 'en'"><Check /></el-icon>
+                                        <span v-else style="width: 18px"></span>
+                                        {{ $t('lang.en') }}
+                                    </div>
+                                </div>
+                            </div>
+                            <el-divider style="margin: 8px 0" />
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
+                                    <el-icon style="margin-right: 8px">
+                                        <Sunny v-if="themeMode === 'light'" />
+                                        <Moon v-else-if="themeMode === 'dark'" />
+                                        <Monitor v-else />
+                                    </el-icon>
+                                    <span>{{ $t('layout.theme') }}</span>
+                                </div>
+                                <div class="settings-menu-items">
+                                    <div
+                                        class="settings-menu-item"
+                                        :class="{ active: themeMode === 'light' }"
+                                        @click="setTheme('light')"
+                                    >
+                                        <el-icon v-if="themeMode === 'light'"><Check /></el-icon>
+                                        <span v-else style="width: 18px"></span>
+                                        {{ $t('theme.light') }}
+                                    </div>
+                                    <div
+                                        class="settings-menu-item"
+                                        :class="{ active: themeMode === 'dark' }"
+                                        @click="setTheme('dark')"
+                                    >
+                                        <el-icon v-if="themeMode === 'dark'"><Check /></el-icon>
+                                        <span v-else style="width: 18px"></span>
+                                        {{ $t('theme.dark') }}
+                                    </div>
+                                    <div
+                                        class="settings-menu-item"
+                                        :class="{ active: themeMode === 'system' }"
+                                        @click="setTheme('system')"
+                                    >
+                                        <el-icon v-if="themeMode === 'system'"><Check /></el-icon>
+                                        <span v-else style="width: 18px"></span>
+                                        {{ $t('theme.system') }}
+                                    </div>
+                                </div>
+                            </div>
+                            <el-divider style="margin: 8px 0" />
+                            <div class="settings-menu-item settings-menu-logout" @click="handleLogout">
+                                <el-icon><SwitchButton /></el-icon>
+                                {{ $t('layout.logout') }}
+                            </div>
+                        </div>
+                    </el-popover>
                 </div>
             </el-header>
 
@@ -154,9 +222,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Fold, Expand } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+import { Fold, Expand, Sunny, Moon, Monitor, MoreFilled, Check, SwitchButton } from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
+import { storage } from '../utils/storage'
 
 import packageJson from '../../package.json'
 
@@ -164,6 +235,8 @@ const appVersion = packageJson.version
 
 const route = useRoute()
 const authStore = useAuthStore()
+const { locale, t } = useI18n()
+const { themeMode, setTheme } = useTheme()
 
 const isCollapse = ref(false)
 
@@ -171,9 +244,24 @@ const toggleCollapse = () => {
     isCollapse.value = !isCollapse.value
 }
 
-// Dynamically compute the current page name for the breadcrumb
-const currentRouteName = computed(() => {
-    return route.path.split('/').slice(-1)[0]
+const setLang = (lang: 'zh' | 'en') => {
+    locale.value = lang
+    storage.appLang.set(lang)
+}
+
+// Map route path to breadcrumb name key
+const navKeys: Record<string, string> = {
+    'teachers': 'layout.nav.teachers',
+    'students': 'layout.nav.students',
+    'questions': 'layout.nav.questions',
+    'exams': 'layout.nav.exams',
+    'grades': 'layout.nav.grades',
+}
+
+const breadcrumbRouteName = computed(() => {
+    const routePath = route.path.split('/').slice(-1)[0]
+    const key = navKeys[routePath]
+    return key ? t(key) : routePath
 })
 
 const handleLogout = () => {
@@ -277,8 +365,8 @@ onMounted(async () => {
 }
 
 .header {
-    background-color: #fff;
-    border-bottom: 1px solid #e6e6e6;
+    background-color: var(--el-bg-color);
+    border-bottom: 1px solid var(--el-border-color-light);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -295,27 +383,98 @@ onMounted(async () => {
 .collapse-btn {
     font-size: 20px;
     cursor: pointer;
-    color: #606266;
+    color: var(--el-text-color-regular);
     transition: color 0.2s;
 }
 
 .collapse-btn:hover {
-    color: #409eff;
+    color: var(--el-color-primary);
 }
 
 .header-right {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
 }
 
 .welcome-text {
     font-size: 14px;
-    color: #606266;
+    color: var(--el-text-color-regular);
+}
+
+.toggle-btn {
+    font-size: 18px;
+}
+
+:deep(.settings-popover.el-popper) {
+    padding: 8px !important;
+    min-width: 200px !important;
+}
+
+.settings-menu-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.settings-menu-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-menu-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-regular);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.8;
+}
+
+.settings-menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 12px;
+}
+
+.settings-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--el-text-color-regular);
+    transition: background-color 0.2s;
+}
+
+.settings-menu-item:hover {
+    background-color: var(--el-fill-color-light);
+}
+
+.settings-menu-item.active {
+    color: var(--el-color-primary);
+    font-weight: 500;
+}
+
+.settings-menu-logout {
+    color: var(--el-color-danger);
+    padding-left: 12px !important;
+    margin-top: 4px;
+}
+
+.settings-menu-logout:hover {
+    background-color: var(--el-color-danger-light-7) !important;
 }
 
 .main-content {
-    background-color: #f0f2f5;
+    background-color: var(--el-bg-color-page);
     padding: 24px;
 }
 

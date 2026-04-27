@@ -3,7 +3,7 @@
         <el-card>
             <template #header>
                 <div class="card-header">
-                    <h2>Grades Management</h2>
+                    <h2>{{ $t('grades.title') }}</h2>
                 </div>
             </template>
 
@@ -12,10 +12,10 @@
                 :model="filters"
                 class="filter-bar filter-form"
             >
-                <el-form-item label="Class">
+                <el-form-item :label="t('grades.filter.by_class')">
                     <el-select
                         v-model="filters.class_name"
-                        placeholder="Select Class"
+                        :placeholder="t('grades.placeholder.select_class')"
                         clearable
                         @change="handleClassChange"
                     >
@@ -28,10 +28,10 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="Student ID">
+                <el-form-item :label="t('grades.filter.by_student_id')">
                     <el-select
                         v-model="filters.student_id"
-                        placeholder="Select Student"
+                        :placeholder="t('grades.placeholder.select_student')"
                         clearable
                         filterable
                     >
@@ -44,12 +44,12 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="Exams">
+                <el-form-item :label="t('grades.filter.by_exams')">
                     <el-select
                         v-model="filters.exam_ids"
                         multiple
                         collapse-tags
-                        placeholder="Select Exams"
+                        :placeholder="t('grades.placeholder.select_exams')"
                         clearable
                     >
                         <el-option
@@ -61,13 +61,13 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="Record Date">
+                <el-form-item :label="t('grades.filter.by_record_date')">
                     <el-date-picker
                         v-model="dateRange"
                         type="daterange"
-                        range-separator="To"
-                        start-placeholder="Start Date"
-                        end-placeholder="End Date"
+                        :range-separator="t('grades.filter.date_range_separator')"
+                        :start-placeholder="t('grades.filter.start_date')"
+                        :end-placeholder="t('grades.filter.end_date')"
                         value-format="YYYY-MM-DD"
                     />
                 </el-form-item>
@@ -78,9 +78,9 @@
                         @click="fetchReport"
                         :loading="loading"
                     >
-                        <el-icon><Search /></el-icon> Search
+                        <el-icon><Search /></el-icon> {{ t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">Reset</el-button>
+                    <el-button @click="resetFilters">{{ t('grades.filter.reset') }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -93,19 +93,19 @@
                 >
                     <el-table-column
                         prop="class_name"
-                        label="Class"
+                        :label="t('grades.columns.class')"
                         width="120"
                         fixed="left"
                     />
                     <el-table-column
                         prop="student_id"
-                        label="Student ID"
+                        :label="t('grades.columns.student_id')"
                         width="150"
                         fixed="left"
                     />
                     <el-table-column
                         prop="name"
-                        label="Name"
+                        :label="t('grades.columns.name')"
                         width="120"
                         fixed="left"
                     />
@@ -187,30 +187,30 @@
 
                 <el-empty
                     v-else-if="hasSearched && !loading"
-                    description="No grade records found for the selected criteria."
+                    :description="t('grades.empty.no_records')"
                 />
                 <el-empty
                     v-else-if="!hasSearched"
-                    description="Please select criteria and click Search to view grades."
+                    :description="t('grades.empty.no_search')"
                 />
             </div>
         </el-card>
 
         <el-dialog
             v-model="gradingDialogVisible"
-            :title="`Grading: ${currentStudentName} - ${currentExamTitle}`"
+            :title="`${t('grades.dialog.grading')}: ${currentStudentName} - ${currentExamTitle}`"
             width="860px"
             destroy-on-close
         >
             <el-tabs v-model="activeTab" @tab-click="onTabClick">
-                <el-tab-pane label="答案評分" name="grading">
+                <el-tab-pane :label="t('grades.dialog.tab_answers')" name="grading">
                     <div
                         v-loading="submissionLoading"
                         class="grading-container"
                     >
                         <el-empty
                             v-if="!currentSubmission"
-                            description="No submission found."
+                            :description="t('grades.empty.no_submission')"
                         />
 
                         <div v-else>
@@ -224,11 +224,7 @@
                             >
                                 <div class="q-header">
                                     <el-tag
-                                        :type="
-                                            ans.question?.needs_manual_grading
-                                                ? 'danger'
-                                                : 'info'
-                                        "
+                                        :type="getTagType(ans.question?.needs_manual_grading ? 'danger' : 'info')"
                                         size="small"
                                     >
                                         Q{{ index + 1 }} -
@@ -274,7 +270,7 @@
                                 </div>
 
                                 <div class="ref-answer-box">
-                                    <span class="label">Reference Answer:</span>
+                                    <span class="label">{{ t('grades.dialog.reference_answer') }}:</span>
                                     <div class="ans-text">
                                         {{
                                             formatDisplayAnswer(
@@ -286,7 +282,7 @@
                                 </div>
 
                                 <div class="student-answer-box">
-                                    <span class="label">Student's Answer:</span>
+                                    <span class="label">{{ t('grades.dialog.student_answer') }}:</span>
                                     <div class="ans-text">
                                         {{
                                             formatDisplayAnswer(
@@ -303,7 +299,7 @@
                                             margin-right: 10px;
                                             font-weight: bold;
                                         "
-                                        >Score:</span
+                                        >{{ t('grades.dialog.score') }}:</span
                                     >
                                     <el-input-number
                                         v-model="ans.score"
@@ -319,7 +315,7 @@
                                         @click="submitGrade(ans)"
                                         :loading="savingAnswerId === ans.id"
                                     >
-                                        <el-icon><Check /></el-icon> Save Score
+                                        <el-icon><Check /></el-icon> {{ t('grades.dialog.save_score') }}
                                     </el-button>
                                 </div>
                             </el-card>
@@ -327,7 +323,7 @@
                     </div>
                 </el-tab-pane>
 
-                <el-tab-pane label="互動紀錄" name="interactions">
+                <el-tab-pane :label="t('grades.dialog.tab_interactions')" name="interactions">
                     <div class="grading-container">
                         <!-- Discussion Score row -->
                         <div
@@ -335,7 +331,7 @@
                             v-if="currentSubmission"
                         >
                             <span class="discussion-score-label"
-                                >討論互動分數：</span
+                                >{{ t('grades.interaction.title') }}：</span
                             >
                             <el-input-number
                                 v-model="discussionScore"
@@ -343,7 +339,7 @@
                                 :max="100"
                                 size="small"
                                 style="width: 130px; margin-right: 10px"
-                                placeholder="未評分"
+                                :placeholder="t('grades.interaction.ungraded')"
                             />
                             <el-button
                                 type="primary"
@@ -352,7 +348,7 @@
                                 @click="saveDiscussionScore"
                                 :loading="savingDiscussionScore"
                             >
-                                <el-icon><Check /></el-icon> 儲存
+                                <el-icon><Check /></el-icon> {{ t('common.save') }}
                             </el-button>
                         </div>
 
@@ -364,7 +360,7 @@
                                     !interactionsLoading &&
                                     sessionInteractions.length === 0
                                 "
-                                description="此次考試沒有互動紀錄。"
+                                :description="t('grades.empty.no_interactions')"
                             />
 
                             <div
@@ -447,16 +443,7 @@
                                         >
                                             <el-tag
                                                 size="small"
-                                                :type="
-                                                    comment.author.role ===
-                                                    'teacher'
-                                                        ? 'warning'
-                                                        : isCurrentStudent(
-                                                                comment.author
-                                                            )
-                                                          ? 'success'
-                                                          : ''
-                                                "
+                                                :type="getTagType(getAuthorTagType(comment.author))"
                                             >
                                                 {{ comment.author.name }}
                                             </el-tag>
@@ -492,7 +479,7 @@
                                         v-if="qSection.options.length === 0"
                                         class="ia-empty-hint"
                                     >
-                                        此題沒有選項討論紀錄。
+                                        {{ t('grades.empty.no_option_interactions') }}
                                     </div>
                                 </template>
 
@@ -510,11 +497,7 @@
                                         <div class="ia-answer-header">
                                             <el-tag
                                                 size="small"
-                                                :type="
-                                                    isCurrentStudent(ans.author)
-                                                        ? 'success'
-                                                        : 'info'
-                                                "
+                                                :type="getTagType(getAnswerTagType(ans.author))"
                                             >
                                                 {{ ans.author.name }}
                                                 <span
@@ -529,7 +512,7 @@
                                             </el-tag>
                                             <span class="ia-answer-content">{{
                                                 ans.answer_content ||
-                                                '*(無作答)*'
+                                                t('grades.interaction.no_answer')
                                             }}</span>
                                             <span
                                                 class="ia-likes-count"
@@ -578,16 +561,7 @@
                                         >
                                             <el-tag
                                                 size="small"
-                                                :type="
-                                                    comment.author.role ===
-                                                    'teacher'
-                                                        ? 'warning'
-                                                        : isCurrentStudent(
-                                                                comment.author
-                                                            )
-                                                          ? 'success'
-                                                          : ''
-                                                "
+                                                :type="getTagType(getAuthorTagType(comment.author))"
                                             >
                                                 {{ comment.author.name }}
                                             </el-tag>
@@ -627,15 +601,16 @@
             </el-tabs>
 
             <template #footer>
-                <el-button @click="closeGradingDialog">Close</el-button>
+                <el-button @click="closeGradingDialog">{{ t('common.close') }}</el-button>
             </template>
         </el-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, unref } from 'vue'
 import { ElMessage, dayjs } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 import dataAPI from '../api'
 import type { StudentResponse } from '../api/types/students'
@@ -650,6 +625,8 @@ import type {
 } from '../api/types/submissions'
 
 import { renderMarkdown } from '../utils/markdown'
+
+const { t } = useI18n()
 
 // --- State: Filters ---
 const filters = ref({
@@ -925,6 +902,22 @@ const optionLabel = (
     return String.fromCharCode(65 + idx)
 }
 
+const getTagType = (value: any): string => {
+    const unwrapped = unref(value)
+    const result = String(unwrapped ?? 'info')
+    return result === 'null' ? 'info' : result
+}
+
+const getAuthorTagType = (author: InteractionAuthor): string => {
+    if (author.role === 'teacher') return 'warning'
+    if (isCurrentStudent(author)) return 'success'
+    return 'info'
+}
+
+const getAnswerTagType = (author: InteractionAuthor): string => {
+    return isCurrentStudent(author) ? 'success' : 'info'
+}
+
 const submitGrade = async (answer: StudentAnswerResponse) => {
     if (answer.score === null || answer.score === undefined) {
         ElMessage.warning('Please enter a valid score')
@@ -958,11 +951,11 @@ const closeGradingDialog = () => {
 .card-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 .filter-bar {
     margin-bottom: 20px;
-    background-color: #f8f9fa;
+    background-color: var(--el-fill-color-light);
     padding: 15px;
     border-radius: 4px;
 }
@@ -1068,17 +1061,18 @@ const closeGradingDialog = () => {
 }
 
 .ref-answer-box {
-    background-color: #f0f9eb;
+    background-color: var(--el-color-success-light-9);
+    border-left: 3px solid var(--el-color-success-light-5);
     padding: 12px;
     border-radius: 6px;
     margin-bottom: 10px;
 }
 .student-answer-box {
-    background-color: #fdf6ec;
+    background-color: var(--el-color-warning-light-9);
+    border-left: 4px solid var(--el-color-warning-light-5);
     padding: 12px;
     border-radius: 6px;
     margin-bottom: 15px;
-    border-left: 4px solid #e6a23c;
 }
 .ans-text {
     font-size: 1.1rem;
@@ -1090,7 +1084,7 @@ const closeGradingDialog = () => {
     font-weight: bold;
     display: block;
     margin-bottom: 5px;
-    color: #606266;
+    color: var(--el-text-color-secondary);
     font-size: 0.85rem;
     text-transform: uppercase;
 }
@@ -1098,7 +1092,7 @@ const closeGradingDialog = () => {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    border-top: 1px dashed #ebeef5;
+    border-top: 1px dashed var(--el-border-color-lighter);
     padding-top: 15px;
 }
 
@@ -1139,7 +1133,7 @@ const closeGradingDialog = () => {
     border-radius: 8px;
     padding: 10px 14px;
     margin-bottom: 10px;
-    background: #fff;
+    background: var(--el-fill-color-blank);
 }
 .ia-highlight-owner {
     border-color: var(--el-color-success-light-5);

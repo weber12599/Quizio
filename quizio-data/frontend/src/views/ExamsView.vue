@@ -3,49 +3,49 @@
         <el-card>
             <template #header>
                 <div class="card-header">
-                    <h2>Exam Management</h2>
+                    <h2>{{ $t('exams.title') }}</h2>
                     <el-button type="primary" @click="openAddDialog">
-                        <el-icon><Plus /></el-icon> Create Exam
+                        <el-icon><Plus /></el-icon> {{ $t('exams.add_exam') }}
                     </el-button>
                 </div>
             </template>
 
             <el-form :inline="true" class="filter-bar">
-                <el-form-item label="Lock Status">
+                <el-form-item :label="t('exams.filter.by_lock_status')">
                     <el-select
                         v-model="filterLockStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Draft" :value="false" />
-                        <el-option label="Locked" :value="true" />
+                        <el-option :label="t('exams.filter.draft')" :value="false" />
+                        <el-option :label="t('common.lock')" :value="true" />
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Archive Status">
+                <el-form-item :label="t('exams.filter.by_archive_status')">
                     <el-select
                         v-model="filterArchiveStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Active" :value="false" />
-                        <el-option label="Archived" :value="true" />
+                        <el-option :label="t('exams.filter.active')" :value="false" />
+                        <el-option :label="t('common.archive')" :value="true" />
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Delete Status">
+                <el-form-item :label="t('exams.filter.by_delete_status')">
                     <el-select
                         v-model="filterDeleteStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Not Deleted" :value="false" />
-                        <el-option label="Deleted" :value="true" />
+                        <el-option :label="t('exams.filter.not_deleted')" :value="false" />
+                        <el-option :label="t('common.delete')" :value="true" />
                     </el-select>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="handleSearch">
-                        <el-icon><Search /></el-icon> Search
+                        <el-icon><Search /></el-icon> {{ t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">Reset</el-button>
+                    <el-button @click="resetFilters">{{ t('exams.filter.reset') }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -55,23 +55,23 @@
                 border
                 style="width: 100%"
             >
-                <el-table-column prop="id" label="ID" width="60" />
+                <el-table-column prop="id" :label="t('exams.columns.id')" width="60" />
 
-                <el-table-column prop="status" label="Status" width="100">
+                <el-table-column prop="status" :label="t('exams.columns.status')" width="100">
                     <template #default="scope">
                         <el-tag
                             v-if="scope.row.is_locked"
                             size="small"
                             type="success"
-                            >Locked</el-tag
+                            >{{ t('common.lock') }}</el-tag
                         >
-                        <el-tag v-else size="small" type="info">Draft</el-tag>
+                        <el-tag v-else size="small" type="info">{{ t('exams.filter.draft') }}</el-tag>
 
                         <el-tag
                             v-if="scope.row.is_archived"
                             size="small"
                             type="warning"
-                            >Archived</el-tag
+                            >{{ t('common.archive') }}</el-tag
                         >
                         <el-tag
                             v-if="
@@ -80,28 +80,28 @@
                             "
                             size="small"
                             type="danger"
-                            >Deleted</el-tag
+                            >{{ t('common.delete') }}</el-tag
                         >
                     </template>
                 </el-table-column>
 
                 <el-table-column
                     prop="title"
-                    label="Title"
+                    :label="t('exams.columns.title')"
                     width="200"
                     show-overflow-tooltip
                 />
 
                 <el-table-column
                     prop="description"
-                    label="Description"
+                    :label="t('exams.columns.description')"
                     width="250"
                     show-overflow-tooltip
                 />
 
                 <el-table-column
                     prop="target_date"
-                    label="Target Date"
+                    :label="t('exams.columns.target_date')"
                     width="130"
                     show-overflow-tooltip
                 >
@@ -118,7 +118,7 @@
 
                 <el-table-column
                     prop="updated_at"
-                    label="Last Updated"
+                    :label="t('exams.columns.last_updated')"
                     width="180"
                 >
                     <template #default="scope">
@@ -131,7 +131,7 @@
                 </el-table-column>
 
                 <el-table-column
-                    label="Actions"
+                    :label="t('exams.columns.actions')"
                     width="120"
                     fixed="right"
                     align="center"
@@ -139,7 +139,7 @@
                     <template #default="scope">
                         <el-tooltip placement="top">
                             <template #content>
-                                <span>Edit</span>
+                                <span>{{ t('common.edit') }}</span>
                             </template>
                             <el-button
                                 link
@@ -155,7 +155,7 @@
 
                         <el-tooltip placement="top">
                             <template #content>
-                                <span>Preview</span>
+                                <span>{{ t('exams.action.preview') }}</span>
                             </template>
                             <el-button
                                 link
@@ -171,7 +171,7 @@
 
                         <el-tooltip placement="top">
                             <template #content>
-                                <span>More</span>
+                                <span>{{ t('exams.action.more') }}</span>
                             </template>
                             <el-dropdown
                                 v-if="isStatusEditable(scope.row)"
@@ -191,7 +191,7 @@
                                             v-if="!scope.row.is_locked"
                                             @click="handleLock(scope.row)"
                                         >
-                                            <el-icon><Lock /></el-icon> Lock
+                                            <el-icon><Lock /></el-icon> {{ t('common.lock') }}
                                         </el-dropdown-item>
 
                                         <el-dropdown-item
@@ -210,8 +210,8 @@
                                             /></el-icon>
                                             {{
                                                 scope.row.is_archived
-                                                    ? 'Unarchive'
-                                                    : 'Archive'
+                                                    ? t('common.unarchive')
+                                                    : t('common.archive')
                                             }}
                                         </el-dropdown-item>
 
@@ -236,8 +236,8 @@
                                             /></el-icon>
                                             {{
                                                 !scope.row.deleted_at
-                                                    ? 'Delete'
-                                                    : 'Restore'
+                                                    ? t('common.delete')
+                                                    : t('common.restore')
                                             }}
                                         </el-dropdown-item>
                                     </el-dropdown-menu>
@@ -267,18 +267,18 @@
                     <span class="el-dialog__title">
                         {{
                             dialogType === 'add'
-                                ? 'Create New Exam'
+                                ? t('exams.dialog.create_title')
                                 : dialogType === 'preview'
-                                  ? 'Preview Exam'
-                                  : 'Edit Exam'
+                                  ? t('exams.dialog.preview_title')
+                                  : t('exams.dialog.edit_title')
                         }}
                     </span>
                     <div>
                         <el-switch
                             v-if="dialogType !== 'preview'"
                             v-model="isPreviewing"
-                            active-text="Preview Paper"
-                            inactive-text="Edit Mode"
+                            :active-text="t('exams.dialog.preview_paper')"
+                            :inactive-text="t('exams.dialog.edit_mode')"
                             style="margin-right: 20px"
                         />
                         <el-button @click="dialogVisible = false" circle>
@@ -293,10 +293,10 @@
                     class="left-panel"
                     v-if="dialogType !== 'preview' && !isPreviewing"
                 >
-                    <h3>Question Bank</h3>
+                    <h3>{{ t('exams.builder.question_bank') }}</h3>
                     <el-input
                         v-model="searchKeyword"
-                        placeholder="Search questions..."
+                        :placeholder="t('exams.placeholder.search_questions')"
                         :prefix-icon="Search"
                         clearable
                         style="margin-bottom: 15px"
@@ -457,7 +457,7 @@
                         </el-card>
                         <el-empty
                             v-if="filteredQuestions.length === 0"
-                            description="No questions found"
+                            :description="t('exams.builder.no_questions_found')"
                         />
                     </div>
                 </div>
@@ -496,7 +496,7 @@
                                     <span
                                         style="
                                             margin-right: 10px;
-                                            color: #909399;
+                                            color: var(--el-text-color-placeholder);
                                             font-size: 0.9em;
                                             white-space: nowrap;
                                         "
@@ -586,7 +586,7 @@
                     </div>
 
                     <div v-else class="edit-mode-container">
-                        <h3>Exam Details</h3>
+                        <h3>{{ t('exams.builder.exam_details') }}</h3>
                         <el-form
                             ref="formRef"
                             :model="formData"
@@ -594,39 +594,39 @@
                             label-position="top"
                         >
                             <el-form-item
-                                label="Exam Title"
+                                :label="t('exams.form.title')"
                                 prop="title"
                                 required
                             >
                                 <el-input
                                     v-model="formData.title"
-                                    placeholder="Enter exam title..."
+                                    :placeholder="t('exams.placeholder.title')"
                                 />
                             </el-form-item>
-                            <el-form-item label="Target Date">
+                            <el-form-item :label="t('exams.form.target_date')">
                                 <el-date-picker
                                     v-model="formData.target_date"
                                     type="date"
-                                    placeholder="Select scheduled date"
+                                    :placeholder="t('exams.placeholder.target_date')"
                                     format="YYYY-MM-DD"
                                     value-format="YYYY-MM-DD"
                                     style="width: 100%"
                                 />
                             </el-form-item>
-                            <el-form-item label="Description">
+                            <el-form-item :label="t('exams.form.description')">
                                 <el-input
                                     v-model="formData.description"
                                     type="textarea"
                                     :rows="2"
-                                    placeholder="Optional description or instructions..."
+                                    :placeholder="t('exams.placeholder.description')"
                                 />
                             </el-form-item>
                         </el-form>
 
                         <el-divider>
-                            Selected Questions ({{ selectedQuestions.length }})
-                            <span style="margin-left: 10px; color: #409eff"
-                                >| Total Score: {{ totalScore }}</span
+                            {{ t('exams.builder.selected_questions') }} ({{ selectedQuestions.length }})
+                            <span style="margin-left: 10px; color: var(--el-color-primary)"
+                                >| {{ t('exams.builder.total_score') }}: {{ totalScore }}</span
                             >
                         </el-divider>
 
@@ -651,7 +651,7 @@
                                                 display: flex;
                                                 align-items: center;
                                                 gap: 5px;
-                                                background-color: #f4f4f5;
+                                                background-color: var(--el-fill-color-light);
                                                 padding: 2px 8px;
                                                 border-radius: 4px;
                                             "
@@ -659,7 +659,7 @@
                                             <span
                                                 style="
                                                     font-size: 12px;
-                                                    color: #909399;
+                                                    color: var(--el-text-color-placeholder);
                                                 "
                                                 >Score:</span
                                             >
@@ -847,7 +847,7 @@
                             </el-card>
                             <el-empty
                                 v-if="selectedQuestions.length === 0"
-                                description="No questions selected"
+                                :description="t('exams.builder.no_questions_selected')"
                             />
                         </div>
                     </div>
@@ -858,22 +858,22 @@
                 <span class="dialog-footer">
                     <template v-if="dialogType === 'preview'">
                         <el-button @click="handlePrint('questions')">
-                            <el-icon><Printer /></el-icon> Print (Questions)
+                            <el-icon><Printer /></el-icon> {{ t('exams.action.print_questions') }}
                         </el-button>
                         <el-button @click="handlePrint('answers')">
-                            <el-icon><Printer /></el-icon> Print (With Answers)
+                            <el-icon><Printer /></el-icon> {{ t('exams.action.print_answers') }}
                         </el-button>
                     </template>
 
                     <el-button @click="dialogVisible = false"
-                        >{{ dialogType === 'preview' ? 'Close' : 'Cancel' }}
+                        >{{ dialogType === 'preview' ? t('common.close') : t('common.cancel') }}
                     </el-button>
                     <el-button
                         v-if="dialogType !== 'preview'"
                         type="primary"
                         @click="handleSubmit"
                         :loading="submitLoading"
-                        >Save Exam</el-button
+                        >{{ t('exams.action.save') }}</el-button
                     >
                 </span>
             </template>
@@ -886,6 +886,7 @@ import { ref, nextTick, computed, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox, dayjs } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 import { useAuthStore } from '../stores/auth'
 
@@ -902,6 +903,7 @@ import { renderMarkdown } from '../utils/markdown'
 import { stripMarkdown } from '../utils/format'
 
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 type ExamRow = ExamResponse
 type SelectedQuestion = QuestionResponse & { score: number }
@@ -1174,11 +1176,11 @@ const handleSubmit = async () => {
 // Lock
 const handleLock = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Locking this exam means it is ready to be dispatched. It will become read-only and cannot be edited. Proceed?',
-        'Warning',
+        t('exams.dialog.lock_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Lock',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.lock'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -1202,11 +1204,11 @@ const handleLock = (row: ExamRow) => {
 // Archive
 const handleArchive = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to archive this exam?',
-        'Warning',
+        t('exams.dialog.archive_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Archive',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.archive'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -1230,11 +1232,11 @@ const handleArchive = (row: ExamRow) => {
 // Unarchive
 const handleUnarchive = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to unarchive this exam?',
-        'Warning',
+        t('exams.dialog.unarchive_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Unarchive',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.unarchive'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -1258,11 +1260,11 @@ const handleUnarchive = (row: ExamRow) => {
 // Delete
 const handleDelete = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to delete this exam?',
-        'Warning',
+        t('exams.dialog.delete_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Delete',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.delete'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -1286,11 +1288,11 @@ const handleDelete = (row: ExamRow) => {
 // Restore
 const handleRestore = (row: ExamRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to restore this exam?',
-        'Warning',
+        t('exams.dialog.restore_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Restore',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.restore'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -1376,11 +1378,11 @@ onMounted(() => {
 .card-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 .filter-bar {
     margin-bottom: 20px;
-    background-color: #f8f9fa;
+    background-color: var(--el-fill-color-light);
     padding: 15px;
     border-radius: 4px;
 }
@@ -1418,7 +1420,7 @@ onMounted(() => {
 }
 .q-text {
     font-size: 0.9rem;
-    color: #606266;
+    color: var(--el-text-color-secondary);
     display: inline-block;
     max-width: 300px;
     white-space: nowrap;
@@ -1434,7 +1436,7 @@ onMounted(() => {
 }
 .selected-card {
     margin-bottom: 10px;
-    border-left: 4px solid #409eff;
+    border-left: 4px solid var(--el-color-primary);
 }
 .s-card-header {
     display: flex;
@@ -1448,7 +1450,7 @@ onMounted(() => {
 }
 .s-card-body {
     font-size: 0.95rem;
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 
 /* ==========================================
@@ -1457,8 +1459,8 @@ onMounted(() => {
 .q-expanded-view {
     margin-top: 15px;
     padding-top: 15px;
-    border-top: 1px dashed #ebeef5;
-    background-color: #fafafa;
+    border-top: 1px dashed var(--el-border-color-lighter);
+    background-color: var(--el-fill-color-light);
     border-radius: 4px;
     padding: 15px;
 }
@@ -1469,19 +1471,19 @@ onMounted(() => {
    Test Paper View
 ========================================== */
 .right-panel.is-preview-mode {
-    background-color: #f0f2f5;
+    background-color: var(--el-fill-color-light);
     padding: 20px;
     align-items: center;
 }
 
 .exam-preview-paper {
-    background-color: white;
+    background-color: var(--el-fill-color-blank);
     width: 100%;
     max-width: 800px;
     padding: 40px;
     border-radius: 4px;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 
 .paper-title {
@@ -1492,14 +1494,14 @@ onMounted(() => {
 
 .paper-desc {
     text-align: center;
-    color: #606266;
+    color: var(--el-text-color-secondary);
     margin-bottom: 30px;
     white-space: pre-wrap;
 }
 
 .paper-question {
     margin-bottom: 30px;
-    border-bottom: 1px dashed #ebeef5;
+    border-bottom: 1px dashed var(--el-border-color-lighter);
     padding-bottom: 20px;
 }
 .paper-question:last-child {
@@ -1545,8 +1547,8 @@ onMounted(() => {
 }
 
 .q-answer-box {
-    background-color: #fdf6ec;
-    color: #e6a23c;
+    background-color: var(--el-color-warning-light-9);
+    color: var(--el-color-warning);
     padding: 10px 15px;
     border-radius: 4px;
     font-size: 14px;
