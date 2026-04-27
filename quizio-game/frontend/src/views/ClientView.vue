@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
@@ -309,15 +309,25 @@ const interactionBadge = (qId: number): number => {
     return Math.max(0, total - (seenInteractionCount.value[qId] ?? 0))
 }
 
-const openInteractionDialog = (question: Question) => {
-    currentInteractionQuestion.value = question
-    const ia = interactions.value[question.id] ?? {}
-    seenInteractionCount.value[question.id] = Object.values(ia).reduce(
+const snapshotSeenCount = (qId: number) => {
+    const ia = interactions.value[qId] ?? {}
+    seenInteractionCount.value[qId] = Object.values(ia).reduce(
         (sum, x) => sum + x.likes.length + x.comments.length,
         0
     )
+}
+
+const openInteractionDialog = (question: Question) => {
+    currentInteractionQuestion.value = question
+    snapshotSeenCount(question.id)
     interactionDialogVisible.value = true
 }
+
+watch(interactionDialogVisible, (visible) => {
+    if (!visible && currentInteractionQuestion.value) {
+        snapshotSeenCount(currentInteractionQuestion.value.id)
+    }
+})
 
 const handleLike = (ownerId: string) => {
     const qId = currentInteractionQuestion.value?.id

@@ -1025,7 +1025,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import api from '../api'
@@ -1646,13 +1646,23 @@ const openInteractionDialog = (eq: ExamQuestion) => {
             question_id: eq.question_id
         })
     )
-    const ia = hostInteractions.value[eq.question_id] ?? {}
-    seenInteractionCount.value[eq.question_id] = Object.values(ia).reduce(
+    snapshotSeenCount(eq.question_id)
+    interactionDialogVisible.value = true
+}
+
+const snapshotSeenCount = (qId: number) => {
+    const ia = hostInteractions.value[qId] ?? {}
+    seenInteractionCount.value[qId] = Object.values(ia).reduce(
         (sum, x) => sum + x.likes.length + x.comments.length,
         0
     )
-    interactionDialogVisible.value = true
 }
+
+watch(interactionDialogVisible, (visible) => {
+    if (!visible && currentInteractionQuestion.value) {
+        snapshotSeenCount(currentInteractionQuestion.value.id)
+    }
+})
 
 const handleHostLike = (ownerId: string) => {
     const qId = currentInteractionQuestion.value?.id
