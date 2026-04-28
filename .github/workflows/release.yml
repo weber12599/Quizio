@@ -103,6 +103,49 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: 📝 Add INSTALL_GUIDE to DMG
+        run: |
+          set -e
+
+          # Find the DMG file
+          DMG_FILE=$(find quizio-game/electron/dist-electron -name "QuizioGame*.dmg" -not -name "*.blockmap" | head -1)
+          if [ -z "$DMG_FILE" ]; then
+            echo "❌ No DMG file found"
+            exit 1
+          fi
+
+          echo "📦 Processing: $DMG_FILE"
+
+          TEMP_DIR=$(mktemp -d)
+          trap "rm -rf $TEMP_DIR" EXIT
+
+          # Convert DMG to read-write format
+          TEMP_DMG="$TEMP_DIR/temp.dmg"
+          echo "🔄 Converting to read-write format..."
+          hdiutil convert "$DMG_FILE" -format UDRW -o "$TEMP_DMG" > /dev/null 2>&1 || true
+
+          # Mount the read-write DMG
+          echo "📂 Mounting DMG..."
+          MOUNT_POINT=$(hdiutil attach "$TEMP_DMG" | grep -oE '/Volumes/[^ ]+' | head -1)
+          if [ -z "$MOUNT_POINT" ]; then
+            MOUNT_POINT="/Volumes/QuizioGame"
+            hdiutil attach "$TEMP_DMG" -mountpoint "$MOUNT_POINT" -nobrowse
+          fi
+
+          # Copy INSTALL_GUIDE.txt
+          echo "📋 Adding INSTALL_GUIDE.txt..."
+          cp quizio-game/electron/INSTALL_GUIDE.txt "$MOUNT_POINT/" || true
+
+          # Unmount
+          sleep 1
+          hdiutil detach "$MOUNT_POINT" || true
+
+          # Convert back to read-only format and replace original
+          echo "🔄 Converting back to compressed format..."
+          hdiutil convert "$TEMP_DMG" -format UDZO -o "$DMG_FILE" || true
+
+          echo "✅ INSTALL_GUIDE.txt added to DMG successfully"
+
       # Determine the tag name based on how the workflow was triggered
       - name: 🏷️ Determine Release Tag
         id: get_version
