@@ -174,7 +174,7 @@ async def upsert_students_batch(
                     db.add(models.Student(**d))
                     await db.flush()
                     created.append({'student_id': s.student_id, 'name': s.name})
-        except Exception as e:
+        except Exception:
             logger.exception("upsert_students_batch failed for student_id %s", s.student_id)
             failed.append({'student_id': s.student_id, 'name': s.name, 'reason': 'error'})
     await db.commit()
@@ -200,7 +200,7 @@ async def batch_update_students(
                     student.class_name = item.class_name
                 await db.flush()
             updated_ids.append(item.id)
-        except Exception as e:
+        except Exception:
             logger.exception("batch_update_students failed for student id %s", item.id)
             failed_ids.append(item.id)
     await db.commit()
