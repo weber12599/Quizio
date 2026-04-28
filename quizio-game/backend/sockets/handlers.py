@@ -716,7 +716,7 @@ async def like_answer(sid: str, payload: LikeAnswerPayload):
     q_ia = room.setdefault('interactions', {}).setdefault(q_id, {})
     answer_ia = q_ia.setdefault(owner_id, {'likes': [], 'comments': []})
 
-    if any(l['from_id'] == caller_id for l in answer_ia['likes']):
+    if any(like['from_id'] == caller_id for like in answer_ia['likes']):
         return  # already liked — no-op
 
     answer_ia['likes'].append({'from_id': caller_id, 'name': caller_name})
@@ -743,7 +743,7 @@ async def unlike_answer(sid: str, payload: LikeAnswerPayload):
     if not answer_ia:
         return
 
-    answer_ia['likes'] = [l for l in answer_ia['likes'] if l['from_id'] != caller_id]
+    answer_ia['likes'] = [like for like in answer_ia['likes'] if like['from_id'] != caller_id]
     await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
 
 
@@ -824,7 +824,7 @@ async def like_comment(sid: str, payload: LikeCommentPayload):
     if 'likes' not in comment:
         comment['likes'] = []
 
-    if any(l['from_id'] == caller_id for l in comment['likes']):
+    if any(like['from_id'] == caller_id for like in comment['likes']):
         return  # already liked — no-op
 
     comment['likes'].append({'from_id': caller_id, 'name': caller_name})
@@ -853,7 +853,7 @@ async def unlike_comment(sid: str, payload: LikeCommentPayload):
     if not comment or 'likes' not in comment:
         return
 
-    comment['likes'] = [l for l in comment['likes'] if l['from_id'] != caller_id]
+    comment['likes'] = [like for like in comment['likes'] if like['from_id'] != caller_id]
     await broadcast_interaction_update(payload.room_pin, payload.question_id, payload.answer_owner_id)
 
 
