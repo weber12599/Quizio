@@ -14,6 +14,7 @@ class HostJoinRoomPayload(BaseModel):
     target_class: Optional[str] = None
     allow_guests: bool = True
     expected_students: List[str] = []
+    host_name: str = '老師'
 
 
 class ClientJoinRoomPayload(BaseModel):

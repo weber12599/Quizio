@@ -339,6 +339,7 @@ async def create_batch_interactions(
         if anchor is None:
             # Without an anchor, option interactions cannot be scoped to a
             # session — skip them rather than orphan the rows.
+            print(f'[warn] Skipping {len(item.comments)} option interaction(s) for q{item.question_id}: no session anchor')
             continue
 
         db_comments = []

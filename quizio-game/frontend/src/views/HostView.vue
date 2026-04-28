@@ -1311,7 +1311,8 @@ const startRoom = () => {
             exam_id: Number(selectedExam.value),
             target_class: selectedClass.value,
             allow_guests: allowGuests.value,
-            expected_students: expectedStudents.value
+            expected_students: expectedStudents.value,
+            host_name: username.value
         })
 
         isConnected.value = true

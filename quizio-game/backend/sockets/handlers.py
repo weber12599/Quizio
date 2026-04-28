@@ -178,6 +178,7 @@ async def host_join_room(sid: str, payload: HostJoinRoomPayload):
             'token': payload.token,
             'exam_id': payload.exam_id,
             'host_sid': sid,
+            'host_name': payload.host_name,
             'screen_sids': set(),
             'clients': {},  # Key: player_id, Value: client data dict
             'client_sids': {},  # Reverse lookup -> Key: sid, Value: player_id
@@ -595,7 +596,6 @@ async def host_display_question(sid: str, payload: HostDisplayQuestionPayload):
             )
 
 
-
 @sio.on(SocketEvent.HOST_PIN_ANSWER.value)
 @validate_payload(HostPinAnswerPayload)
 async def host_pin_answer(sid: str, payload: HostPinAnswerPayload):
@@ -708,7 +708,7 @@ async def like_answer(sid: str, payload: LikeAnswerPayload):
         return
 
     caller_id = '__host__' if is_host else player_id
-    caller_name = '老師' if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+    caller_name = room.get('host_name', '老師') if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
 
     q_id = payload.question_id
     owner_id = payload.answer_owner_id
@@ -760,7 +760,7 @@ async def comment_answer(sid: str, payload: CommentAnswerPayload):
         return
 
     caller_id = '__host__' if is_host else player_id
-    caller_name = '老師' if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+    caller_name = room.get('host_name', '老師') if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
 
     q_id = payload.question_id
     owner_id = payload.answer_owner_id
@@ -811,7 +811,7 @@ async def like_comment(sid: str, payload: LikeCommentPayload):
         return
 
     caller_id = '__host__' if is_host else player_id
-    caller_name = '老師' if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+    caller_name = room.get('host_name', '老師') if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
 
     answer_ia = room.get('interactions', {}).get(payload.question_id, {}).get(payload.answer_owner_id)
     if not answer_ia:
@@ -1035,7 +1035,7 @@ async def end_game(sid: str, payload: EndGamePayload):
         if batch_payload:
             batch_result = await submit_batch_submissions(token, batch_payload)
             answer_ids = batch_result.get('answer_ids', [])
-            if batch_payload and not answer_ids:
+            if not answer_ids:
                 print(f'[warn] end_game: batch submission returned no answer_ids for room {payload.room_pin}')
             await _submit_interactions(room, token, answer_ids)
 
