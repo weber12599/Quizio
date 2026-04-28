@@ -49,7 +49,11 @@
                         <FullScreen v-else />
                     </el-icon>
                     <span style="font-weight: bold">
-                        {{ isFullscreen ? t('fab.exit_fullscreen') : t('fab.fullscreen') }}
+                        {{
+                            isFullscreen
+                                ? t('fab.exit_fullscreen')
+                                : t('fab.fullscreen')
+                        }}
                     </span>
                 </el-button>
 
@@ -95,7 +99,7 @@ import {
     Monitor,
     FullScreen,
     ScaleToOriginal,
-    Rank,
+    Rank
 } from '@element-plus/icons-vue'
 import { storage } from '../utils/storage'
 import { useTheme } from '../composables/useTheme'
@@ -111,7 +115,9 @@ const isScreenRoute = computed(() => route.name === 'screen')
 
 // Theme
 const { themeMode, cycleTheme } = useTheme()
-const themeIcon = computed(() => ({ light: Sunny, dark: Moon, system: Monitor }[themeMode.value]))
+const themeIcon = computed(
+    () => ({ light: Sunny, dark: Moon, system: Monitor })[themeMode.value]
+)
 const themeLabel = computed(() => t(`fab.theme_${themeMode.value}`))
 
 // Fullscreen
@@ -123,7 +129,8 @@ type FontSize = (typeof fontSizes)[number]
 const fontSize = ref<FontSize>(storage.appFontSize.get() ?? 'normal')
 
 function cycleFontSize(): void {
-    const next = fontSizes[(fontSizes.indexOf(fontSize.value) + 1) % fontSizes.length]
+    const next =
+        fontSizes[(fontSizes.indexOf(fontSize.value) + 1) % fontSizes.length]
     fontSize.value = next
     storage.appFontSize.set(next)
     if (next === 'normal') {

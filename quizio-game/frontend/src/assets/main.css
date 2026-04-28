@@ -86,8 +86,12 @@ html.light {
 }
 
 /* Font size scaler for screen/projector view */
-html[data-fontsize='large'] { font-size: 112.5%; }
-html[data-fontsize='xlarge'] { font-size: 125%; }
+html[data-fontsize='large'] {
+    font-size: 112.5%;
+}
+html[data-fontsize='xlarge'] {
+    font-size: 125%;
+}
 
 /* Global Resets & Base Styles */
 *,

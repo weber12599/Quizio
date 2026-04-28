@@ -9,10 +9,21 @@
     >
         <template #header>
             <div class="ig-header">
-                <span class="ig-header-title">{{ $t('interaction.dialog_title') }}</span>
-                <button class="ig-close-btn" type="button" @click="emit('update:visible', false)">
+                <span class="ig-header-title">{{
+                    $t('interaction.dialog_title')
+                }}</span>
+                <button
+                    class="ig-close-btn"
+                    type="button"
+                    @click="emit('update:visible', false)"
+                >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path
+                            d="M6 18L18 6M6 6l12 12"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                        />
                     </svg>
                 </button>
             </div>
@@ -52,9 +63,14 @@
                     </div>
                     <div class="author-info">
                         <span class="author-name">{{ peer.name }}</span>
-                        <span v-if="peer.is_guest" class="guest-badge">訪客</span>
+                        <span v-if="peer.is_guest" class="guest-badge"
+                            >訪客</span
+                        >
                     </div>
-                    <span v-if="peer.player_id === myPlayerId" class="own-badge">
+                    <span
+                        v-if="peer.player_id === myPlayerId"
+                        class="own-badge"
+                    >
                         {{ $t('client.your_answer') }}
                     </span>
                 </div>
@@ -75,31 +91,52 @@
                             :aria-pressed="hasLiked(peer.player_id)"
                             @click="onLike(peer.player_id)"
                         >
-                            <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"/>
+                            <svg
+                                class="heart-icon"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"
+                                />
                             </svg>
                         </button>
-                        <span v-if="getLikeCount(peer.player_id) > 0" class="action-count">
+                        <span
+                            v-if="getLikeCount(peer.player_id) > 0"
+                            class="action-count"
+                        >
                             {{ getLikeCount(peer.player_id) }}
                         </span>
                         <!-- Floating hearts -->
                         <span class="hearts-container" aria-hidden="true">
                             <span
-                                v-for="h in floatingHearts[peer.player_id] || []"
+                                v-for="h in floatingHearts[peer.player_id] ||
+                                []"
                                 :key="h.id"
                                 class="heart-particle"
                             >
                                 <svg viewBox="0 0 24 24">
-                                    <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"/>
+                                    <path
+                                        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"
+                                    />
                                 </svg>
                             </span>
                         </span>
                     </div>
                     <div class="comment-stat">
-                        <svg class="comment-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+                        <svg
+                            class="comment-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"
+                            />
                         </svg>
-                        <span v-if="getCommentCount(peer.player_id) > 0" class="action-count">
+                        <span
+                            v-if="getCommentCount(peer.player_id) > 0"
+                            class="action-count"
+                        >
                             {{ getCommentCount(peer.player_id) }}
                         </span>
                     </div>
@@ -107,7 +144,11 @@
 
                 <!-- Comments section -->
                 <div class="comments-section">
-                    <TransitionGroup name="comment" tag="div" class="comments-list">
+                    <TransitionGroup
+                        name="comment"
+                        tag="div"
+                        class="comments-list"
+                    >
                         <div
                             v-for="c in getComments(peer.player_id)"
                             :key="c.id"
@@ -116,7 +157,12 @@
                             <span
                                 class="comment-author"
                                 :class="{ 'comment-author--host': c.is_host }"
-                            >{{ c.is_host ? $t('interaction.from_teacher') : c.name }}</span>
+                                >{{
+                                    c.is_host
+                                        ? $t('interaction.from_teacher')
+                                        : c.name
+                                }}</span
+                            >
                             <span class="comment-text">{{ c.content }}</span>
                             <button
                                 class="comment-like-btn"
@@ -124,16 +170,28 @@
                                 type="button"
                                 @click="onLikeComment(peer.player_id, c.id)"
                             >
-                                <svg class="heart-icon-sm" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"/>
+                                <svg
+                                    class="heart-icon-sm"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"
+                                    />
                                 </svg>
-                                <span v-if="(c.likes?.length ?? 0) > 0" class="comment-like-count">
+                                <span
+                                    v-if="(c.likes?.length ?? 0) > 0"
+                                    class="comment-like-count"
+                                >
                                     {{ c.likes.length }}
                                 </span>
                             </button>
                         </div>
                     </TransitionGroup>
-                    <p v-if="getComments(peer.player_id).length === 0" class="no-comments-hint">
+                    <p
+                        v-if="getComments(peer.player_id).length === 0"
+                        class="no-comments-hint"
+                    >
                         {{ $t('interaction.be_first_to_comment') }}
                     </p>
                 </div>
@@ -169,17 +227,30 @@
                 <div class="post-header">
                     <span class="option-label">{{ label }}</span>
                     <div class="comment-stat">
-                        <svg class="comment-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+                        <svg
+                            class="comment-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"
+                            />
                         </svg>
-                        <span v-if="getCommentCount('opt_' + idx) > 0" class="action-count">
+                        <span
+                            v-if="getCommentCount('opt_' + idx) > 0"
+                            class="action-count"
+                        >
                             {{ getCommentCount('opt_' + idx) }}
                         </span>
                     </div>
                 </div>
 
                 <div class="comments-section">
-                    <TransitionGroup name="comment" tag="div" class="comments-list">
+                    <TransitionGroup
+                        name="comment"
+                        tag="div"
+                        class="comments-list"
+                    >
                         <div
                             v-for="c in getComments('opt_' + idx)"
                             :key="c.id"
@@ -188,7 +259,12 @@
                             <span
                                 class="comment-author"
                                 :class="{ 'comment-author--host': c.is_host }"
-                            >{{ c.is_host ? $t('interaction.from_teacher') : c.name }}</span>
+                                >{{
+                                    c.is_host
+                                        ? $t('interaction.from_teacher')
+                                        : c.name
+                                }}</span
+                            >
                             <span class="comment-text">{{ c.content }}</span>
                             <button
                                 class="comment-like-btn"
@@ -196,16 +272,28 @@
                                 type="button"
                                 @click="onLikeComment('opt_' + idx, c.id)"
                             >
-                                <svg class="heart-icon-sm" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"/>
+                                <svg
+                                    class="heart-icon-sm"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 4.875 5.25 8.625 9 11.25 3.75-2.625 9-6.375 9-11.25Z"
+                                    />
                                 </svg>
-                                <span v-if="(c.likes?.length ?? 0) > 0" class="comment-like-count">
+                                <span
+                                    v-if="(c.likes?.length ?? 0) > 0"
+                                    class="comment-like-count"
+                                >
                                     {{ c.likes.length }}
                                 </span>
                             </button>
                         </div>
                     </TransitionGroup>
-                    <p v-if="getComments('opt_' + idx).length === 0" class="no-comments-hint">
+                    <p
+                        v-if="getComments('opt_' + idx).length === 0"
+                        class="no-comments-hint"
+                    >
                         {{ $t('interaction.be_first_to_comment') }}
                     </p>
                 </div>
@@ -236,7 +324,11 @@
 import { computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { renderMarkdown } from '../utils/markdown'
-import type { Comment, PeerAnswer, QuestionInteractions } from '../types/interaction'
+import type {
+    Comment,
+    PeerAnswer,
+    QuestionInteractions
+} from '../types/interaction'
 
 const props = defineProps<{
     visible: boolean
@@ -295,7 +387,15 @@ const optionLabels = computed<string[]>(() => {
 })
 
 const avatarColor = (name: string): string => {
-    const colors = ['#f87171', '#fb923c', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6']
+    const colors = [
+        '#f87171',
+        '#fb923c',
+        '#fbbf24',
+        '#34d399',
+        '#60a5fa',
+        '#a78bfa',
+        '#f472b6'
+    ]
     let h = 0
     for (const c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length
     return colors[h]
@@ -387,8 +487,14 @@ const cleanupHearts = () => {
 }
 
 @keyframes sheet-in {
-    from { transform: translateY(40px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
+    from {
+        transform: translateY(40px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -421,8 +527,13 @@ const cleanupHearts = () => {
     line-height: 0;
 }
 
-.ig-close-btn:hover { color: var(--el-text-color-primary); }
-.ig-close-btn:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.ig-close-btn:hover {
+    color: var(--el-text-color-primary);
+}
+.ig-close-btn:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 2px;
+}
 
 .ig-close-btn svg {
     width: 22px;
@@ -481,7 +592,9 @@ const cleanupHearts = () => {
     border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
-.ig-post:last-child { border-bottom: none; }
+.ig-post:last-child {
+    border-bottom: none;
+}
 
 /* ── Post header ─────────────────────────────────────────────────────────── */
 
@@ -590,8 +703,14 @@ const cleanupHearts = () => {
     line-height: 0;
 }
 
-.action-btn:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
-.action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.action-btn:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 2px;
+}
+.action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
 
 /* Heart icon — hollow gray by default */
 .heart-icon {
@@ -605,7 +724,9 @@ const cleanupHearts = () => {
     fill: none;
     stroke: var(--el-text-color-secondary);
     stroke-width: 1.5;
-    transition: fill 0.2s ease, stroke 0.2s ease;
+    transition:
+        fill 0.2s ease,
+        stroke 0.2s ease;
 }
 
 /* Liked: filled red */
@@ -615,14 +736,24 @@ const cleanupHearts = () => {
 }
 
 /* Hover preview */
-.like-btn:hover:not(:disabled) .heart-icon path { stroke: #ef4444; }
+.like-btn:hover:not(:disabled) .heart-icon path {
+    stroke: #ef4444;
+}
 
 /* Bounce on like */
 @keyframes heart-pop {
-    0%   { transform: scale(1); }
-    40%  { transform: scale(1.4); }
-    70%  { transform: scale(0.9); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.4);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 .like-btn.liked .heart-icon {
@@ -685,14 +816,30 @@ const cleanupHearts = () => {
     display: block;
 }
 
-.heart-particle svg { width: 100%; height: 100%; display: block; }
+.heart-particle svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
 
-.heart-particle svg path { fill: #ef4444; stroke: none; }
+.heart-particle svg path {
+    fill: #ef4444;
+    stroke: none;
+}
 
 @keyframes float-up {
-    0%   { opacity: 1;   transform: translateX(-50%) translateY(0)    scale(1);    }
-    60%  { opacity: 0.8; transform: translateX(-50%) translateY(-28px) scale(1.25); }
-    100% { opacity: 0;   transform: translateX(-50%) translateY(-52px) scale(0.8);  }
+    0% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+    60% {
+        opacity: 0.8;
+        transform: translateX(-50%) translateY(-28px) scale(1.25);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-52px) scale(0.8);
+    }
 }
 
 /* ── Comments ────────────────────────────────────────────────────────────── */
@@ -724,7 +871,9 @@ const cleanupHearts = () => {
     flex-shrink: 0;
 }
 
-.comment-author--host { color: var(--el-color-warning-dark-2); }
+.comment-author--host {
+    color: var(--el-color-warning-dark-2);
+}
 
 .comment-text {
     flex: 1;
@@ -753,8 +902,15 @@ const cleanupHearts = () => {
     align-self: center;
 }
 
-.comment-like-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.comment-like-btn:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 1px; border-radius: 4px; }
+.comment-like-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.comment-like-btn:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 1px;
+    border-radius: 4px;
+}
 
 .heart-icon-sm {
     width: 14px;
@@ -767,11 +923,18 @@ const cleanupHearts = () => {
     fill: none;
     stroke: var(--el-text-color-placeholder);
     stroke-width: 1.8;
-    transition: fill 0.2s ease, stroke 0.2s ease;
+    transition:
+        fill 0.2s ease,
+        stroke 0.2s ease;
 }
 
-.comment-like-btn.liked .heart-icon-sm path { fill: #ef4444; stroke: #ef4444; }
-.comment-like-btn:hover:not(:disabled) .heart-icon-sm path { stroke: #ef4444; }
+.comment-like-btn.liked .heart-icon-sm path {
+    fill: #ef4444;
+    stroke: #ef4444;
+}
+.comment-like-btn:hover:not(:disabled) .heart-icon-sm path {
+    stroke: #ef4444;
+}
 
 .comment-like-count {
     font-size: 0.75rem;
@@ -779,11 +942,18 @@ const cleanupHearts = () => {
     line-height: 1;
 }
 
-.comment-like-btn.liked .comment-like-count { color: #ef4444; }
+.comment-like-btn.liked .comment-like-count {
+    color: #ef4444;
+}
 
 /* Comment slide-in animation */
-.comment-enter-active { transition: all 0.25s ease; }
-.comment-enter-from   { opacity: 0; transform: translateY(8px); }
+.comment-enter-active {
+    transition: all 0.25s ease;
+}
+.comment-enter-from {
+    opacity: 0;
+    transform: translateY(8px);
+}
 
 /* ── Comment input ───────────────────────────────────────────────────────── */
 
@@ -794,5 +964,7 @@ const cleanupHearts = () => {
     padding-top: 4px;
 }
 
-.comment-input-row .el-input { flex: 1; }
+.comment-input-row .el-input {
+    flex: 1;
+}
 </style>

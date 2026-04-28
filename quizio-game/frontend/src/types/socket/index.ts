@@ -81,7 +81,9 @@ export interface ClientToServerEvents {
     [SocketEvent.LIKE_ANSWER]: (payload: Client.LikeAnswerPayload) => void
     [SocketEvent.UNLIKE_ANSWER]: (payload: Client.LikeAnswerPayload) => void
     [SocketEvent.COMMENT_ANSWER]: (payload: Client.CommentAnswerPayload) => void
-    [SocketEvent.DELETE_COMMENT]: (payload: Host.HostDeleteCommentPayload) => void
+    [SocketEvent.DELETE_COMMENT]: (
+        payload: Host.HostDeleteCommentPayload
+    ) => void
     [SocketEvent.LIKE_COMMENT]: (payload: Client.LikeCommentPayload) => void
     [SocketEvent.UNLIKE_COMMENT]: (payload: Client.LikeCommentPayload) => void
 }

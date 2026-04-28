@@ -6,18 +6,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Quizio Game</title>
         <script>
-            (function () {
+            ;(function () {
                 var t = localStorage.getItem('app_theme') || 'system'
                 if (
                     t === 'dark' ||
-                    (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+                    (t === 'system' &&
+                        window.matchMedia('(prefers-color-scheme: dark)')
+                            .matches)
                 ) {
                     document.documentElement.classList.add('dark')
                 } else {
                     document.documentElement.classList.add('light')
                 }
                 var f = localStorage.getItem('app_font_size')
-                if (f && f !== 'normal') document.documentElement.setAttribute('data-fontsize', f)
+                if (f && f !== 'normal')
+                    document.documentElement.setAttribute('data-fontsize', f)
             })()
         </script>
     </head>

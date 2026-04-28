@@ -8,6 +8,7 @@ export interface HostJoinRoomPayload {
     target_class?: string | null
     allow_guests?: boolean
     expected_students?: string[]
+    host_name?: string
 }
 
 export interface HostBroadcastQuestionsPayload {

@@ -196,7 +196,9 @@
                                         plain
                                         @click="openInteractionDialog(q)"
                                     >
-                                        <el-icon class="mr-1"><ChatDotRound /></el-icon>
+                                        <el-icon class="mr-1"
+                                            ><ChatDotRound
+                                        /></el-icon>
                                         {{ $t('interaction.view_discussion') }}
                                     </el-button>
                                 </el-badge>
@@ -206,7 +208,9 @@
                                     type="primary"
                                     size="large"
                                     plain
-                                    @click="submitAnswer(q.id, tempAnswers[q.id])"
+                                    @click="
+                                        submitAnswer(q.id, tempAnswers[q.id])
+                                    "
                                     :disabled="!canSubmit(q.id, q.type)"
                                 >
                                     {{ $t('client.submit_answer') }}
@@ -222,12 +226,8 @@
     <InteractionDialog
         v-model:visible="interactionDialogVisible"
         :question="currentInteractionQuestion"
-        :peer-answers="
-            peerAnswers[currentInteractionQuestion?.id ?? 0] ?? []
-        "
-        :interactions="
-            interactions[currentInteractionQuestion?.id ?? 0] ?? {}
-        "
+        :peer-answers="peerAnswers[currentInteractionQuestion?.id ?? 0] ?? []"
+        :interactions="interactions[currentInteractionQuestion?.id ?? 0] ?? {}"
         :my-player-id="myPlayerId"
         :is-host="false"
         @like="handleLike"
@@ -300,7 +300,11 @@ const canSubmit = (qId: number, type: string): boolean => {
 }
 
 const interactionBadge = (qId: number): number => {
-    if (interactionDialogVisible.value && currentInteractionQuestion.value?.id === qId) return 0
+    if (
+        interactionDialogVisible.value &&
+        currentInteractionQuestion.value?.id === qId
+    )
+        return 0
     const ia = interactions.value[qId] ?? {}
     const total = Object.values(ia).reduce(
         (sum, x) => sum + x.likes.length + x.comments.length,
@@ -336,7 +340,11 @@ const handleLike = (ownerId: string) => {
     const ia = interactions.value[qId][ownerId] ?? { likes: [], comments: [] }
     ia.likes.push({ from_id: myPlayerId.value, name: myDisplayName.value })
     interactions.value[qId][ownerId] = ia
-    socket.emit(SocketEvent.LIKE_ANSWER, { room_pin: roomPin.value, question_id: qId, answer_owner_id: ownerId })
+    socket.emit(SocketEvent.LIKE_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId
+    })
 }
 
 const handleUnlike = (ownerId: string) => {
@@ -344,7 +352,11 @@ const handleUnlike = (ownerId: string) => {
     if (!qId) return
     const ia = interactions.value[qId]?.[ownerId]
     if (ia) ia.likes = ia.likes.filter((l) => l.from_id !== myPlayerId.value)
-    socket.emit(SocketEvent.UNLIKE_ANSWER, { room_pin: roomPin.value, question_id: qId, answer_owner_id: ownerId })
+    socket.emit(SocketEvent.UNLIKE_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId
+    })
 }
 
 const handleComment = (ownerId: string, content: string) => {
@@ -358,7 +370,7 @@ const handleComment = (ownerId: string, content: string) => {
         name: myDisplayName.value,
         content,
         is_host: false,
-        likes: [],
+        likes: []
     })
     interactions.value[qId][ownerId] = ia
     socket.emit(SocketEvent.COMMENT_ANSWER, {
@@ -372,31 +384,40 @@ const handleComment = (ownerId: string, content: string) => {
 const handleLikeComment = (ownerId: string, commentId: string) => {
     const qId = currentInteractionQuestion.value?.id
     if (!qId) return
-    const comment = interactions.value[qId]?.[ownerId]?.comments.find((c) => c.id === commentId)
+    const comment = interactions.value[qId]?.[ownerId]?.comments.find(
+        (c) => c.id === commentId
+    )
     if (comment) {
         if (!comment.likes) comment.likes = []
-        comment.likes.push({ from_id: myPlayerId.value, name: myDisplayName.value })
+        comment.likes.push({
+            from_id: myPlayerId.value,
+            name: myDisplayName.value
+        })
     }
     socket.emit(SocketEvent.LIKE_COMMENT, {
         room_pin: roomPin.value,
         question_id: qId,
         answer_owner_id: ownerId,
-        comment_id: commentId,
+        comment_id: commentId
     })
 }
 
 const handleUnlikeComment = (ownerId: string, commentId: string) => {
     const qId = currentInteractionQuestion.value?.id
     if (!qId) return
-    const comment = interactions.value[qId]?.[ownerId]?.comments.find((c) => c.id === commentId)
+    const comment = interactions.value[qId]?.[ownerId]?.comments.find(
+        (c) => c.id === commentId
+    )
     if (comment?.likes) {
-        comment.likes = comment.likes.filter((l) => l.from_id !== myPlayerId.value)
+        comment.likes = comment.likes.filter(
+            (l) => l.from_id !== myPlayerId.value
+        )
     }
     socket.emit(SocketEvent.UNLIKE_COMMENT, {
         room_pin: roomPin.value,
         question_id: qId,
         answer_owner_id: ownerId,
-        comment_id: commentId,
+        comment_id: commentId
     })
 }
 
@@ -480,7 +501,14 @@ onMounted(() => {
     if (route.query.pin) roomPin.value = route.query.pin as string
     const saved = storage.studentCreds.get()
     if (saved && !isConnected.value) {
-        const { pin, sid, pwd, gname, isGuest, player_id: savedPlayerId } = saved
+        const {
+            pin,
+            sid,
+            pwd,
+            gname,
+            isGuest,
+            player_id: savedPlayerId
+        } = saved
         roomPin.value = pin
         studentId.value = sid
         password.value = pwd
@@ -498,8 +526,7 @@ onMounted(() => {
         }
     })
     socket.on('auth_success', (data) => {
-        if (data.upload_token)
-            storage.uploadToken.set(data.upload_token)
+        if (data.upload_token) storage.uploadToken.set(data.upload_token)
         if (data.player_id) {
             myPlayerId.value = data.player_id as string
             const creds = storage.studentCreds.get()
@@ -532,8 +559,10 @@ onMounted(() => {
         peerAnswers.value[data.question_id] = data.answers
     })
     socket.on(SocketEvent.INTERACTION_UPDATE, (data) => {
-        if (!interactions.value[data.question_id]) interactions.value[data.question_id] = {}
-        interactions.value[data.question_id][data.answer_owner_id] = data.answer_interactions
+        if (!interactions.value[data.question_id])
+            interactions.value[data.question_id] = {}
+        interactions.value[data.question_id][data.answer_owner_id] =
+            data.answer_interactions
     })
     socket.on('disconnect', (reason) => {
         isConnected.value = false
