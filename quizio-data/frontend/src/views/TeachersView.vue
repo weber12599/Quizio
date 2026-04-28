@@ -365,13 +365,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.teachers-container {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
 .card-header {
     display: flex;
     justify-content: space-between;
