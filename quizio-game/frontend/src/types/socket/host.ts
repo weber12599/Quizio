@@ -8,6 +8,7 @@ export interface HostJoinRoomPayload {
     target_class?: string | null
     allow_guests?: boolean
     expected_students?: string[]
+    host_name?: string
 }
 
 export interface HostBroadcastQuestionsPayload {
@@ -33,6 +34,13 @@ export interface HostShowLeaderboardPayload {
 
 export interface EndGamePayload {
     room_pin: string
+}
+
+export interface HostDeleteCommentPayload {
+    room_pin: string
+    question_id: number
+    answer_owner_id: string
+    comment_id: string
 }
 
 // ---------------------------------------------------------

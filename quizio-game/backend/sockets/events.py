@@ -22,3 +22,15 @@ class SocketEvent(str, Enum):
     HOST_DISPLAY_QUESTION = 'host_display_question'
     HOST_PIN_ANSWER = 'host_pin_answer'
     HOST_SHOW_LEADERBOARD = 'host_show_leaderboard'
+
+    # Interaction: Client / Host -> Server
+    LIKE_ANSWER = 'like_answer'
+    UNLIKE_ANSWER = 'unlike_answer'
+    COMMENT_ANSWER = 'comment_answer'
+    DELETE_COMMENT = 'delete_comment'
+    LIKE_COMMENT = 'like_comment'
+    UNLIKE_COMMENT = 'unlike_comment'
+
+    # Interaction: Server -> Client
+    PEER_ANSWERS = 'peer_answers'
+    INTERACTION_UPDATE = 'interaction_update'

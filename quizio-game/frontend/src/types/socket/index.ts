@@ -4,6 +4,8 @@ import * as Client from './client'
 import * as Host from './host'
 import * as Screen from './screen'
 
+export type { PeerAnswer } from '../interaction'
+
 // ---------------------------------------------------------
 // 1. Events received BY the Frontend (Server -> Client)
 // ---------------------------------------------------------
@@ -24,6 +26,10 @@ export interface ServerToClientEvents {
     [SocketEvent.NEW_QUESTIONS]: (payload: Client.NewQuestionsPayload) => void
     [SocketEvent.RECOVERED_ANSWERS]: (
         payload: Client.RecoveredAnswersPayload
+    ) => void
+    [SocketEvent.PEER_ANSWERS]: (payload: Client.PeerAnswersPayload) => void
+    [SocketEvent.INTERACTION_UPDATE]: (
+        payload: Client.InteractionUpdatePayload
     ) => void
 
     // Screen (and Host) specific
@@ -70,6 +76,16 @@ export interface ClientToServerEvents {
         payload: Host.HostShowLeaderboardPayload
     ) => void
     [SocketEvent.END_GAME]: (payload: Host.EndGamePayload) => void
+
+    // Interaction Actions (Client / Host -> Server)
+    [SocketEvent.LIKE_ANSWER]: (payload: Client.LikeAnswerPayload) => void
+    [SocketEvent.UNLIKE_ANSWER]: (payload: Client.LikeAnswerPayload) => void
+    [SocketEvent.COMMENT_ANSWER]: (payload: Client.CommentAnswerPayload) => void
+    [SocketEvent.DELETE_COMMENT]: (
+        payload: Host.HostDeleteCommentPayload
+    ) => void
+    [SocketEvent.LIKE_COMMENT]: (payload: Client.LikeCommentPayload) => void
+    [SocketEvent.UNLIKE_COMMENT]: (payload: Client.LikeCommentPayload) => void
 }
 
 // ---------------------------------------------------------

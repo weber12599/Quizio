@@ -1,0 +1,11 @@
+.env
+.env.dev
+.env.production
+
+node_modules/
+
+dist/
+build/
+.next/
+
+.DS_Store

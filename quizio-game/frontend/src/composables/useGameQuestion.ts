@@ -142,11 +142,6 @@ export function useGameQuestion(props: any, emit: any) {
         return Math.round((count / props.stats.total) * 100)
     }
 
-    const getProgressColor = (idx: number) => {
-        const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#8E44AD']
-        return colors[idx % colors.length]
-    }
-
     return {
         localAnswer,
         isBooleanType,
@@ -159,7 +154,6 @@ export function useGameQuestion(props: any, emit: any) {
         bannerText,
         getGradingClass,
         getGradingIcon,
-        getStatPercentage,
-        getProgressColor
+        getStatPercentage
     }
 }

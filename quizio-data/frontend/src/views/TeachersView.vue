@@ -3,9 +3,10 @@
         <el-card>
             <template #header>
                 <div class="card-header">
-                    <h2>Teacher Management (Admin)</h2>
+                    <h2>{{ $t('teachers.title') }}</h2>
                     <el-button type="primary" @click="openAddDialog">
-                        <el-icon><Plus /></el-icon> Add Teacher
+                        <el-icon><Plus /></el-icon>
+                        {{ $t('teachers.add_teacher') }}
                     </el-button>
                 </div>
             </template>
@@ -17,29 +18,41 @@
                 style="width: 100%"
             >
                 <el-table-column prop="id" label="ID" width="80" />
-                <el-table-column prop="username" label="Username" width="150" />
+                <el-table-column
+                    prop="username"
+                    :label="$t('teachers.columns.username')"
+                    width="150"
+                />
                 <el-table-column
                     prop="full_name"
-                    label="Full Name"
+                    :label="$t('teachers.columns.full_name')"
                     width="180"
                 />
-                <el-table-column prop="email" label="Email" min-width="200" />
+                <el-table-column
+                    prop="email"
+                    :label="$t('teachers.columns.email')"
+                    min-width="200"
+                />
 
-                <el-table-column label="Role" width="120" align="center">
+                <el-table-column
+                    :label="$t('common.edit')"
+                    width="120"
+                    align="center"
+                >
                     <template #default="scope">
                         <el-tag
                             :type="scope.row.is_superuser ? 'danger' : 'info'"
                         >
-                            {{
-                                scope.row.is_superuser
-                                    ? 'Superadmin'
-                                    : 'Teacher'
-                            }}
+                            {{ scope.row.is_superuser ? 'Admin' : 'Teacher' }}
                         </el-tag>
                     </template>
                 </el-table-column>
 
-                <el-table-column label="Status" width="120" align="center">
+                <el-table-column
+                    :label="$t('teachers.columns.is_active')"
+                    width="120"
+                    align="center"
+                >
                     <template #default="scope">
                         <el-switch
                             v-model="scope.row.is_active"
@@ -54,13 +67,17 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column label="Actions" width="120" fixed="right">
+                <el-table-column
+                    :label="$t('common.edit')"
+                    width="120"
+                    fixed="right"
+                >
                     <template #default="scope">
                         <el-button
                             size="small"
                             @click="openEditDialog(scope.row)"
                         >
-                            <el-icon><Edit /></el-icon> Edit
+                            <el-icon><Edit /></el-icon> {{ $t('common.edit') }}
                         </el-button>
                     </template>
                 </el-table-column>
@@ -69,7 +86,11 @@
 
         <el-dialog
             v-model="dialogVisible"
-            :title="dialogType === 'add' ? 'Add Teacher' : 'Edit Teacher'"
+            :title="
+                dialogType === 'add'
+                    ? $t('teachers.add_teacher')
+                    : $t('teachers.edit_teacher')
+            "
             width="500px"
         >
             <el-form
@@ -360,6 +381,6 @@ onMounted(() => {
 .card-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 </style>

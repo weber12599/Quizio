@@ -48,6 +48,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      seaweedfs-volume:
+        condition: service_started
     volumes:
       - ./backend:/app
     command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 18080 --reload"
@@ -66,4 +68,4 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-    command: npm run dev -- --force
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --force"

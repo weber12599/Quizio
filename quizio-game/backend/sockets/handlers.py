@@ -1,5 +1,6 @@
 import asyncio
 import json
+import uuid
 from functools import wraps
 from typing import Dict
 
@@ -10,18 +11,23 @@ from utils import (
     compute_stats,
     generate_leaderboard,
     grade_answer,
+    submit_batch_interactions,
     submit_batch_submissions,
 )
 
 from .events import SocketEvent
 from .schemas import (
     ClientJoinRoomPayload,
+    CommentAnswerPayload,
+    DeleteCommentPayload,
     EndGamePayload,
     HostBroadcastQuestionsPayload,
     HostDisplayQuestionPayload,
     HostJoinRoomPayload,
     HostPinAnswerPayload,
     HostShowLeaderboardPayload,
+    LikeAnswerPayload,
+    LikeCommentPayload,
     ScreenJoinRoomPayload,
     SubmitAnswerPayload,
 )
@@ -29,6 +35,9 @@ from .server import sio
 
 # In-memory room state management (O(1) Optimized Structure)
 room_states: Dict[str, dict] = {}
+
+# Prefix for option-level interaction owner IDs (e.g., 'opt_0', 'opt_1')
+OPTION_OWNER_PREFIX = 'opt_'
 
 
 def validate_payload(schema_class):
@@ -169,6 +178,7 @@ async def host_join_room(sid: str, payload: HostJoinRoomPayload):
             'token': payload.token,
             'exam_id': payload.exam_id,
             'host_sid': sid,
+            'host_name': payload.host_name,
             'screen_sids': set(),
             'clients': {},  # Key: player_id, Value: client data dict
             'client_sids': {},  # Reverse lookup -> Key: sid, Value: player_id
@@ -178,6 +188,7 @@ async def host_join_room(sid: str, payload: HostJoinRoomPayload):
             'pinned_answer': None,
             'answers': {},
             'gradings': {},
+            'interactions': {},  # {q_id: {owner_player_id: {likes: [], comments: []}}}
             'current_screen': 'lobby',
             'target_class': payload.target_class,
             'allow_guests': payload.allow_guests,
@@ -254,18 +265,28 @@ async def client_join_room(sid: str, payload: ClientJoinRoomPayload):
             return
 
         token = room.get('token')
-        guest_info = await check_guest_credentials(payload.guest_name, token)
 
-        if not guest_info:
-            await sio.emit('error', {'message': 'Invalid credentials.'}, to=sid)
-            await sio.disconnect(sid)
-            return
+        existing = room['clients'].get(payload.player_id) if payload.player_id else None
+        if existing and existing.get('is_guest'):
+            player_id = payload.player_id
+            player_name = existing['name']
+            guest_info = await check_guest_credentials(player_name, token)
+            if not guest_info:
+                await sio.emit('error', {'message': 'Invalid credentials.'}, to=sid)
+                await sio.disconnect(sid)
+                return
+            upload_token = guest_info.get('upload_token')
+        else:
+            guest_info = await check_guest_credentials(payload.guest_name, token)
+            if not guest_info:
+                await sio.emit('error', {'message': 'Invalid credentials.'}, to=sid)
+                await sio.disconnect(sid)
+                return
+            player_id = guest_info.get('guest_id')
+            player_name = payload.guest_name
+            upload_token = guest_info.get('upload_token')
 
-        player_id = guest_info.get('guest_id')
-        player_name = payload.guest_name
-        upload_token = guest_info.get('upload_token')
-
-    await sio.emit('auth_success', {'upload_token': upload_token}, to=sid)
+    await sio.emit('auth_success', {'upload_token': upload_token, 'player_id': player_id}, to=sid)
 
     # 2. Register or Update client state (O(1) & Reconnection support)
     is_reconnect = player_id in room['clients']
@@ -312,6 +333,25 @@ async def client_join_room(sid: str, payload: ClientJoinRoomPayload):
             {'answers': recovered_answers, 'gradings': recovered_gradings},
             to=sid,
         )
+
+    # Recover peer answers and interactions for all questions the student has already submitted
+    for sub_q_id, student_answers in room.get('answers', {}).items():
+        if player_id not in student_answers:
+            continue
+        q_def = room.get('broadcasted_questions', {}).get(sub_q_id)
+        if not q_def:
+            continue
+        if q_def.get('type') in ('essay', 'short'):
+            peer_answers = _build_peer_answers(room, sub_q_id)
+            await sio.emit(
+                'peer_answers', {'question_id': sub_q_id, 'answers': peer_answers}, to=sid
+            )
+        for owner_id, ia in room.get('interactions', {}).get(sub_q_id, {}).items():
+            await sio.emit(
+                'interaction_update',
+                {'question_id': sub_q_id, 'answer_owner_id': owner_id, 'answer_interactions': ia},
+                to=sid,
+            )
 
     # 4. Broadcast room updates
     await broadcast_room_state(room_pin)
@@ -360,6 +400,55 @@ async def screen_join_room(sid: str, payload: ScreenJoinRoomPayload):
 
     # 3. Broadcast room updates
     await broadcast_room_state(room_pin)
+
+
+def _build_peer_answers(room: dict, q_id: int) -> list:
+    """Build the peer-answers list for a given question from room state."""
+    answers_for_q = room.get('answers', {}).get(q_id, {})
+    clients_info = room.get('clients', {})
+    return [
+        {
+            'player_id': owner_id,
+            'name': clients_info.get(owner_id, {}).get('name', 'Unknown'),
+            'is_guest': clients_info.get(owner_id, {}).get('is_guest', False),
+            'answer': answer,
+            'question_id': q_id,
+        }
+        for owner_id, answer in answers_for_q.items()
+    ]
+
+
+async def broadcast_peer_answers(room_pin: str, q_id: int):
+    """Emit peer_answers to all online clients in the room."""
+    room = room_states.get(room_pin)
+    if not room:
+        return
+    peer_answers = _build_peer_answers(room, q_id)
+    payload = {'question_id': q_id, 'answers': peer_answers}
+    for client in room.get('clients', {}).values():
+        if client.get('is_online') and client.get('sid'):
+            await sio.emit('peer_answers', payload, to=client['sid'])
+
+
+async def broadcast_interaction_update(room_pin: str, q_id: int, owner_id: str):
+    """Emit interaction_update for one answer to all clients + host."""
+    room = room_states.get(room_pin)
+    if not room:
+        return
+    answer_ia = room.get('interactions', {}).get(q_id, {}).get(owner_id)
+    if answer_ia is None:
+        return
+    payload = {
+        'question_id': q_id,
+        'answer_owner_id': owner_id,
+        'answer_interactions': answer_ia,
+    }
+    for client in room.get('clients', {}).values():
+        if client.get('is_online') and client.get('sid'):
+            await sio.emit('interaction_update', payload, to=client['sid'])
+    host_sid = room.get('host_sid')
+    if host_sid:
+        await sio.emit('interaction_update', payload, to=host_sid)
 
 
 async def broadcast_room_state(room_pin: str):
@@ -571,6 +660,23 @@ async def submit_answer(sid: str, payload: SubmitAnswerPayload):
                 'update_stats', {'stats': stats, 'total': total}, to=screen_sid
             )
 
+    # Unlock peer interaction immediately upon submission
+    submitters = set(room['answers'].get(q_id, {}).keys())
+    if q_type in ('essay', 'short'):
+        peer_answers = _build_peer_answers(room, q_id)
+        pa_payload = {'question_id': q_id, 'answers': peer_answers}
+        for client_id, client in room.get('clients', {}).items():
+            if client_id in submitters and client.get('is_online') and client.get('sid'):
+                await sio.emit('peer_answers', pa_payload, to=client['sid'])
+
+    # Send existing interactions for this question to the new submitter
+    for owner_id, ia in room.get('interactions', {}).get(q_id, {}).items():
+        await sio.emit(
+            'interaction_update',
+            {'question_id': q_id, 'answer_owner_id': owner_id, 'answer_interactions': ia},
+            to=sid,
+        )
+
     await broadcast_room_state(payload.room_pin)
     return grading_result
 
@@ -587,6 +693,290 @@ async def host_show_leaderboard(sid: str, payload: HostShowLeaderboardPayload):
 
     for screen_sid in room.get('screen_sids', set()):
         await sio.emit('show_leaderboard', {'leaderboard': leaderboard}, to=screen_sid)
+
+
+@sio.on(SocketEvent.LIKE_ANSWER.value)
+@validate_payload(LikeAnswerPayload)
+async def like_answer(sid: str, payload: LikeAnswerPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+    caller_name = room.get('host_name', '老師') if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+
+    q_id = payload.question_id
+    owner_id = payload.answer_owner_id
+
+    q_ia = room.setdefault('interactions', {}).setdefault(q_id, {})
+    answer_ia = q_ia.setdefault(owner_id, {'likes': [], 'comments': []})
+
+    if any(like['from_id'] == caller_id for like in answer_ia['likes']):
+        return  # already liked — no-op
+
+    answer_ia['likes'].append({'from_id': caller_id, 'name': caller_name})
+    await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
+
+
+@sio.on(SocketEvent.UNLIKE_ANSWER.value)
+@validate_payload(LikeAnswerPayload)
+async def unlike_answer(sid: str, payload: LikeAnswerPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+
+    q_id = payload.question_id
+    owner_id = payload.answer_owner_id
+    answer_ia = room.get('interactions', {}).get(q_id, {}).get(owner_id)
+    if not answer_ia:
+        return
+
+    answer_ia['likes'] = [like for like in answer_ia['likes'] if like['from_id'] != caller_id]
+    await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
+
+
+@sio.on(SocketEvent.COMMENT_ANSWER.value)
+@validate_payload(CommentAnswerPayload)
+async def comment_answer(sid: str, payload: CommentAnswerPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+    caller_name = room.get('host_name', '老師') if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+
+    q_id = payload.question_id
+    owner_id = payload.answer_owner_id
+
+    q_ia = room.setdefault('interactions', {}).setdefault(q_id, {})
+    answer_ia = q_ia.setdefault(owner_id, {'likes': [], 'comments': []})
+
+    answer_ia['comments'].append({
+        'id': str(uuid.uuid4()),
+        'from_id': caller_id,
+        'name': caller_name,
+        'content': payload.content,
+        'is_host': is_host,
+        'likes': [],
+    })
+    await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
+
+
+@sio.on(SocketEvent.DELETE_COMMENT.value)
+@validate_payload(DeleteCommentPayload)
+async def delete_comment(sid: str, payload: DeleteCommentPayload):
+    room = room_states.get(payload.room_pin)
+    if not room or room.get('host_sid') != sid:
+        return
+
+    q_id = payload.question_id
+    owner_id = payload.answer_owner_id
+    answer_ia = room.get('interactions', {}).get(q_id, {}).get(owner_id)
+    if not answer_ia:
+        return
+
+    answer_ia['comments'] = [
+        c for c in answer_ia['comments'] if c['id'] != payload.comment_id
+    ]
+    await broadcast_interaction_update(payload.room_pin, q_id, owner_id)
+
+
+@sio.on(SocketEvent.LIKE_COMMENT.value)
+@validate_payload(LikeCommentPayload)
+async def like_comment(sid: str, payload: LikeCommentPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+    caller_name = room.get('host_name', '老師') if is_host else room['clients'].get(player_id, {}).get('name', 'Unknown')
+
+    answer_ia = room.get('interactions', {}).get(payload.question_id, {}).get(payload.answer_owner_id)
+    if not answer_ia:
+        return
+
+    comment = next((c for c in answer_ia['comments'] if c['id'] == payload.comment_id), None)
+    if not comment:
+        return
+
+    if 'likes' not in comment:
+        comment['likes'] = []
+
+    if any(like['from_id'] == caller_id for like in comment['likes']):
+        return  # already liked — no-op
+
+    comment['likes'].append({'from_id': caller_id, 'name': caller_name})
+    await broadcast_interaction_update(payload.room_pin, payload.question_id, payload.answer_owner_id)
+
+
+@sio.on(SocketEvent.UNLIKE_COMMENT.value)
+@validate_payload(LikeCommentPayload)
+async def unlike_comment(sid: str, payload: LikeCommentPayload):
+    room = room_states.get(payload.room_pin)
+    if not room:
+        return
+
+    is_host = room.get('host_sid') == sid
+    player_id = room.get('client_sids', {}).get(sid)
+    if not is_host and not player_id:
+        return
+
+    caller_id = '__host__' if is_host else player_id
+
+    answer_ia = room.get('interactions', {}).get(payload.question_id, {}).get(payload.answer_owner_id)
+    if not answer_ia:
+        return
+
+    comment = next((c for c in answer_ia['comments'] if c['id'] == payload.comment_id), None)
+    if not comment or 'likes' not in comment:
+        return
+
+    comment['likes'] = [like for like in comment['likes'] if like['from_id'] != caller_id]
+    await broadcast_interaction_update(payload.room_pin, payload.question_id, payload.answer_owner_id)
+
+
+async def _submit_interactions(room: dict, token: str, answer_ids: list) -> None:
+    """
+    Build and submit all in-memory interaction records to quizio-data.
+
+    Two interaction shapes coexist:
+      - answer-level (short / essay): owner_player_id is a real player_id;
+        keyed to a StudentAnswer.id created during batch submission.
+      - option-level (single / multiple / boolean): owner_player_id is
+        'opt_{index}'; keyed to (question_id, option_index). All option-level
+        rows share the session anchor submission_id (any submission from the
+        batch) so the read endpoint can scope them to this session.
+
+    Best-effort: errors are caught and logged.
+    """
+    if not answer_ids:
+        return
+
+    clients = room.get('clients', {})
+    interactions = room.get('interactions', {})
+
+    # answer_lookup: (student_id, guest_name, q_id) → answer_db_id
+    answer_lookup: Dict[tuple, int] = {}
+    for mapping in answer_ids:
+        key = (mapping.get('student_id'), mapping.get('guest_name'), mapping.get('question_id'))
+        answer_lookup[key] = mapping['answer_id']
+
+    # session anchor: any submission_id from this batch
+    session_anchor: int | None = next(
+        (m.get('submission_id') for m in answer_ids if m.get('submission_id')),
+        None,
+    )
+
+    def resolve_from_id(from_id: str) -> dict | None:
+        if from_id == '__host__':
+            return {'is_host': True}
+        client_data = clients.get(from_id)
+        if not client_data:
+            return None
+        if client_data.get('student_db_id'):
+            return {'student_id': client_data['student_db_id']}
+        return {'guest_name': client_data['name']}
+
+    def build_likes(ia_likes: list) -> list:
+        out = []
+        for like in ia_likes:
+            author = resolve_from_id(like['from_id'])
+            if author:
+                out.append(author)
+        return out
+
+    def build_comments(ia_comments: list) -> list:
+        out = []
+        for comment in ia_comments:
+            author = resolve_from_id(comment['from_id'])
+            if not author:
+                continue
+            comment_likes = []
+            for cl in comment.get('likes', []):
+                cl_author = resolve_from_id(cl['from_id'])
+                if cl_author:
+                    comment_likes.append({'author': cl_author})
+            out.append({
+                'content': comment['content'],
+                'author': author,
+                'comment_likes': comment_likes,
+            })
+        return out
+
+    answer_interactions = []
+    option_interactions = []
+
+    for q_id, owner_map in interactions.items():
+        for owner_player_id, ia_data in owner_map.items():
+            likes_payload = build_likes(ia_data.get('likes', []))
+            comments_payload = build_comments(ia_data.get('comments', []))
+
+            if not likes_payload and not comments_payload:
+                continue
+
+            if isinstance(owner_player_id, str) and owner_player_id.startswith(OPTION_OWNER_PREFIX):
+                # Option-level interaction (single / multiple / boolean)
+                try:
+                    option_index = int(owner_player_id[len(OPTION_OWNER_PREFIX):])
+                except ValueError:
+                    continue
+                option_interactions.append({
+                    'question_id': q_id,
+                    'option_index': option_index,
+                    'option_likes': likes_payload,
+                    'comments': comments_payload,
+                })
+            else:
+                # Answer-level interaction (short / essay)
+                client_data = clients.get(owner_player_id)
+                if not client_data:
+                    continue
+                student_db_id = client_data.get('student_db_id')
+                guest_name = client_data['name'] if not student_db_id else None
+                answer_db_id = answer_lookup.get((student_db_id, guest_name, q_id))
+                if not answer_db_id:
+                    continue
+                answer_interactions.append({
+                    'answer_id': answer_db_id,
+                    'answer_likes': likes_payload,
+                    'comments': comments_payload,
+                })
+
+    if not answer_interactions and not option_interactions:
+        return
+
+    payload = {
+        'session_anchor_submission_id': session_anchor,
+        'answer_interactions': answer_interactions,
+        'option_interactions': option_interactions,
+    }
+
+    try:
+        await submit_batch_interactions(token, payload)
+    except Exception as e:
+        print(f'Error submitting interactions: {e}')
 
 
 @sio.on(SocketEvent.END_GAME.value)
@@ -643,10 +1033,14 @@ async def end_game(sid: str, payload: EndGamePayload):
                 )
 
         if batch_payload:
-            await submit_batch_submissions(token, batch_payload)
+            batch_result = await submit_batch_submissions(token, batch_payload)
+            answer_ids = batch_result.get('answer_ids', [])
+            if not answer_ids:
+                print(f'[warn] end_game: batch submission returned no answer_ids for room {payload.room_pin}')
+            await _submit_interactions(room, token, answer_ids)
 
-    # Disconnect all active clients
-    for client in room.get('clients', {}).values():
+    # Disconnect all active clients (snapshot to avoid mutation during iteration)
+    for client in list(room.get('clients', {}).values()):
         if client.get('is_online') and client.get('sid'):
             await sio.emit(
                 'error',
@@ -655,8 +1049,8 @@ async def end_game(sid: str, payload: EndGamePayload):
             )
             await sio.disconnect(client['sid'])
 
-    # Disconnect all screens
-    for screen_sid in room.get('screen_sids', set()):
+    # Disconnect all screens (snapshot to avoid mutation during iteration)
+    for screen_sid in list(room.get('screen_sids', set())):
         await sio.emit(
             'error',
             {'message': 'The host has ended the game. Disconnecting...'},

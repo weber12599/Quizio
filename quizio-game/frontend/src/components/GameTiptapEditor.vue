@@ -65,6 +65,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
+import { storage } from '../utils/storage'
 
 const props = defineProps({
     modelValue: { type: String, default: '' },
@@ -79,7 +80,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const uploadAndInsertImage = async (file: File) => {
     isUploading.value = true
     try {
-        const token = localStorage.getItem('quizio_upload_token')
+        const token = storage.uploadToken.get()
         if (!token) throw new Error('未取得上傳權限')
 
         const formData = new FormData()

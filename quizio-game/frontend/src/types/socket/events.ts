@@ -16,6 +16,14 @@ export const SocketEvent = {
     HOST_PIN_ANSWER: 'host_pin_answer',
     HOST_SHOW_LEADERBOARD: 'host_show_leaderboard',
 
+    // Interaction events (Client / Host -> Server)
+    LIKE_ANSWER: 'like_answer',
+    UNLIKE_ANSWER: 'unlike_answer',
+    COMMENT_ANSWER: 'comment_answer',
+    DELETE_COMMENT: 'delete_comment',
+    LIKE_COMMENT: 'like_comment',
+    UNLIKE_COMMENT: 'unlike_comment',
+
     // Server -> Client (Broadcast events)
     ERROR: 'error',
     AUTH_SUCCESS: 'auth_success',
@@ -27,7 +35,11 @@ export const SocketEvent = {
     DISPLAY_QUESTION: 'display_question',
     UPDATE_STATS: 'update_stats',
     SHOW_LEADERBOARD: 'show_leaderboard',
-    UPDATE_PINNED_ANSWER: 'update_pinned_answer'
+    UPDATE_PINNED_ANSWER: 'update_pinned_answer',
+
+    // Interaction events (Server -> Client)
+    PEER_ANSWERS: 'peer_answers',
+    INTERACTION_UPDATE: 'interaction_update'
 } as const
 
 // Create a type representing the values of the SocketEvent object

@@ -3,28 +3,44 @@
         <el-card>
             <template #header>
                 <div class="card-header">
-                    <h2>Question Management</h2>
+                    <h2>{{ $t('questions.title') }}</h2>
                     <el-button type="primary" @click="openAddDialog">
-                        <el-icon><Plus /></el-icon> Add Question
+                        <el-icon><Plus /></el-icon>
+                        {{ $t('questions.add_question') }}
                     </el-button>
                 </div>
             </template>
 
             <el-form :inline="true" class="filter-bar">
-                <el-form-item label="Type">
+                <el-form-item :label="t('questions.filter.by_type')">
                     <el-select
                         v-model="filterType"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Single Choice" value="single" />
-                        <el-option label="True/False" value="boolean" />
-                        <el-option label="Multiple Choice" value="multiple" />
-                        <el-option label="Short Answer" value="short" />
-                        <el-option label="Essay" value="essay" />
+                        <el-option
+                            :label="t('question_type.single')"
+                            value="single"
+                        />
+                        <el-option
+                            :label="t('question_type.boolean')"
+                            value="boolean"
+                        />
+                        <el-option
+                            :label="t('question_type.multiple')"
+                            value="multiple"
+                        />
+                        <el-option
+                            :label="t('question_type.short')"
+                            value="short"
+                        />
+                        <el-option
+                            :label="t('question_type.essay')"
+                            value="essay"
+                        />
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Difficulty">
+                <el-form-item :label="t('questions.filter.by_difficulty')">
                     <el-select
                         v-model="filterDifficulty"
                         clearable
@@ -35,48 +51,59 @@
                         <el-option label="★★★ 3" :value="3" />
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Lesson">
+                <el-form-item :label="t('questions.filter.by_lesson')">
                     <el-input
                         v-model="filterLesson"
-                        placeholder="e.g., Lesson 1"
+                        :placeholder="t('questions.filter.lesson_placeholder')"
                         clearable
                     />
                 </el-form-item>
-                <el-form-item label="Lock Status">
+                <el-form-item :label="t('questions.filter.by_lock_status')">
                     <el-select
                         v-model="filterLockStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Draft" :value="false" />
-                        <el-option label="Locked" :value="true" />
+                        <el-option
+                            :label="t('questions.filter.draft')"
+                            :value="false"
+                        />
+                        <el-option :label="t('common.lock')" :value="true" />
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Archive Status">
+                <el-form-item :label="t('questions.filter.by_archive_status')">
                     <el-select
                         v-model="filterArchiveStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Active" :value="false" />
-                        <el-option label="Archived" :value="true" />
+                        <el-option
+                            :label="t('questions.filter.active')"
+                            :value="false"
+                        />
+                        <el-option :label="t('common.archive')" :value="true" />
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Delete Status">
+                <el-form-item :label="t('questions.filter.by_delete_status')">
                     <el-select
                         v-model="filterDeleteStatus"
                         clearable
                         style="width: 150px"
                     >
-                        <el-option label="Not Deleted" :value="false" />
-                        <el-option label="Deleted" :value="true" />
+                        <el-option
+                            :label="t('questions.filter.not_deleted')"
+                            :value="false"
+                        />
+                        <el-option :label="t('common.delete')" :value="true" />
                     </el-select>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="handleSearch">
-                        <el-icon><Search /></el-icon> Search
+                        <el-icon><Search /></el-icon> {{ t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">Reset</el-button>
+                    <el-button @click="resetFilters">{{
+                        t('questions.filter.reset')
+                    }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -86,23 +113,33 @@
                 border
                 style="width: 100%"
             >
-                <el-table-column prop="id" label="ID" width="60" />
+                <el-table-column
+                    prop="id"
+                    :label="t('questions.columns.id')"
+                    width="60"
+                />
 
-                <el-table-column prop="status" label="Status" width="100">
+                <el-table-column
+                    prop="status"
+                    :label="t('questions.columns.status')"
+                    width="100"
+                >
                     <template #default="scope">
                         <el-tag
                             v-if="scope.row.is_locked"
                             size="small"
                             type="success"
-                            >Locked</el-tag
+                            >{{ t('common.lock') }}</el-tag
                         >
-                        <el-tag v-else size="small" type="info">Draft</el-tag>
+                        <el-tag v-else size="small" type="info">{{
+                            t('questions.filter.draft')
+                        }}</el-tag>
 
                         <el-tag
                             v-if="scope.row.is_archived"
                             size="small"
                             type="warning"
-                            >Archived</el-tag
+                            >{{ t('common.archive') }}</el-tag
                         >
                         <el-tag
                             v-if="
@@ -111,12 +148,16 @@
                             "
                             size="small"
                             type="danger"
-                            >Deleted</el-tag
+                            >{{ t('common.delete') }}</el-tag
                         >
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="type" label="Type" width="130">
+                <el-table-column
+                    prop="type"
+                    :label="t('questions.columns.type')"
+                    width="130"
+                >
                     <template #default="scope">
                         <el-tag
                             size="small"
@@ -129,7 +170,7 @@
 
                 <el-table-column
                     prop="content"
-                    label="Content"
+                    :label="t('questions.columns.content')"
                     show-overflow-tooltip
                     min-width="250"
                 >
@@ -140,7 +181,7 @@
 
                 <el-table-column
                     prop="difficulty"
-                    label="Difficulty"
+                    :label="t('questions.columns.difficulty')"
                     width="120"
                     align="center"
                 >
@@ -154,7 +195,10 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column label="Tags" min-width="150">
+                <el-table-column
+                    :label="t('questions.columns.tags')"
+                    min-width="150"
+                >
                     <template #default="scope">
                         <el-tag
                             v-for="tag in scope.row.literacy_tags"
@@ -169,12 +213,15 @@
 
                 <el-table-column
                     prop="lesson"
-                    label="Lesson"
+                    :label="t('questions.columns.lesson')"
                     width="150"
                     show-overflow-tooltip
                 />
 
-                <el-table-column label="Last Updated" width="180">
+                <el-table-column
+                    :label="t('questions.columns.last_updated')"
+                    width="180"
+                >
                     <template #default="scope">
                         {{
                             new Date(
@@ -185,7 +232,7 @@
                 </el-table-column>
 
                 <el-table-column
-                    label="Actions"
+                    :label="t('questions.columns.actions')"
                     width="120"
                     fixed="right"
                     align="center"
@@ -194,7 +241,9 @@
                         <el-tooltip placement="top">
                             <template #content>
                                 <span>{{
-                                    isEditable(scope.row) ? 'Edit' : 'Preview'
+                                    isEditable(scope.row)
+                                        ? t('common.edit')
+                                        : t('questions.action.preview')
                                 }}</span>
                             </template>
                             <el-button
@@ -211,7 +260,7 @@
 
                         <el-tooltip placement="top">
                             <template #content>
-                                <span>Adjust (Edit & Copy)</span>
+                                <span>{{ t('questions.action.adjust') }}</span>
                             </template>
 
                             <el-button
@@ -227,7 +276,7 @@
 
                         <el-tooltip placement="top">
                             <template #content>
-                                <span>More</span>
+                                <span>{{ t('questions.action.more') }}</span>
                             </template>
                             <el-dropdown
                                 v-if="isStatusEditable(scope.row)"
@@ -247,7 +296,8 @@
                                             v-if="!scope.row.is_locked"
                                             @click="handleLock(scope.row)"
                                         >
-                                            <el-icon><Lock /></el-icon> Lock
+                                            <el-icon><Lock /></el-icon>
+                                            {{ t('common.lock') }}
                                         </el-dropdown-item>
 
                                         <el-dropdown-item
@@ -266,8 +316,8 @@
                                             /></el-icon>
                                             {{
                                                 scope.row.is_archived
-                                                    ? 'Unarchive'
-                                                    : 'Archive'
+                                                    ? t('common.unarchive')
+                                                    : t('common.archive')
                                             }}
                                         </el-dropdown-item>
 
@@ -292,8 +342,8 @@
                                             /></el-icon>
                                             {{
                                                 !scope.row.deleted_at
-                                                    ? 'Delete'
-                                                    : 'Restore'
+                                                    ? t('common.delete')
+                                                    : t('common.restore')
                                             }}
                                         </el-dropdown-item>
                                     </el-dropdown-menu>
@@ -311,13 +361,13 @@
                 ((dialogType: string) => {
                     switch (dialogType) {
                         case 'add':
-                            return 'Add Question'
+                            return t('questions.dialog.add_title')
                         case 'adjust':
-                            return 'Adjust Question'
+                            return t('questions.dialog.adjust_title')
                         case 'edit':
-                            return 'Edit Question'
+                            return t('questions.dialog.edit_title')
                         case 'preview':
-                            return 'Preview Question'
+                            return t('questions.dialog.preview_title')
                         default:
                             break
                     }
@@ -334,30 +384,47 @@
                 :disabled="dialogType === 'preview'"
                 label-width="140px"
             >
-                <el-form-item label="Type" prop="type" required>
+                <el-form-item
+                    :label="t('questions.form.type')"
+                    prop="type"
+                    required
+                >
                     <el-select
                         v-model="formData.type"
                         @change="handleTypeChange"
                         style="width: 100%"
                     >
                         <el-option
-                            label="Single Choice (單選)"
+                            :label="t('question_type.single')"
                             value="single"
                         />
-                        <el-option label="True/False (是非)" value="boolean" />
                         <el-option
-                            label="Multiple Choice (多選)"
+                            :label="t('question_type.boolean')"
+                            value="boolean"
+                        />
+                        <el-option
+                            :label="t('question_type.multiple')"
                             value="multiple"
                         />
-                        <el-option label="Short Answer (簡答)" value="short" />
-                        <el-option label="Essay (申論)" value="essay" />
+                        <el-option
+                            :label="t('question_type.short')"
+                            value="short"
+                        />
+                        <el-option
+                            :label="t('question_type.essay')"
+                            value="essay"
+                        />
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="Content" prop="content" required>
+                <el-form-item
+                    :label="t('questions.form.content')"
+                    prop="content"
+                    required
+                >
                     <TiptapEditor
                         v-model="formData.content"
-                        placeholder="Please enter the question text; pasting or dragging and dropping images is supported."
+                        :placeholder="t('questions.form.content_placeholder')"
                         :disabled="dialogType === 'preview'"
                     />
                 </el-form-item>
@@ -368,9 +435,13 @@
                         formData.options
                     "
                 >
-                    <el-divider>Options</el-divider>
+                    <el-divider>{{ t('questions.form.options') }}</el-divider>
 
-                    <el-form-item label="Options" prop="options" required>
+                    <el-form-item
+                        :label="t('questions.form.options')"
+                        prop="options"
+                        required
+                    >
                         <div class="options-container">
                             <div
                                 v-for="(_, index) in formData.options"
@@ -385,7 +456,11 @@
                                     <TiptapEditor
                                         v-model="formData.options[index]"
                                         minimal
-                                        placeholder="Option text..."
+                                        :placeholder="
+                                            t(
+                                                'questions.form.option_placeholder'
+                                            )
+                                        "
                                         :disabled="dialogType === 'preview'"
                                     />
                                 </div>
@@ -408,16 +483,19 @@
                                 plain
                                 style="margin-top: 10px"
                             >
-                                <el-icon><Plus /></el-icon> Add Option
+                                <el-icon><Plus /></el-icon>
+                                {{ t('questions.action.add_option') }}
                             </el-button>
                         </div>
                     </el-form-item>
                 </template>
 
-                <el-divider>Reference Answer</el-divider>
+                <el-divider>{{
+                    t('questions.form.reference_answer')
+                }}</el-divider>
 
                 <el-form-item
-                    label="Reference Answer"
+                    :label="t('questions.form.reference_answer')"
                     prop="reference_answer"
                     required
                 >
@@ -460,20 +538,22 @@
                         v-model="formData.reference_answer"
                         type="textarea"
                         :rows="3"
-                        placeholder="Enter reference answer or grading criteria..."
+                        :placeholder="
+                            t('questions.form.reference_answer_placeholder')
+                        "
                     />
                 </el-form-item>
 
-                <el-divider>Metadata</el-divider>
+                <el-divider>{{ t('questions.form.metadata') }}</el-divider>
 
                 <el-form-item
-                    label="Manual Grading"
+                    :label="t('questions.form.manual_grading')"
                     prop="needs_manual_grading"
                 >
                     <el-switch
                         v-model="formData.needs_manual_grading"
-                        active-text="Yes (Teacher reviews)"
-                        inactive-text="No (Auto-graded)"
+                        :active-text="t('questions.form.manual_grading_yes')"
+                        :inactive-text="t('questions.form.manual_grading_no')"
                     />
                     <div
                         style="
@@ -483,13 +563,14 @@
                             margin-top: 4px;
                         "
                     >
-                        * If enabled, the system will not auto-score this
-                        question. You must grade it manually in the Grades
-                        section.
+                        {{ t('questions.form.manual_grading_help') }}
                     </div>
                 </el-form-item>
 
-                <el-form-item label="Difficulty" prop="difficulty">
+                <el-form-item
+                    :label="t('questions.form.difficulty')"
+                    prop="difficulty"
+                >
                     <el-rate
                         v-model="formData.difficulty"
                         :max="3"
@@ -498,31 +579,37 @@
                     />
                 </el-form-item>
 
-                <el-form-item label="Lesson" prop="lesson">
+                <el-form-item :label="t('questions.form.lesson')" prop="lesson">
                     <el-input
                         v-model="formData.lesson"
-                        placeholder="e.g., Lesson 1"
+                        :placeholder="t('questions.form.lesson_placeholder')"
                     />
                 </el-form-item>
 
-                <el-form-item label="Tags" prop="literacy_tags">
+                <el-form-item
+                    :label="t('questions.form.tags')"
+                    prop="literacy_tags"
+                >
                     <el-select
                         v-model="formData.literacy_tags"
                         multiple
                         filterable
                         allow-create
                         default-first-option
-                        placeholder="Type and press Enter to create tags"
+                        :placeholder="t('questions.form.tags_placeholder')"
                         style="width: 100%"
                     >
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="Visibility" prop="is_public">
+                <el-form-item
+                    :label="t('questions.form.visibility')"
+                    prop="is_public"
+                >
                     <el-switch
                         v-model="formData.is_public"
-                        active-text="Public"
-                        inactive-text="Private"
+                        :active-text="t('questions.form.public')"
+                        :inactive-text="t('questions.form.private')"
                         :disabled="
                             dialogType === 'edit' && formData.original_is_public
                         "
@@ -535,8 +622,7 @@
                             margin-top: 4px;
                         "
                     >
-                        * Once set to public, it cannot be reverted to private
-                        and will be available to all teachers.
+                        {{ t('questions.form.visibility_help') }}
                     </div>
                 </el-form-item>
             </el-form>
@@ -544,14 +630,16 @@
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="dialogVisible = false">{{
-                        dialogType === 'preview' ? 'Close' : 'Cancel'
+                        dialogType === 'preview'
+                            ? t('common.close')
+                            : t('common.cancel')
                     }}</el-button>
                     <el-button
                         v-if="dialogType !== 'preview'"
                         type="primary"
                         @click="handleSubmit"
                         :loading="submitLoading"
-                        >Confirm</el-button
+                        >{{ t('common.confirm') }}</el-button
                     >
                 </span>
             </template>
@@ -564,6 +652,7 @@ import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 import { useAuthStore } from '../stores/auth'
 
@@ -579,6 +668,7 @@ import TiptapEditor from '../components/TiptapEditor.vue'
 import { stripMarkdown } from '../utils/format'
 
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 type QuestionRow = QuestionResponse
 
@@ -872,11 +962,11 @@ const handleSubmit = async () => {
 // Lock
 const handleLock = (row: QuestionRow) => {
     ElMessageBox.confirm(
-        'Locking this question means it is ready to be dispatched. It will become read-only and cannot be edited. Proceed?',
-        'Warning',
+        t('questions.dialog.lock_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Lock',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.lock'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -900,11 +990,11 @@ const handleLock = (row: QuestionRow) => {
 // Archive
 const handleArchive = (row: QuestionRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to archive this question?',
-        'Warning',
+        t('questions.dialog.archive_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Archive',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.archive'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -928,11 +1018,11 @@ const handleArchive = (row: QuestionRow) => {
 // Unarchive
 const handleUnarchive = (row: QuestionRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to unarchive this question?',
-        'Warning',
+        t('questions.dialog.unarchive_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Unarchive',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.unarchive'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -957,11 +1047,11 @@ const handleUnarchive = (row: QuestionRow) => {
 // Delete
 const handleDelete = (row: QuestionRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to delete this question?',
-        'Warning',
+        t('questions.dialog.delete_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Delete',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.delete'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -985,11 +1075,11 @@ const handleDelete = (row: QuestionRow) => {
 // Restore
 const handleRestore = (row: QuestionRow) => {
     ElMessageBox.confirm(
-        'Are you sure you want to restore this question?',
-        'Warning',
+        t('questions.dialog.restore_message'),
+        t('common.warning'),
         {
-            confirmButtonText: 'Restore',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: t('common.restore'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
         }
     )
@@ -1018,9 +1108,7 @@ const openAddDialog = () => {
 }
 
 const openAdjustDialog = (row: QuestionRow) => {
-    ElMessage.info(
-        'You are copying a question. Saving will create a new copy in your bank.'
-    )
+    ElMessage.info(t('questions.dialog.adjust_info'))
     dialogType.value = 'adjust'
     resetForm()
     Object.assign(formData, copyRowToForm(row))
@@ -1086,11 +1174,11 @@ onMounted(() => {
 .card-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #303133;
+    color: var(--el-text-color-primary);
 }
 .filter-bar {
     margin-bottom: 20px;
-    background-color: #f8f9fa;
+    background-color: var(--el-fill-color-light);
     padding: 15px;
     border-radius: 4px;
 }

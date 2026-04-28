@@ -1,9 +1,12 @@
+import logging
 from typing import Optional
 
 import models
 import schemas
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 # Get a single student by ID (primary key) with data isolation
@@ -144,3 +147,61 @@ async def toggle_delete_student(
     db_student.deleted_at = func.now() if is_deleted else None
     await db.commit()
     return await get_student(db, db_student.id, current_user)
+
+
+# Batch operations for import and bulk updates
+async def upsert_students_batch(
+    db: AsyncSession,
+    students: list[schemas.StudentCreate],
+    current_user: models.User,
+) -> tuple[list, list, list]:
+    created, updated, failed = [], [], []
+    for s in students:
+        try:
+            async with db.begin_nested():
+                existing = await get_student_by_student_id(db, s.student_id, current_user)
+                if existing:
+                    update_data = s.model_dump(exclude={'student_id'})
+                    for key, value in update_data.items():
+                        if key == 'password' and not value:
+                            continue
+                        setattr(existing, key, value)
+                    await db.flush()
+                    updated.append({'student_id': s.student_id, 'name': s.name})
+                else:
+                    d = s.model_dump()
+                    d['teacher_id'] = current_user.id
+                    db.add(models.Student(**d))
+                    await db.flush()
+                    created.append({'student_id': s.student_id, 'name': s.name})
+        except Exception:
+            logger.exception("upsert_students_batch failed for student_id %s", s.student_id)
+            failed.append({'student_id': s.student_id, 'name': s.name, 'reason': 'error'})
+    await db.commit()
+    return created, updated, failed
+
+
+async def batch_update_students(
+    db: AsyncSession,
+    updates: list[schemas.StudentBatchUpdateItem],
+    current_user: models.User,
+) -> tuple[list, list]:
+    updated_ids, failed_ids = [], []
+    for item in updates:
+        try:
+            async with db.begin_nested():
+                student = await get_student(db, item.id, current_user)
+                if not student or student.deleted_at is not None:
+                    failed_ids.append(item.id)
+                    continue
+                if item.admission_year is not None:
+                    student.admission_year = item.admission_year
+                if item.class_name is not None:
+                    student.class_name = item.class_name
+                await db.flush()
+            updated_ids.append(item.id)
+        except Exception:
+            logger.exception("batch_update_students failed for student id %s", item.id)
+            failed_ids.append(item.id)
+    await db.commit()
+    return updated_ids, failed_ids

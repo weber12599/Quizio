@@ -1,6 +1,9 @@
 .vscode
-*.env
+.env
+.env.dev
 **/pgdata/
 **/nginx/cache/
 **/seaweedfs/
-todo.md
+.claudeignore
+.claude
+CLAUDE.md

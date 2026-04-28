@@ -86,7 +86,6 @@
             :stats="stats"
             :isCorrectOption="isCorrectOption"
             :getStatPercentage="getStatPercentage"
-            :getProgressColor="getProgressColor"
             :pinnedAnswer="pinnedAnswer"
         />
 
@@ -136,8 +135,7 @@ const {
     bannerText,
     getGradingClass,
     getGradingIcon,
-    getStatPercentage,
-    getProgressColor
+    getStatPercentage
 } = useGameQuestion(props, emit)
 </script>
 

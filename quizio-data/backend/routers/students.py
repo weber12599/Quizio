@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import models
 import schemas
@@ -6,6 +6,7 @@ from core.deps import get_current_user
 from crud import students as crud_students
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,6 +81,32 @@ async def create_new_student(
             status_code=status.HTTP_409_CONFLICT,
             detail=f'Student ID {student.student_id} exists',
         )
+
+
+@router.post('/bulk', response_model=schemas.StudentBulkUpsertResponse)
+async def bulk_upsert_students(
+    students: Annotated[List[schemas.StudentCreate], Field(max_length=500)],
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    created, updated, failed = await crud_students.upsert_students_batch(
+        db, students, current_user
+    )
+    return schemas.StudentBulkUpsertResponse(
+        created=created, updated=updated, failed=failed
+    )
+
+
+@router.patch('/batch', response_model=schemas.StudentBatchUpdateResponse)
+async def batch_update_existing_students(
+    updates: List[schemas.StudentBatchUpdateItem],
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    updated_ids, failed_ids = await crud_students.batch_update_students(
+        db, updates, current_user
+    )
+    return schemas.StudentBatchUpdateResponse(updated=updated_ids, failed=failed_ids)
 
 
 @router.put('/{student_db_id}', response_model=schemas.StudentResponse)

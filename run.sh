@@ -78,7 +78,7 @@ fi
 if [ "$ENV" == "dev" ]; then
     echo "🔧 ENV: Development"
     COMPOSE_FILE="docker-compose.dev.yml"
-    ENV_FILE="dev.env"
+    ENV_FILE=".env.dev"
 else
     echo "🌍 ENV: Production"
     COMPOSE_FILE="docker-compose.yml"

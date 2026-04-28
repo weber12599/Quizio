@@ -14,6 +14,7 @@ class HostJoinRoomPayload(BaseModel):
     target_class: Optional[str] = None
     allow_guests: bool = True
     expected_students: List[str] = []
+    host_name: str = '老師'
 
 
 class ClientJoinRoomPayload(BaseModel):
@@ -22,12 +23,19 @@ class ClientJoinRoomPayload(BaseModel):
     guest_name: Optional[str] = None
     student_id: Optional[str] = None
     password: Optional[str] = None
+    player_id: Optional[str] = None
 
     @model_validator(mode='after')
     def validate_guest_or_student(self) -> 'ClientJoinRoomPayload':
         if self.is_guest:
-            if not isinstance(self.guest_name, str) or not self.guest_name.strip():
-                raise ValueError('guest_name is required when is_guest is True')
+            if not any(
+                isinstance(s, str) and bool(s.strip())
+                for s in [self.player_id, self.guest_name]
+            ):
+                raise ValueError(
+                    'player_id or guest_name is required when is_guest is True'
+                )
+
         else:
             if (
                 not isinstance(self.student_id, str)
@@ -91,3 +99,40 @@ class HostShowLeaderboardPayload(BaseModel):
 
 class EndGamePayload(BaseModel):
     room_pin: str
+
+
+# ---------------------------------------------------------
+# Interaction Payloads
+# ---------------------------------------------------------
+
+
+class LikeAnswerPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+
+
+class CommentAnswerPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+    content: str
+
+    @field_validator('content')
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        return sanitize_rich_text(v)
+
+
+class DeleteCommentPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+    comment_id: str
+
+
+class LikeCommentPayload(BaseModel):
+    room_pin: str
+    question_id: int
+    answer_owner_id: str
+    comment_id: str

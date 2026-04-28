@@ -394,24 +394,60 @@
                                                     }}
                                                 </el-button>
 
-                                                <el-button
-                                                    v-else
-                                                    type="success"
-                                                    plain
-                                                    @click="
-                                                        openPinAnswersDialog(eq)
-                                                    "
-                                                    size="large"
-                                                >
-                                                    <el-icon class="mr-1"
-                                                        ><View
-                                                    /></el-icon>
-                                                    {{
-                                                        $t(
-                                                            'host.preview_answers'
-                                                        )
-                                                    }}
-                                                </el-button>
+                                                <template v-else>
+                                                    <el-button
+                                                        type="success"
+                                                        class="mr-1"
+                                                        plain
+                                                        @click="
+                                                            openPinAnswersDialog(
+                                                                eq
+                                                            )
+                                                        "
+                                                        size="large"
+                                                    >
+                                                        <el-icon class="mr-1"
+                                                            ><View
+                                                        /></el-icon>
+                                                        {{
+                                                            $t(
+                                                                'host.preview_answers'
+                                                            )
+                                                        }}
+                                                    </el-button>
+                                                    <el-badge
+                                                        :value="
+                                                            interactionBadge(
+                                                                eq.question_id
+                                                            )
+                                                        "
+                                                        :hidden="
+                                                            interactionBadge(
+                                                                eq.question_id
+                                                            ) === 0
+                                                        "
+                                                    >
+                                                        <el-button
+                                                            plain
+                                                            @click="
+                                                                openInteractionDialog(
+                                                                    eq
+                                                                )
+                                                            "
+                                                            size="large"
+                                                        >
+                                                            <el-icon
+                                                                class="mr-1"
+                                                                ><ChatDotRound
+                                                            /></el-icon>
+                                                            {{
+                                                                $t(
+                                                                    'interaction.view_discussion'
+                                                                )
+                                                            }}
+                                                        </el-button>
+                                                    </el-badge>
+                                                </template>
                                             </div>
 
                                             <div>
@@ -969,19 +1005,45 @@
                 </el-tab-pane>
             </el-tabs>
         </el-dialog>
+
+        <InteractionDialog
+            v-model:visible="interactionDialogVisible"
+            :question="currentInteractionQuestion"
+            :peer-answers="currentInteractionPeerAnswers"
+            :interactions="
+                hostInteractions[currentInteractionQuestion?.id ?? 0] ?? {}
+            "
+            my-player-id="__host__"
+            :is-host="true"
+            @like="handleHostLike"
+            @unlike="handleHostUnlike"
+            @comment="handleHostComment"
+            @like-comment="handleHostLikeComment"
+            @unlike-comment="handleHostUnlikeComment"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from '../utils/socket'
 import api from '../api'
+import { storage } from '../utils/storage'
 import ButtonFloatingAction from '../components/ButtonFloatingAction.vue'
 import GameQuestionCard from '../components/GameQuestionCard.vue'
 import { formatQuestionType } from '../utils/locales'
 import { renderMarkdown } from '../utils/markdown'
-import { Position, Monitor, VideoPause, Refresh } from '@element-plus/icons-vue'
+import {
+    Position,
+    Monitor,
+    VideoPause,
+    Refresh,
+    ChatDotRound
+} from '@element-plus/icons-vue'
+import { SocketEvent } from '../types/socket'
+import InteractionDialog from '../components/InteractionDialog.vue'
+import type { PeerAnswer, QuestionInteractions } from '../types/interaction'
 
 interface Exam {
     id: number
@@ -1075,6 +1137,13 @@ const isLoading = ref(false)
 const isReconnecting = ref(false)
 const isLeaderboardDisplayed = ref(false)
 const recoveredDisplayedId = ref<number | null>(null)
+
+// ── Interaction state ─────────────────────────────────────────────────────
+const interactionDialogVisible = ref(false)
+const currentInteractionQuestion = ref<Question | null>(null)
+const currentInteractionPeerAnswers = ref<PeerAnswer[]>([])
+const hostInteractions = ref<Record<number, QuestionInteractions>>({})
+const seenInteractionCount = ref<Record<number, number>>({})
 
 // --- Computeds ---
 const activeExam = computed(() => {
@@ -1181,6 +1250,8 @@ const verifyTeacher = async () => {
     }
     isLoading.value = true
     errorMessage.value = ''
+    storage.hostToken.clear()
+    storage.setupData.clear()
     try {
         const formData = new URLSearchParams()
         formData.append('username', username.value)
@@ -1191,7 +1262,7 @@ const verifyTeacher = async () => {
         })
 
         authToken.value = data.access_token
-        localStorage.setItem('host_token', data.access_token)
+        storage.hostToken.set(data.access_token)
 
         const [classRes, examRes] = await Promise.all([
             api.get('/students/classes'),
@@ -1240,24 +1311,22 @@ const startRoom = () => {
             exam_id: Number(selectedExam.value),
             target_class: selectedClass.value,
             allow_guests: allowGuests.value,
-            expected_students: expectedStudents.value
+            expected_students: expectedStudents.value,
+            host_name: username.value
         })
 
         isConnected.value = true
         isLoading.value = false
         step.value = 'room'
         isReconnecting.value = false
-        localStorage.setItem(
-            'setup_data',
-            JSON.stringify({
-                room_pin: roomPin.value,
-                exam_id: selectedExam.value,
-                target_class: selectedClass.value,
-                allow_guests: allowGuests.value,
-                expected_students: expectedStudents.value,
-                expected_student_info: expectedStudentInfo.value
-            })
-        )
+        storage.setupData.set({
+            room_pin: roomPin.value,
+            exam_id: selectedExam.value,
+            target_class: selectedClass.value,
+            allow_guests: allowGuests.value,
+            expected_students: expectedStudents.value,
+            expected_student_info: expectedStudentInfo.value
+        })
     })
 
     socket.off('disconnect')
@@ -1280,8 +1349,8 @@ const leaveRoom = () => {
         socket.emit('end_game', {
             room_pin: roomPin.value
         })
-    localStorage.removeItem('setup_data')
-    localStorage.removeItem('host_token')
+    storage.setupData.clear()
+    storage.hostToken.clear()
     isConnected.value = false
     isReconnecting.value = false
     authToken.value = ''
@@ -1551,6 +1620,140 @@ const unpinAnswer = () => {
     })
 }
 
+const interactionBadge = (qId: number): number => {
+    if (
+        interactionDialogVisible.value &&
+        currentInteractionQuestion.value?.id === qId
+    )
+        return 0
+    const ia = hostInteractions.value[qId] ?? {}
+    const total = Object.values(ia).reduce(
+        (sum, x) => sum + x.likes.length + x.comments.length,
+        0
+    )
+    return Math.max(0, total - (seenInteractionCount.value[qId] ?? 0))
+}
+
+const openInteractionDialog = (eq: ExamQuestion) => {
+    currentInteractionQuestion.value = eq.question
+    const answers = roomStats.value.answers?.[eq.question_id] || {}
+    const clients = roomStats.value.clients_info || {}
+    currentInteractionPeerAnswers.value = Object.entries(answers).map(
+        ([playerId, answer]) => ({
+            player_id: playerId,
+            name: clients[playerId]?.name || 'Unknown',
+            is_guest: clients[playerId]?.is_guest || false,
+            answer,
+            question_id: eq.question_id
+        })
+    )
+    snapshotSeenCount(eq.question_id)
+    interactionDialogVisible.value = true
+}
+
+const snapshotSeenCount = (qId: number) => {
+    const ia = hostInteractions.value[qId] ?? {}
+    seenInteractionCount.value[qId] = Object.values(ia).reduce(
+        (sum, x) => sum + x.likes.length + x.comments.length,
+        0
+    )
+}
+
+watch(interactionDialogVisible, (visible) => {
+    if (!visible && currentInteractionQuestion.value) {
+        snapshotSeenCount(currentInteractionQuestion.value.id)
+    }
+})
+
+const handleHostLike = (ownerId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    if (!hostInteractions.value[qId]) hostInteractions.value[qId] = {}
+    const ia = hostInteractions.value[qId][ownerId] ?? {
+        likes: [],
+        comments: []
+    }
+    ia.likes.push({ from_id: '__host__', name: username.value })
+    hostInteractions.value[qId][ownerId] = ia
+    socket.emit(SocketEvent.LIKE_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId
+    })
+}
+
+const handleHostUnlike = (ownerId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const ia = hostInteractions.value[qId]?.[ownerId]
+    if (ia) ia.likes = ia.likes.filter((l) => l.from_id !== '__host__')
+    socket.emit(SocketEvent.UNLIKE_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId
+    })
+}
+
+const handleHostComment = (ownerId: string, content: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    if (!hostInteractions.value[qId]) hostInteractions.value[qId] = {}
+    const ia = hostInteractions.value[qId][ownerId] ?? {
+        likes: [],
+        comments: []
+    }
+    ia.comments.push({
+        id: `local-${Date.now()}`,
+        from_id: '__host__',
+        name: username.value,
+        content,
+        is_host: true,
+        likes: []
+    })
+    hostInteractions.value[qId][ownerId] = ia
+    socket.emit(SocketEvent.COMMENT_ANSWER, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        content
+    })
+}
+
+const handleHostLikeComment = (ownerId: string, commentId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const comment = hostInteractions.value[qId]?.[ownerId]?.comments.find(
+        (c) => c.id === commentId
+    )
+    if (comment) {
+        if (!comment.likes) comment.likes = []
+        comment.likes.push({ from_id: '__host__', name: username.value })
+    }
+    socket.emit(SocketEvent.LIKE_COMMENT, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        comment_id: commentId
+    })
+}
+
+const handleHostUnlikeComment = (ownerId: string, commentId: string) => {
+    const qId = currentInteractionQuestion.value?.id
+    if (!qId) return
+    const comment = hostInteractions.value[qId]?.[ownerId]?.comments.find(
+        (c) => c.id === commentId
+    )
+    if (comment?.likes) {
+        comment.likes = comment.likes.filter((l) => l.from_id !== '__host__')
+    }
+    socket.emit(SocketEvent.UNLIKE_COMMENT, {
+        room_pin: roomPin.value,
+        question_id: qId,
+        answer_owner_id: ownerId,
+        comment_id: commentId
+    })
+}
+
 const getStudentProgress = (playerId: string) => {
     if (broadcastedIds.value.length === 0) return '0 / 0'
     let answered = 0
@@ -1567,12 +1770,8 @@ const getStudentProgress = (playerId: string) => {
 
 // --- Lifecycle ---
 onMounted(() => {
-    const savedToken = localStorage.getItem('host_token')
-    let savedSetupData = undefined
-    try {
-        const jsonStr = localStorage.getItem('setup_data')
-        if (jsonStr) savedSetupData = JSON.parse(jsonStr)
-    } catch {}
+    const savedToken = storage.hostToken.get()
+    const savedSetupData = storage.setupData.get()
 
     if (savedToken && savedSetupData && !isConnected.value) {
         authToken.value = savedToken
@@ -1602,6 +1801,13 @@ onMounted(() => {
         roomStats.value = data
     })
 
+    socket.on(SocketEvent.INTERACTION_UPDATE, (data) => {
+        if (!hostInteractions.value[data.question_id])
+            hostInteractions.value[data.question_id] = {}
+        hostInteractions.value[data.question_id][data.answer_owner_id] =
+            data.answer_interactions
+    })
+
     socket.on('host_recovered_state', (data) => {
         broadcastedIds.value = data.broadcasted_ids
         isLeaderboardDisplayed.value = data.is_leaderboard_displayed
@@ -1629,6 +1835,7 @@ onUnmounted(() => {
     socket.off('host_recovered_state')
     socket.off('connect')
     socket.off('disconnect')
+    socket.off(SocketEvent.INTERACTION_UPDATE)
 })
 </script>
 

@@ -7,7 +7,10 @@ import type {
     StudentCreate,
     StudentResponse,
     StudentsGet,
-    StudentUpdate
+    StudentUpdate,
+    StudentBulkUpsertResponse,
+    StudentBatchUpdateItem,
+    StudentBatchUpdateResponse
 } from './types/students'
 import type {
     QuestionCreate,
@@ -24,6 +27,7 @@ import type {
 import type {
     GetGradeReport,
     GradeReportResponse,
+    QuestionInteractionRead,
     StudentAnswerResponse,
     StudentSubmissionResponse
 } from './types/submissions'
@@ -142,6 +146,18 @@ const dataAPI = {
     deleteStudent: async (id: number) => {
         return await instance.delete(`/students/${id}`)
     },
+    bulkUpsertStudents: async (data: StudentCreate[]) => {
+        return await instance.post<StudentBulkUpsertResponse>(
+            '/students/bulk',
+            data
+        )
+    },
+    batchUpdateStudents: async (data: StudentBatchUpdateItem[]) => {
+        return await instance.patch<StudentBatchUpdateResponse>(
+            '/students/batch',
+            data
+        )
+    },
     // Question
     getQuestions: async (params: QuestionsGet) => {
         return await instance.get<QuestionResponse[]>('/questions/', { params })
@@ -218,6 +234,21 @@ const dataAPI = {
             {
                 score
             }
+        )
+    },
+    getSessionInteractions: async (submissionId: number) => {
+        return await instance.get<QuestionInteractionRead[]>(
+            '/submissions/session-interactions',
+            { params: { submission_id: submissionId } }
+        )
+    },
+    updateDiscussionScore: async (
+        submissionId: number,
+        score: number | null
+    ) => {
+        return await instance.patch<StudentSubmissionResponse>(
+            `/submissions/${submissionId}/discussion-score`,
+            { score }
         )
     }
 }
