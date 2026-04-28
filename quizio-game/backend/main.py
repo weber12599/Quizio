@@ -6,7 +6,7 @@ from sockets import sio
 fastapi_app = FastAPI(
     title='Quizio Game API',
     description='API document for Quizio Game',
-    version='0.1.5',
+    version='0.2.0',
 )
 fastapi_app.include_router(api_router)
 
