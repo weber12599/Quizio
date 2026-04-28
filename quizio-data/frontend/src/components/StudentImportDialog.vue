@@ -121,9 +121,9 @@
                                 :value="col"
                             />
                         </el-select>
-                        <span v-if="!columnMap.student_id" class="error-text"
-                            >{{ $t('common.error_required') }}</span
-                        >
+                        <span v-if="!columnMap.student_id" class="error-text">{{
+                            $t('common.error_required')
+                        }}</span>
                     </div>
 
                     <!-- Name (required) -->
@@ -143,9 +143,9 @@
                                 :value="col"
                             />
                         </el-select>
-                        <span v-if="!columnMap.name" class="error-text"
-                            >{{ $t('common.error_required') }}</span
-                        >
+                        <span v-if="!columnMap.name" class="error-text">{{
+                            $t('common.error_required')
+                        }}</span>
                     </div>
 
                     <!-- Email (optional) -->

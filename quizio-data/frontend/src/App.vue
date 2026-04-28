@@ -12,7 +12,7 @@ import zhTw from 'element-plus/es/locale/lang/zh-tw'
 import en from 'element-plus/es/locale/lang/en'
 
 const { locale } = useI18n()
-const epLocale = computed(() => locale.value === 'zh' ? zhTw : en)
+const epLocale = computed(() => (locale.value === 'zh' ? zhTw : en))
 const { initTheme } = useTheme()
 
 onMounted(() => {

@@ -17,7 +17,10 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('exams.filter.draft')" :value="false" />
+                        <el-option
+                            :label="t('exams.filter.draft')"
+                            :value="false"
+                        />
                         <el-option :label="t('common.lock')" :value="true" />
                     </el-select>
                 </el-form-item>
@@ -27,7 +30,10 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('exams.filter.active')" :value="false" />
+                        <el-option
+                            :label="t('exams.filter.active')"
+                            :value="false"
+                        />
                         <el-option :label="t('common.archive')" :value="true" />
                     </el-select>
                 </el-form-item>
@@ -37,7 +43,10 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('exams.filter.not_deleted')" :value="false" />
+                        <el-option
+                            :label="t('exams.filter.not_deleted')"
+                            :value="false"
+                        />
                         <el-option :label="t('common.delete')" :value="true" />
                     </el-select>
                 </el-form-item>
@@ -45,7 +54,9 @@
                     <el-button type="primary" @click="handleSearch">
                         <el-icon><Search /></el-icon> {{ t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">{{ t('exams.filter.reset') }}</el-button>
+                    <el-button @click="resetFilters">{{
+                        t('exams.filter.reset')
+                    }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -55,9 +66,17 @@
                 border
                 style="width: 100%"
             >
-                <el-table-column prop="id" :label="t('exams.columns.id')" width="60" />
+                <el-table-column
+                    prop="id"
+                    :label="t('exams.columns.id')"
+                    width="60"
+                />
 
-                <el-table-column prop="status" :label="t('exams.columns.status')" width="100">
+                <el-table-column
+                    prop="status"
+                    :label="t('exams.columns.status')"
+                    width="100"
+                >
                     <template #default="scope">
                         <el-tag
                             v-if="scope.row.is_locked"
@@ -65,7 +84,9 @@
                             type="success"
                             >{{ t('common.lock') }}</el-tag
                         >
-                        <el-tag v-else size="small" type="info">{{ t('exams.filter.draft') }}</el-tag>
+                        <el-tag v-else size="small" type="info">{{
+                            t('exams.filter.draft')
+                        }}</el-tag>
 
                         <el-tag
                             v-if="scope.row.is_archived"
@@ -191,7 +212,8 @@
                                             v-if="!scope.row.is_locked"
                                             @click="handleLock(scope.row)"
                                         >
-                                            <el-icon><Lock /></el-icon> {{ t('common.lock') }}
+                                            <el-icon><Lock /></el-icon>
+                                            {{ t('common.lock') }}
                                         </el-dropdown-item>
 
                                         <el-dropdown-item
@@ -496,7 +518,9 @@
                                     <span
                                         style="
                                             margin-right: 10px;
-                                            color: var(--el-text-color-placeholder);
+                                            color: var(
+                                                --el-text-color-placeholder
+                                            );
                                             font-size: 0.9em;
                                             white-space: nowrap;
                                         "
@@ -607,7 +631,9 @@
                                 <el-date-picker
                                     v-model="formData.target_date"
                                     type="date"
-                                    :placeholder="t('exams.placeholder.target_date')"
+                                    :placeholder="
+                                        t('exams.placeholder.target_date')
+                                    "
                                     format="YYYY-MM-DD"
                                     value-format="YYYY-MM-DD"
                                     style="width: 100%"
@@ -618,15 +644,24 @@
                                     v-model="formData.description"
                                     type="textarea"
                                     :rows="2"
-                                    :placeholder="t('exams.placeholder.description')"
+                                    :placeholder="
+                                        t('exams.placeholder.description')
+                                    "
                                 />
                             </el-form-item>
                         </el-form>
 
                         <el-divider>
-                            {{ t('exams.builder.selected_questions') }} ({{ selectedQuestions.length }})
-                            <span style="margin-left: 10px; color: var(--el-color-primary)"
-                                >| {{ t('exams.builder.total_score') }}: {{ totalScore }}</span
+                            {{ t('exams.builder.selected_questions') }} ({{
+                                selectedQuestions.length
+                            }})
+                            <span
+                                style="
+                                    margin-left: 10px;
+                                    color: var(--el-color-primary);
+                                "
+                                >| {{ t('exams.builder.total_score') }}:
+                                {{ totalScore }}</span
                             >
                         </el-divider>
 
@@ -651,7 +686,9 @@
                                                 display: flex;
                                                 align-items: center;
                                                 gap: 5px;
-                                                background-color: var(--el-fill-color-light);
+                                                background-color: var(
+                                                    --el-fill-color-light
+                                                );
                                                 padding: 2px 8px;
                                                 border-radius: 4px;
                                             "
@@ -659,7 +696,9 @@
                                             <span
                                                 style="
                                                     font-size: 12px;
-                                                    color: var(--el-text-color-placeholder);
+                                                    color: var(
+                                                        --el-text-color-placeholder
+                                                    );
                                                 "
                                                 >Score:</span
                                             >
@@ -847,7 +886,9 @@
                             </el-card>
                             <el-empty
                                 v-if="selectedQuestions.length === 0"
-                                :description="t('exams.builder.no_questions_selected')"
+                                :description="
+                                    t('exams.builder.no_questions_selected')
+                                "
                             />
                         </div>
                     </div>
@@ -858,15 +899,21 @@
                 <span class="dialog-footer">
                     <template v-if="dialogType === 'preview'">
                         <el-button @click="handlePrint('questions')">
-                            <el-icon><Printer /></el-icon> {{ t('exams.action.print_questions') }}
+                            <el-icon><Printer /></el-icon>
+                            {{ t('exams.action.print_questions') }}
                         </el-button>
                         <el-button @click="handlePrint('answers')">
-                            <el-icon><Printer /></el-icon> {{ t('exams.action.print_answers') }}
+                            <el-icon><Printer /></el-icon>
+                            {{ t('exams.action.print_answers') }}
                         </el-button>
                     </template>
 
                     <el-button @click="dialogVisible = false"
-                        >{{ dialogType === 'preview' ? t('common.close') : t('common.cancel') }}
+                        >{{
+                            dialogType === 'preview'
+                                ? t('common.close')
+                                : t('common.cancel')
+                        }}
                     </el-button>
                     <el-button
                         v-if="dialogType !== 'preview'"
@@ -1175,15 +1222,11 @@ const handleSubmit = async () => {
 
 // Lock
 const handleLock = (row: ExamRow) => {
-    ElMessageBox.confirm(
-        t('exams.dialog.lock_message'),
-        t('common.warning'),
-        {
-            confirmButtonText: t('common.lock'),
-            cancelButtonText: t('common.cancel'),
-            type: 'warning'
-        }
-    )
+    ElMessageBox.confirm(t('exams.dialog.lock_message'), t('common.warning'), {
+        confirmButtonText: t('common.lock'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+    })
         .then(async () => {
             try {
                 await dataAPI.lockExam(row.id)

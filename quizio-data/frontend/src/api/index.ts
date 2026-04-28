@@ -242,7 +242,10 @@ const dataAPI = {
             { params: { submission_id: submissionId } }
         )
     },
-    updateDiscussionScore: async (submissionId: number, score: number | null) => {
+    updateDiscussionScore: async (
+        submissionId: number,
+        score: number | null
+    ) => {
         return await instance.patch<StudentSubmissionResponse>(
             `/submissions/${submissionId}/discussion-score`,
             { score }

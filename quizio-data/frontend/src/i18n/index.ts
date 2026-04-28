@@ -7,7 +7,7 @@ const i18n = createI18n({
     legacy: false,
     locale: storage.appLang.get() ?? 'zh',
     fallbackLocale: 'en',
-    messages: { zh, en },
+    messages: { zh, en }
 })
 
 export default i18n

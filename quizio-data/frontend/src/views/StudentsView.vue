@@ -5,14 +5,23 @@
                 <div class="card-header">
                     <h2>{{ $t('students.title') }}</h2>
                     <div class="header-buttons">
-                        <el-button v-if="selectedRows.length > 0" @click="batchEditVisible = true">
-                            {{ $t('students.batch_edit', { count: selectedRows.length }) }}
+                        <el-button
+                            v-if="selectedRows.length > 0"
+                            @click="batchEditVisible = true"
+                        >
+                            {{
+                                $t('students.batch_edit', {
+                                    count: selectedRows.length
+                                })
+                            }}
                         </el-button>
                         <el-button @click="importDialogVisible = true">
-                            <el-icon><Upload /></el-icon> {{ $t('students.import_students') }}
+                            <el-icon><Upload /></el-icon>
+                            {{ $t('students.import_students') }}
                         </el-button>
                         <el-button type="primary" @click="openAddDialog">
-                            <el-icon><Plus /></el-icon> {{ $t('students.add_student') }}
+                            <el-icon><Plus /></el-icon>
+                            {{ $t('students.add_student') }}
                         </el-button>
                     </div>
                 </div>
@@ -22,7 +31,11 @@
                 <el-form-item :label="$t('students.filter.by_year')">
                     <el-input-number
                         v-model="filterYear"
-                        :placeholder="$t('students.placeholder.admission_year', { year: new Date().getFullYear() - 1911 })"
+                        :placeholder="
+                            $t('students.placeholder.admission_year', {
+                                year: new Date().getFullYear() - 1911
+                            })
+                        "
                         align="left"
                         :controls="false"
                     />
@@ -40,15 +53,23 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="$t('students.status_active')" :value="true" />
-                        <el-option :label="$t('students.status_deleted')" :value="false" />
+                        <el-option
+                            :label="$t('students.status_active')"
+                            :value="true"
+                        />
+                        <el-option
+                            :label="$t('students.status_deleted')"
+                            :value="false"
+                        />
                     </el-select>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="handleSearch">
                         <el-icon><Search /></el-icon> {{ $t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="resetFilters">{{
+                        $t('common.cancel')
+                    }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -58,7 +79,7 @@
                 v-loading="loading"
                 border
                 style="width: 100%"
-                @selection-change="(rows) => selectedRows = rows"
+                @selection-change="(rows) => (selectedRows = rows)"
             >
                 <el-table-column type="selection" width="40" />
                 <el-table-column
@@ -66,15 +87,31 @@
                     :label="$t('students.columns.student_id')"
                     width="120"
                 />
-                <el-table-column prop="name" :label="$t('students.columns.full_name')" width="120" />
-                <el-table-column prop="email" :label="$t('students.columns.email')" min-width="180" />
+                <el-table-column
+                    prop="name"
+                    :label="$t('students.columns.full_name')"
+                    width="120"
+                />
+                <el-table-column
+                    prop="email"
+                    :label="$t('students.columns.email')"
+                    min-width="180"
+                />
                 <el-table-column
                     prop="admission_year"
                     :label="$t('students.columns.admission_year')"
                     width="150"
                 />
-                <el-table-column prop="class_name" :label="$t('students.columns.class')" width="100" />
-                <el-table-column :label="$t('common.edit')" min-width="180" fixed="right">
+                <el-table-column
+                    prop="class_name"
+                    :label="$t('students.columns.class')"
+                    width="100"
+                />
+                <el-table-column
+                    :label="$t('common.edit')"
+                    min-width="180"
+                    fixed="right"
+                >
                     <template #default="scope">
                         <el-button
                             size="small"
@@ -88,7 +125,8 @@
                             type="danger"
                             @click="handleDelete(scope.row)"
                         >
-                            <el-icon><Delete /></el-icon> {{ $t('common.delete') }}
+                            <el-icon><Delete /></el-icon>
+                            {{ $t('common.delete') }}
                         </el-button>
                         <el-button
                             v-if="scope.row.deleted_at"
@@ -96,7 +134,8 @@
                             type="warning"
                             @click="handleRestore(scope.row)"
                         >
-                            <el-icon><RefreshLeft /></el-icon> {{ $t('common.restore') }}
+                            <el-icon><RefreshLeft /></el-icon>
+                            {{ $t('common.restore') }}
                         </el-button>
                     </template>
                 </el-table-column>
@@ -105,7 +144,11 @@
 
         <el-dialog
             v-model="dialogVisible"
-            :title="dialogType === 'add' ? $t('students.add_student') : $t('students.edit_student')"
+            :title="
+                dialogType === 'add'
+                    ? $t('students.add_student')
+                    : $t('students.edit_student')
+            "
             width="500px"
         >
             <el-form
@@ -114,7 +157,11 @@
                 :rules="rules"
                 label-width="120px"
             >
-                <el-form-item :label="$t('students.form.student_id')" prop="student_id" required>
+                <el-form-item
+                    :label="$t('students.form.student_id')"
+                    prop="student_id"
+                    required
+                >
                     <el-input
                         v-model="formData.student_id"
                         :disabled="dialogType === 'edit'"
@@ -164,7 +211,10 @@
                     />
                 </el-form-item>
 
-                <el-form-item :label="$t('students.form.admission_year')" prop="admission_year">
+                <el-form-item
+                    :label="$t('students.form.admission_year')"
+                    prop="admission_year"
+                >
                     <el-input-number
                         v-model="formData.admission_year"
                         align="left"
@@ -173,7 +223,10 @@
                     />
                 </el-form-item>
 
-                <el-form-item :label="$t('students.form.class')" prop="class_name">
+                <el-form-item
+                    :label="$t('students.form.class')"
+                    prop="class_name"
+                >
                     <el-input
                         v-model="formData.class_name"
                         :placeholder="$t('students.placeholder.class')"
@@ -183,7 +236,9 @@
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="dialogVisible = false">{{
+                        $t('common.cancel')
+                    }}</el-button>
                     <el-button
                         type="primary"
                         @click="handleSubmit"
@@ -206,7 +261,9 @@
                         align="left"
                         :controls="false"
                         clearable
-                        :placeholder="$t('students.batch_edit_year_placeholder')"
+                        :placeholder="
+                            $t('students.batch_edit_year_placeholder')
+                        "
                         :style="{ width: '100%' }"
                     />
                 </el-form-item>
@@ -215,14 +272,18 @@
                     <el-input
                         v-model="batchEditClass"
                         clearable
-                        :placeholder="$t('students.batch_edit_class_placeholder')"
+                        :placeholder="
+                            $t('students.batch_edit_class_placeholder')
+                        "
                     />
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="batchEditVisible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="batchEditVisible = false">{{
+                        $t('common.cancel')
+                    }}</el-button>
                     <el-button
                         type="primary"
                         :loading="batchEditLoading"
@@ -253,8 +314,7 @@ import type {
     StudentCreate,
     StudentResponse,
     StudentsGet,
-    StudentUpdate,
-    StudentBatchUpdateItem
+    StudentUpdate
 } from '../api/types/students'
 import StudentImportDialog from '../components/StudentImportDialog.vue'
 
@@ -418,15 +478,11 @@ const handleSubmit = async () => {
 
 // Delete
 const handleDelete = (row: StudentRow) => {
-    ElMessageBox.confirm(
-        `${t('common.delete_confirm')}`,
-        t('common.warning'),
-        {
-            confirmButtonText: t('common.delete'),
-            cancelButtonText: t('common.cancel'),
-            type: 'warning'
-        }
-    )
+    ElMessageBox.confirm(`${t('common.delete_confirm')}`, t('common.warning'), {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+    })
         .then(async () => {
             try {
                 await dataAPI.deleteStudent(row.id)
@@ -434,7 +490,9 @@ const handleDelete = (row: StudentRow) => {
                 fetchStudents()
             } catch (err: unknown) {
                 const error = err as ApiError
-                ElMessage.error(error.response?.data?.detail || t('common.error'))
+                ElMessage.error(
+                    error.response?.data?.detail || t('common.error')
+                )
             }
         })
         .catch(() => {
@@ -444,15 +502,11 @@ const handleDelete = (row: StudentRow) => {
 
 // Restore
 const handleRestore = (row: StudentRow) => {
-    ElMessageBox.confirm(
-        t('common.restore_confirm'),
-        t('common.warning'),
-        {
-            confirmButtonText: t('common.restore'),
-            cancelButtonText: t('common.cancel'),
-            type: 'warning'
-        }
-    )
+    ElMessageBox.confirm(t('common.restore_confirm'), t('common.warning'), {
+        confirmButtonText: t('common.restore'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+    })
         .then(async () => {
             try {
                 await dataAPI.restoreStudent(row.id)
@@ -460,7 +514,9 @@ const handleRestore = (row: StudentRow) => {
                 fetchStudents()
             } catch (err: unknown) {
                 const error = err as ApiError
-                ElMessage.error(error.response?.data?.detail || t('common.error'))
+                ElMessage.error(
+                    error.response?.data?.detail || t('common.error')
+                )
             }
         })
         .catch(() => {
@@ -515,12 +571,15 @@ const handleBatchEdit = async () => {
 
     batchEditLoading.value = true
     try {
-        const payload = selectedRows.value
-            .map((row) => ({
-                id: row.id,
-                ...(batchEditYear.value !== null ? { admission_year: batchEditYear.value } : {}),
-                ...(batchEditClass.value ? { class_name: batchEditClass.value } : {})
-            }))
+        const payload = selectedRows.value.map((row) => ({
+            id: row.id,
+            ...(batchEditYear.value !== null
+                ? { admission_year: batchEditYear.value }
+                : {}),
+            ...(batchEditClass.value
+                ? { class_name: batchEditClass.value }
+                : {})
+        }))
 
         await dataAPI.batchUpdateStudents(payload)
         ElMessage.success(t('common.success'))

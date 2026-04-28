@@ -1,7 +1,9 @@
 <template>
     <div class="login-container">
         <div class="toolbar">
-            <el-tooltip :content="locale === 'zh' ? $t('lang.en') : $t('lang.zh')">
+            <el-tooltip
+                :content="locale === 'zh' ? $t('lang.en') : $t('lang.zh')"
+            >
                 <el-button text @click="toggleLang" class="toggle-btn">
                     <span style="font-size: 1.2rem">🌐</span>
                 </el-button>

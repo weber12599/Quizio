@@ -65,7 +65,9 @@
                     <el-date-picker
                         v-model="dateRange"
                         type="daterange"
-                        :range-separator="t('grades.filter.date_range_separator')"
+                        :range-separator="
+                            t('grades.filter.date_range_separator')
+                        "
                         :start-placeholder="t('grades.filter.start_date')"
                         :end-placeholder="t('grades.filter.end_date')"
                         value-format="YYYY-MM-DD"
@@ -80,7 +82,9 @@
                     >
                         <el-icon><Search /></el-icon> {{ t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">{{ t('grades.filter.reset') }}</el-button>
+                    <el-button @click="resetFilters">{{
+                        t('grades.filter.reset')
+                    }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -203,7 +207,10 @@
             destroy-on-close
         >
             <el-tabs v-model="activeTab" @tab-click="onTabClick">
-                <el-tab-pane :label="t('grades.dialog.tab_answers')" name="grading">
+                <el-tab-pane
+                    :label="t('grades.dialog.tab_answers')"
+                    name="grading"
+                >
                     <div
                         v-loading="submissionLoading"
                         class="grading-container"
@@ -224,7 +231,14 @@
                             >
                                 <div class="q-header">
                                     <el-tag
-                                        :type="getTagType(ans.question?.needs_manual_grading ? 'danger' : 'info')"
+                                        :type="
+                                            getTagType(
+                                                ans.question
+                                                    ?.needs_manual_grading
+                                                    ? 'danger'
+                                                    : 'info'
+                                            )
+                                        "
                                         size="small"
                                     >
                                         Q{{ index + 1 }} -
@@ -270,7 +284,11 @@
                                 </div>
 
                                 <div class="ref-answer-box">
-                                    <span class="label">{{ t('grades.dialog.reference_answer') }}:</span>
+                                    <span class="label"
+                                        >{{
+                                            t('grades.dialog.reference_answer')
+                                        }}:</span
+                                    >
                                     <div class="ans-text">
                                         {{
                                             formatDisplayAnswer(
@@ -282,7 +300,11 @@
                                 </div>
 
                                 <div class="student-answer-box">
-                                    <span class="label">{{ t('grades.dialog.student_answer') }}:</span>
+                                    <span class="label"
+                                        >{{
+                                            t('grades.dialog.student_answer')
+                                        }}:</span
+                                    >
                                     <div class="ans-text">
                                         {{
                                             formatDisplayAnswer(
@@ -315,7 +337,8 @@
                                         @click="submitGrade(ans)"
                                         :loading="savingAnswerId === ans.id"
                                     >
-                                        <el-icon><Check /></el-icon> {{ t('grades.dialog.save_score') }}
+                                        <el-icon><Check /></el-icon>
+                                        {{ t('grades.dialog.save_score') }}
                                     </el-button>
                                 </div>
                             </el-card>
@@ -323,7 +346,10 @@
                     </div>
                 </el-tab-pane>
 
-                <el-tab-pane :label="t('grades.dialog.tab_interactions')" name="interactions">
+                <el-tab-pane
+                    :label="t('grades.dialog.tab_interactions')"
+                    name="interactions"
+                >
                     <div class="grading-container">
                         <!-- Discussion Score row -->
                         <div
@@ -348,7 +374,8 @@
                                 @click="saveDiscussionScore"
                                 :loading="savingDiscussionScore"
                             >
-                                <el-icon><Check /></el-icon> {{ t('common.save') }}
+                                <el-icon><Check /></el-icon>
+                                {{ t('common.save') }}
                             </el-button>
                         </div>
 
@@ -443,7 +470,13 @@
                                         >
                                             <el-tag
                                                 size="small"
-                                                :type="getTagType(getAuthorTagType(comment.author))"
+                                                :type="
+                                                    getTagType(
+                                                        getAuthorTagType(
+                                                            comment.author
+                                                        )
+                                                    )
+                                                "
                                             >
                                                 {{ comment.author.name }}
                                             </el-tag>
@@ -479,7 +512,11 @@
                                         v-if="qSection.options.length === 0"
                                         class="ia-empty-hint"
                                     >
-                                        {{ t('grades.empty.no_option_interactions') }}
+                                        {{
+                                            t(
+                                                'grades.empty.no_option_interactions'
+                                            )
+                                        }}
                                     </div>
                                 </template>
 
@@ -497,7 +534,13 @@
                                         <div class="ia-answer-header">
                                             <el-tag
                                                 size="small"
-                                                :type="getTagType(getAnswerTagType(ans.author))"
+                                                :type="
+                                                    getTagType(
+                                                        getAnswerTagType(
+                                                            ans.author
+                                                        )
+                                                    )
+                                                "
                                             >
                                                 {{ ans.author.name }}
                                                 <span
@@ -512,7 +555,9 @@
                                             </el-tag>
                                             <span class="ia-answer-content">{{
                                                 ans.answer_content ||
-                                                t('grades.interaction.no_answer')
+                                                t(
+                                                    'grades.interaction.no_answer'
+                                                )
                                             }}</span>
                                             <span
                                                 class="ia-likes-count"
@@ -561,7 +606,13 @@
                                         >
                                             <el-tag
                                                 size="small"
-                                                :type="getTagType(getAuthorTagType(comment.author))"
+                                                :type="
+                                                    getTagType(
+                                                        getAuthorTagType(
+                                                            comment.author
+                                                        )
+                                                    )
+                                                "
                                             >
                                                 {{ comment.author.name }}
                                             </el-tag>
@@ -601,7 +652,9 @@
             </el-tabs>
 
             <template #footer>
-                <el-button @click="closeGradingDialog">{{ t('common.close') }}</el-button>
+                <el-button @click="closeGradingDialog">{{
+                    t('common.close')
+                }}</el-button>
             </template>
         </el-dialog>
     </div>

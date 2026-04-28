@@ -108,16 +108,25 @@
                     </el-icon>
 
                     <el-breadcrumb separator="/">
-                        <el-breadcrumb-item :to="{ path: '/admin' }"
-                            >{{ $t('layout.breadcrumb_root') }}</el-breadcrumb-item
-                        >
-                        <el-breadcrumb-item>{{ breadcrumbRouteName }}</el-breadcrumb-item>
+                        <el-breadcrumb-item :to="{ path: '/admin' }">{{
+                            $t('layout.breadcrumb_root')
+                        }}</el-breadcrumb-item>
+                        <el-breadcrumb-item>{{
+                            breadcrumbRouteName
+                        }}</el-breadcrumb-item>
                     </el-breadcrumb>
                 </div>
 
                 <div class="header-right">
                     <span class="welcome-text">
-                        {{ $t('layout.welcome', { name: authStore.user?.full_name || authStore.user?.username || $t('common.loading') }) }}
+                        {{
+                            $t('layout.welcome', {
+                                name:
+                                    authStore.user?.full_name ||
+                                    authStore.user?.username ||
+                                    $t('common.loading')
+                            })
+                        }}
                     </span>
 
                     <el-popover
@@ -143,7 +152,9 @@
                                         :class="{ active: locale === 'zh' }"
                                         @click="setLang('zh')"
                                     >
-                                        <el-icon v-if="locale === 'zh'"><Check /></el-icon>
+                                        <el-icon v-if="locale === 'zh'"
+                                            ><Check
+                                        /></el-icon>
                                         <span v-else style="width: 18px"></span>
                                         {{ $t('lang.zh') }}
                                     </div>
@@ -152,7 +163,9 @@
                                         :class="{ active: locale === 'en' }"
                                         @click="setLang('en')"
                                     >
-                                        <el-icon v-if="locale === 'en'"><Check /></el-icon>
+                                        <el-icon v-if="locale === 'en'"
+                                            ><Check
+                                        /></el-icon>
                                         <span v-else style="width: 18px"></span>
                                         {{ $t('lang.en') }}
                                     </div>
@@ -163,7 +176,9 @@
                                 <div class="settings-menu-header">
                                     <el-icon style="margin-right: 8px">
                                         <Sunny v-if="themeMode === 'light'" />
-                                        <Moon v-else-if="themeMode === 'dark'" />
+                                        <Moon
+                                            v-else-if="themeMode === 'dark'"
+                                        />
                                         <Monitor v-else />
                                     </el-icon>
                                     <span>{{ $t('layout.theme') }}</span>
@@ -171,35 +186,50 @@
                                 <div class="settings-menu-items">
                                     <div
                                         class="settings-menu-item"
-                                        :class="{ active: themeMode === 'light' }"
+                                        :class="{
+                                            active: themeMode === 'light'
+                                        }"
                                         @click="setTheme('light')"
                                     >
-                                        <el-icon v-if="themeMode === 'light'"><Check /></el-icon>
+                                        <el-icon v-if="themeMode === 'light'"
+                                            ><Check
+                                        /></el-icon>
                                         <span v-else style="width: 18px"></span>
                                         {{ $t('theme.light') }}
                                     </div>
                                     <div
                                         class="settings-menu-item"
-                                        :class="{ active: themeMode === 'dark' }"
+                                        :class="{
+                                            active: themeMode === 'dark'
+                                        }"
                                         @click="setTheme('dark')"
                                     >
-                                        <el-icon v-if="themeMode === 'dark'"><Check /></el-icon>
+                                        <el-icon v-if="themeMode === 'dark'"
+                                            ><Check
+                                        /></el-icon>
                                         <span v-else style="width: 18px"></span>
                                         {{ $t('theme.dark') }}
                                     </div>
                                     <div
                                         class="settings-menu-item"
-                                        :class="{ active: themeMode === 'system' }"
+                                        :class="{
+                                            active: themeMode === 'system'
+                                        }"
                                         @click="setTheme('system')"
                                     >
-                                        <el-icon v-if="themeMode === 'system'"><Check /></el-icon>
+                                        <el-icon v-if="themeMode === 'system'"
+                                            ><Check
+                                        /></el-icon>
                                         <span v-else style="width: 18px"></span>
                                         {{ $t('theme.system') }}
                                     </div>
                                 </div>
                             </div>
                             <el-divider style="margin: 8px 0" />
-                            <div class="settings-menu-item settings-menu-logout" @click="handleLogout">
+                            <div
+                                class="settings-menu-item settings-menu-logout"
+                                @click="handleLogout"
+                            >
                                 <el-icon><SwitchButton /></el-icon>
                                 {{ $t('layout.logout') }}
                             </div>
@@ -223,7 +253,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Fold, Expand, Sunny, Moon, Monitor, MoreFilled, Check, SwitchButton } from '@element-plus/icons-vue'
+import {
+    Fold,
+    Expand,
+    Sunny,
+    Moon,
+    Monitor,
+    MoreFilled,
+    Check,
+    SwitchButton
+} from '@element-plus/icons-vue'
 
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../composables/useTheme'
@@ -251,11 +290,11 @@ const setLang = (lang: 'zh' | 'en') => {
 
 // Map route path to breadcrumb name key
 const navKeys: Record<string, string> = {
-    'teachers': 'layout.nav.teachers',
-    'students': 'layout.nav.students',
-    'questions': 'layout.nav.questions',
-    'exams': 'layout.nav.exams',
-    'grades': 'layout.nav.grades',
+    teachers: 'layout.nav.teachers',
+    students: 'layout.nav.students',
+    questions: 'layout.nav.questions',
+    exams: 'layout.nav.exams',
+    grades: 'layout.nav.grades'
 }
 
 const breadcrumbRouteName = computed(() => {

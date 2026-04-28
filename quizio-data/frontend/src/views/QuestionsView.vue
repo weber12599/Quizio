@@ -5,7 +5,8 @@
                 <div class="card-header">
                     <h2>{{ $t('questions.title') }}</h2>
                     <el-button type="primary" @click="openAddDialog">
-                        <el-icon><Plus /></el-icon> {{ $t('questions.add_question') }}
+                        <el-icon><Plus /></el-icon>
+                        {{ $t('questions.add_question') }}
                     </el-button>
                 </div>
             </template>
@@ -17,11 +18,26 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('question_type.single')" value="single" />
-                        <el-option :label="t('question_type.boolean')" value="boolean" />
-                        <el-option :label="t('question_type.multiple')" value="multiple" />
-                        <el-option :label="t('question_type.short')" value="short" />
-                        <el-option :label="t('question_type.essay')" value="essay" />
+                        <el-option
+                            :label="t('question_type.single')"
+                            value="single"
+                        />
+                        <el-option
+                            :label="t('question_type.boolean')"
+                            value="boolean"
+                        />
+                        <el-option
+                            :label="t('question_type.multiple')"
+                            value="multiple"
+                        />
+                        <el-option
+                            :label="t('question_type.short')"
+                            value="short"
+                        />
+                        <el-option
+                            :label="t('question_type.essay')"
+                            value="essay"
+                        />
                     </el-select>
                 </el-form-item>
                 <el-form-item :label="t('questions.filter.by_difficulty')">
@@ -48,7 +64,10 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('questions.filter.draft')" :value="false" />
+                        <el-option
+                            :label="t('questions.filter.draft')"
+                            :value="false"
+                        />
                         <el-option :label="t('common.lock')" :value="true" />
                     </el-select>
                 </el-form-item>
@@ -58,7 +77,10 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('questions.filter.active')" :value="false" />
+                        <el-option
+                            :label="t('questions.filter.active')"
+                            :value="false"
+                        />
                         <el-option :label="t('common.archive')" :value="true" />
                     </el-select>
                 </el-form-item>
@@ -68,7 +90,10 @@
                         clearable
                         style="width: 150px"
                     >
-                        <el-option :label="t('questions.filter.not_deleted')" :value="false" />
+                        <el-option
+                            :label="t('questions.filter.not_deleted')"
+                            :value="false"
+                        />
                         <el-option :label="t('common.delete')" :value="true" />
                     </el-select>
                 </el-form-item>
@@ -76,7 +101,9 @@
                     <el-button type="primary" @click="handleSearch">
                         <el-icon><Search /></el-icon> {{ t('common.search') }}
                     </el-button>
-                    <el-button @click="resetFilters">{{ t('questions.filter.reset') }}</el-button>
+                    <el-button @click="resetFilters">{{
+                        t('questions.filter.reset')
+                    }}</el-button>
                 </el-form-item>
             </el-form>
 
@@ -86,9 +113,17 @@
                 border
                 style="width: 100%"
             >
-                <el-table-column prop="id" :label="t('questions.columns.id')" width="60" />
+                <el-table-column
+                    prop="id"
+                    :label="t('questions.columns.id')"
+                    width="60"
+                />
 
-                <el-table-column prop="status" :label="t('questions.columns.status')" width="100">
+                <el-table-column
+                    prop="status"
+                    :label="t('questions.columns.status')"
+                    width="100"
+                >
                     <template #default="scope">
                         <el-tag
                             v-if="scope.row.is_locked"
@@ -96,7 +131,9 @@
                             type="success"
                             >{{ t('common.lock') }}</el-tag
                         >
-                        <el-tag v-else size="small" type="info">{{ t('questions.filter.draft') }}</el-tag>
+                        <el-tag v-else size="small" type="info">{{
+                            t('questions.filter.draft')
+                        }}</el-tag>
 
                         <el-tag
                             v-if="scope.row.is_archived"
@@ -116,7 +153,11 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="type" :label="t('questions.columns.type')" width="130">
+                <el-table-column
+                    prop="type"
+                    :label="t('questions.columns.type')"
+                    width="130"
+                >
                     <template #default="scope">
                         <el-tag
                             size="small"
@@ -154,7 +195,10 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column :label="t('questions.columns.tags')" min-width="150">
+                <el-table-column
+                    :label="t('questions.columns.tags')"
+                    min-width="150"
+                >
                     <template #default="scope">
                         <el-tag
                             v-for="tag in scope.row.literacy_tags"
@@ -174,7 +218,10 @@
                     show-overflow-tooltip
                 />
 
-                <el-table-column :label="t('questions.columns.last_updated')" width="180">
+                <el-table-column
+                    :label="t('questions.columns.last_updated')"
+                    width="180"
+                >
                     <template #default="scope">
                         {{
                             new Date(
@@ -194,7 +241,9 @@
                         <el-tooltip placement="top">
                             <template #content>
                                 <span>{{
-                                    isEditable(scope.row) ? t('common.edit') : t('questions.action.preview')
+                                    isEditable(scope.row)
+                                        ? t('common.edit')
+                                        : t('questions.action.preview')
                                 }}</span>
                             </template>
                             <el-button
@@ -247,7 +296,8 @@
                                             v-if="!scope.row.is_locked"
                                             @click="handleLock(scope.row)"
                                         >
-                                            <el-icon><Lock /></el-icon> {{ t('common.lock') }}
+                                            <el-icon><Lock /></el-icon>
+                                            {{ t('common.lock') }}
                                         </el-dropdown-item>
 
                                         <el-dropdown-item
@@ -334,7 +384,11 @@
                 :disabled="dialogType === 'preview'"
                 label-width="140px"
             >
-                <el-form-item :label="t('questions.form.type')" prop="type" required>
+                <el-form-item
+                    :label="t('questions.form.type')"
+                    prop="type"
+                    required
+                >
                     <el-select
                         v-model="formData.type"
                         @change="handleTypeChange"
@@ -344,17 +398,30 @@
                             :label="t('question_type.single')"
                             value="single"
                         />
-                        <el-option :label="t('question_type.boolean')" value="boolean" />
+                        <el-option
+                            :label="t('question_type.boolean')"
+                            value="boolean"
+                        />
                         <el-option
                             :label="t('question_type.multiple')"
                             value="multiple"
                         />
-                        <el-option :label="t('question_type.short')" value="short" />
-                        <el-option :label="t('question_type.essay')" value="essay" />
+                        <el-option
+                            :label="t('question_type.short')"
+                            value="short"
+                        />
+                        <el-option
+                            :label="t('question_type.essay')"
+                            value="essay"
+                        />
                     </el-select>
                 </el-form-item>
 
-                <el-form-item :label="t('questions.form.content')" prop="content" required>
+                <el-form-item
+                    :label="t('questions.form.content')"
+                    prop="content"
+                    required
+                >
                     <TiptapEditor
                         v-model="formData.content"
                         :placeholder="t('questions.form.content_placeholder')"
@@ -370,7 +437,11 @@
                 >
                     <el-divider>{{ t('questions.form.options') }}</el-divider>
 
-                    <el-form-item :label="t('questions.form.options')" prop="options" required>
+                    <el-form-item
+                        :label="t('questions.form.options')"
+                        prop="options"
+                        required
+                    >
                         <div class="options-container">
                             <div
                                 v-for="(_, index) in formData.options"
@@ -385,7 +456,11 @@
                                     <TiptapEditor
                                         v-model="formData.options[index]"
                                         minimal
-                                        :placeholder="t('questions.form.option_placeholder')"
+                                        :placeholder="
+                                            t(
+                                                'questions.form.option_placeholder'
+                                            )
+                                        "
                                         :disabled="dialogType === 'preview'"
                                     />
                                 </div>
@@ -408,13 +483,16 @@
                                 plain
                                 style="margin-top: 10px"
                             >
-                                <el-icon><Plus /></el-icon> {{ t('questions.action.add_option') }}
+                                <el-icon><Plus /></el-icon>
+                                {{ t('questions.action.add_option') }}
                             </el-button>
                         </div>
                     </el-form-item>
                 </template>
 
-                <el-divider>{{ t('questions.form.reference_answer') }}</el-divider>
+                <el-divider>{{
+                    t('questions.form.reference_answer')
+                }}</el-divider>
 
                 <el-form-item
                     :label="t('questions.form.reference_answer')"
@@ -460,7 +538,9 @@
                         v-model="formData.reference_answer"
                         type="textarea"
                         :rows="3"
-                        :placeholder="t('questions.form.reference_answer_placeholder')"
+                        :placeholder="
+                            t('questions.form.reference_answer_placeholder')
+                        "
                     />
                 </el-form-item>
 
@@ -487,7 +567,10 @@
                     </div>
                 </el-form-item>
 
-                <el-form-item :label="t('questions.form.difficulty')" prop="difficulty">
+                <el-form-item
+                    :label="t('questions.form.difficulty')"
+                    prop="difficulty"
+                >
                     <el-rate
                         v-model="formData.difficulty"
                         :max="3"
@@ -503,7 +586,10 @@
                     />
                 </el-form-item>
 
-                <el-form-item :label="t('questions.form.tags')" prop="literacy_tags">
+                <el-form-item
+                    :label="t('questions.form.tags')"
+                    prop="literacy_tags"
+                >
                     <el-select
                         v-model="formData.literacy_tags"
                         multiple
@@ -516,7 +602,10 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item :label="t('questions.form.visibility')" prop="is_public">
+                <el-form-item
+                    :label="t('questions.form.visibility')"
+                    prop="is_public"
+                >
                     <el-switch
                         v-model="formData.is_public"
                         :active-text="t('questions.form.public')"
@@ -541,7 +630,9 @@
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="dialogVisible = false">{{
-                        dialogType === 'preview' ? t('common.close') : t('common.cancel')
+                        dialogType === 'preview'
+                            ? t('common.close')
+                            : t('common.cancel')
                     }}</el-button>
                     <el-button
                         v-if="dialogType !== 'preview'"
@@ -1017,9 +1108,7 @@ const openAddDialog = () => {
 }
 
 const openAdjustDialog = (row: QuestionRow) => {
-    ElMessage.info(
-        t('questions.dialog.adjust_info')
-    )
+    ElMessage.info(t('questions.dialog.adjust_info'))
     dialogType.value = 'adjust'
     resetForm()
     Object.assign(formData, copyRowToForm(row))
